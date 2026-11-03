@@ -31,7 +31,65 @@
       <name>Gaming</name>
     </names>
   </desktops>
+
+  <keyboard>
+    <keybind key="A-Tab">
+      <action name="NextWindow">
+        <finalactions>
+          <action name="Focus"/>
+          <action name="Raise"/>
+          <action name="Unshade"/>
+        </finalactions>
+      </action>
+    </keybind>
+    <keybind key="A-S-Tab">
+      <action name="PreviousWindow">
+        <finalactions>
+          <action name="Focus"/>
+          <action name="Raise"/>
+          <action name="Unshade"/>
+        </finalactions>
+      </action>
+    </keybind>
+    <keybind key="A-space">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh menu</command>
+      </action>
+    </keybind>
+    <keybind key="W-space">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh menu</command>
+      </action>
+    </keybind>
+    <keybind key="W-d">
+      <action name="ToggleShowDesktop"/>
+    </keybind>
+  </keyboard>
+
+  <mouse>
+    <context name="Root">
+      <mousebind button="Right" action="Press">
+        <action name="ShowMenu"><menu>root-menu</menu></action>
+      </mousebind>
+      <mousebind button="Middle" action="Press">
+        <action name="ShowMenu"><menu>root-menu</menu></action>
+      </mousebind>
+    </context>
+  </mouse>
+
   <applications>
+    <application type="dialog">
+      <decor>no</decor>
+      <maximized>no</maximized>
+    </application>
+    <application title="Kyber Cloud Gaming">
+      <decor>no</decor>
+      <maximized>no</maximized>
+      <position force="yes">
+        <x>center</x>
+        <y>center</y>
+      </position>
+    </application>
     <application class="*">
       <decor>no</decor>
       <maximized>yes</maximized>

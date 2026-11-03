@@ -82,6 +82,28 @@
                     <input id="send_ctrl_alt_del" type="button" value="Ctrl+Alt+Del"/>
                     <input id="download_logs" type="button" value="Download logs"/>
                   </div>
+                  <div class="nav-section-header" style="margin-top: 10px;">
+                    <div>Launchers</div><div class="chevron"></div>
+                  </div>
+                  <div class="actions" style="display:flex; flex-direction:column; gap:4px; margin-top:6px;">
+                    <button type="button" onclick="switchLauncher('menu')" style="background:#282e46; color:#7aa2f7; border:1px solid #3b4261; border-radius:4px; padding:6px; font-weight:bold; cursor:pointer;">🎮 Menu Launchers</button>
+                    <div style="display:flex; gap:4px;">
+                      <button type="button" onclick="switchLauncher('steam')" style="flex:1; background:#1e293b; color:#38bdf8; border:1px solid #0284c7; border-radius:4px; padding:6px; cursor:pointer;">🚀 Steam</button>
+                      <button type="button" onclick="switchLauncher('heroic')" style="flex:1; background:#1e293b; color:#4ade80; border:1px solid #16a34a; border-radius:4px; padding:6px; cursor:pointer;">🦸 Heroic</button>
+                    </div>
+                    <button type="button" onclick="switchLauncher('restart-steam')" style="background:#262335; color:#f43f5e; border:1px solid #9f1239; border-radius:4px; padding:5px; font-size:12px; cursor:pointer;">🔄 Recharger Steam</button>
+                  </div>
+                  <script>
+                    function switchLauncher(app) {
+                      const port = 8081;
+                      const proto = window.location.protocol;
+                      const host = window.location.hostname;
+                      fetch(`${proto}//${host}:${port}/api/launcher?app=${encodeURIComponent(app)}`)
+                        .then(r => r.json())
+                        .then(d => console.log('Switched launcher:', d))
+                        .catch(e => console.error('Error switching launcher:', e));
+                    }
+                  </script>
                 </li>
                 <li>
                   <div class="nav-section-header">

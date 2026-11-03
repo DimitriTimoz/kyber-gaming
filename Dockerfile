@@ -109,6 +109,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     openssl \
     python3 \
+    python3-tk \
+    wmctrl \
     sudo \
     pciutils \
     psmisc \
@@ -201,12 +203,15 @@ COPY config/xorg/xorg.dummy.conf /etc/kyber/xorg.dummy.conf
 COPY config/kyber/kyber_config.toml /etc/kyber/kyber_config.toml
 COPY config/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY config/openbox/rc.xml /home/gamer/.config/openbox/rc.xml
+COPY config/openbox/menu.xml /home/gamer/.config/openbox/menu.xml
 COPY config/openbox/autostart /home/gamer/.config/openbox/autostart
 COPY config/pipewire/pipewire.conf.d/10-virtual-sink.conf /home/gamer/.config/pipewire/pipewire.conf.d/10-virtual-sink.conf
 
 COPY scripts/make_edid.py /usr/local/bin/make_edid.py
 COPY scripts/init_display.sh /usr/local/bin/init_display.sh
 COPY scripts/run_kycontroller.sh /usr/local/bin/run_kycontroller.sh
+COPY scripts/switch_launcher.sh /usr/local/bin/switch_launcher.sh
+COPY scripts/kyber_launcher_menu.py /usr/local/bin/kyber_launcher_menu.py
 COPY scripts/launch_game_session.sh /usr/local/bin/launch_game_session.sh
 COPY scripts/resizer_service.py /usr/local/bin/resizer_service.py
 COPY scripts/install_nvidia_xorg.sh /usr/local/bin/install_nvidia_xorg.sh

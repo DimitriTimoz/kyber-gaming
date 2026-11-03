@@ -110,6 +110,24 @@ class ResizeHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
+    def _send_json_response(self, data, code=200):
+        body = json.dumps(data).encode("utf-8")
+        self.send_response(code)
+        self._send_cors_headers()
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_text_response(self, text, code=200):
+        body = text.encode("utf-8")
+        self.send_response(code)
+        self._send_cors_headers()
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._send_cors_headers()
@@ -123,18 +141,26 @@ class ResizeHandler(BaseHTTPRequestHandler):
             height = int(params.get("height", ["1080"])[0])
             rate = int(params.get("rate", ["60"])[0])
             result = set_resolution(width, height, rate)
-            self.send_response(200)
-            self._send_cors_headers()
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(result).encode("utf-8"))
+            self._send_json_response(result)
+        elif parsed.path == "/api/launcher":
+            params = parse_qs(parsed.query)
+            app = params.get("app", ["menu"])[0]
+            if app not in ["steam", "steam-bigpicture", "heroic", "menu", "desktop", "restart-steam"]:
+                app = "menu"
+            subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
+            self._send_json_response({"status": "ok", "app": app})
         elif parsed.path == "/api/status":
             current_xrandr = run_cmd("xrandr --current") or "Unavailable"
-            self.send_response(200)
-            self._send_cors_headers()
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            self.wfile.write(current_xrandr.encode("utf-8"))
+            self._send_text_response(current_xrandr)
+        elif parsed.path == "/api/launcher/status":
+            steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
+            heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
+            menu_running = subprocess.run("pgrep -u gamer -f 'kyber_launcher_menu' >/dev/null 2>&1", shell=True).returncode == 0
+            self._send_json_response({
+                "steam": steam_running,
+                "heroic": heroic_running,
+                "menu": menu_running
+            })
         else:
             self.send_response(404)
             self._send_cors_headers()
@@ -154,12 +180,19 @@ class ResizeHandler(BaseHTTPRequestHandler):
             height = data.get("height", 1080)
             rate = data.get("rate", 60)
             result = set_resolution(width, height, rate)
-
-            self.send_response(200)
-            self._send_cors_headers()
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(result).encode("utf-8"))
+            self._send_json_response(result)
+        elif parsed.path == "/api/launcher":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = {}
+            app = data.get("app", "menu")
+            if app not in ["steam", "steam-bigpicture", "heroic", "menu", "desktop", "restart-steam"]:
+                app = "menu"
+            subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
+            self._send_json_response({"status": "ok", "app": app})
         else:
             self.send_response(404)
             self._send_cors_headers()
