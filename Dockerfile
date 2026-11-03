@@ -43,7 +43,7 @@ RUN git clone --depth 1 https://gitlab.com/kyber.stream/core/kyctl.git && \
     sed -i 's|git@gitlab.com:|https://gitlab.com/|g' build-linux.sh && \
     sed -i 's|git clone |git clone --depth 1 |g' build-linux.sh && \
     mkdir -p /opt/kyber/bin /opt/kyber/lib && \
-    ./build-linux.sh -s build-kycontroller -o /opt/kyber
+    ./build-linux.sh -k -s -o /opt/kyber build-kycontroller
 
 # Clone Kyber Web Client
 WORKDIR /src
