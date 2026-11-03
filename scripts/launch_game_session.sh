@@ -16,7 +16,7 @@ done
 
 case "$LAUNCHER_MODE" in
     steam)
-        echo "[launcher] Starting Steam Big Picture..."
+        echo "[launcher] Starting Steam..."
         STEAM_EXEC=""
         if command -v steam >/dev/null 2>&1; then
             STEAM_EXEC="steam"
@@ -52,8 +52,31 @@ case "$LAUNCHER_MODE" in
             fi
         fi
 
+        # Clean up any stale Chromium singleton lock files
+        rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
+
+        # Set desktop background canvas
+        xsetroot -solid "#1a1b26" 2>/dev/null || true
+
+        echo "[launcher] Executing: $STEAM_EXEC -no-cef-sandbox"
+        "$STEAM_EXEC" -no-cef-sandbox &
+        sleep 2
+        while pgrep -u gamer -f steam >/dev/null; do
+            sleep 2
+        done
+        ;;
+    steam-bigpicture)
+        echo "[launcher] Starting Steam Big Picture..."
+        STEAM_EXEC="steam"
+        command -v steam >/dev/null 2>&1 || STEAM_EXEC="/usr/games/steam"
+        rm -f "$HOME/.steam/debian-installation/config/htmlcache/Singleton"* 2>/dev/null || true
+        xsetroot -solid "#1a1b26" 2>/dev/null || true
         echo "[launcher] Executing: $STEAM_EXEC -bigpicture -no-cef-sandbox"
-        exec "$STEAM_EXEC" -bigpicture -no-cef-sandbox
+        "$STEAM_EXEC" -bigpicture -no-cef-sandbox &
+        sleep 2
+        while pgrep -u gamer -f steam >/dev/null; do
+            sleep 2
+        done
         ;;
     heroic)
         echo "[launcher] Starting Heroic Games Launcher..."

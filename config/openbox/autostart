@@ -11,6 +11,6 @@ xsetroot -solid "#101216"
 # Apply initial resolution and refresh rate
 RES="${RESOLUTION:-1920x1080}"
 RATE="${REFRESH_RATE:-60}"
-xrandr --output DFP-0 --mode "$RES" -r "$RATE" 2>/dev/null || xrandr --output default --mode "$RES" -r "$RATE" 2>/dev/null || xrandr -s "$RES" 2>/dev/null || true
+xrandr --output HDMI-0 --mode "$RES" -r "$RATE" 2>/dev/null || xrandr --output DFP-0 --mode "$RES" -r "$RATE" 2>/dev/null || xrandr --output default --mode "$RES" -r "$RATE" 2>/dev/null || xrandr -s "$RES" 2>/dev/null || true
 
 echo "[openbox] Graphical environment initialized."
