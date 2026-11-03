@@ -1,0 +1,212 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+        <script type="module" src="./bundle.js"></script>
+        <script src="./autoresize.js"></script>
+        <link rel="stylesheet" href="./ui.css">
+        <link rel="stylesheet" href="./theme.css">
+        <link rel="icon" href="./theme/favicon.svg" />
+    </head>
+
+    <body>
+        <div id="container">
+          <nav id="sidebar" class="sidebar">
+            <div class="sidebar-scroll">
+              <div class="side-section">
+                <div id="sidebar-logo"></div>
+                <label>
+                  <input type="checkbox" id="pin_sidebar_checkbox" checked>
+                  <span>Pin sidebar</span>
+                </label>
+              </div>
+            </div>
+            <div class="side-section">
+              <ul class="nav-list">
+                <li>
+                  <div class="nav-section-header unfold">
+                    <div>Connection</div><div class="chevron"></div>
+                  </div>
+                  <div id="connection-parameters" class="params-section">
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-section-header unfold">
+                    <div>Authentication</div><div class="chevron"></div>
+                  </div>
+                  <div id="authentication-parameters" class="params-section">
+                    <div class="input-row">
+                      <label for="auth-method">Method</label>
+                      <select id="auth-method">
+                        <option value="basic" selected>Basic</option>
+                        <option value="jwt">Json Web Token</option>
+                        <option value="oidc">OIDC</option>
+                      </select>
+                    </div>
+                    <div id="auth-basic-fields">
+                      <div class="input-row">
+                        <label for="auth-user">Username</label>
+                        <input id="auth-user" type="text" value="Default user"/>
+                      </div>
+                      <div class="input-row">
+                        <label for="auth-pass">Password</label>
+                        <input id="auth-pass" type="password" value="Default password"/>
+                      </div>
+                    </div>
+                    <div id="auth-jwt-fields" style="display: none;">
+                      <div class="input-row">
+                        <label for="auth-token">Token</label>
+                        <input id="auth-token" type="text" value=""/>
+                      </div>
+                    </div>
+                    <div id="auth-oidc-fields" style="display: none;">
+                      <p class="auth-info">You will be prompted to log in with your identity provider.</p>
+                      <div class="input-row">
+                        <label for="oidc_popup">Login in popup</label>
+                        <input id="oidc_popup" type="checkbox" checked title="Open OIDC login in a popup window instead of redirecting."/>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-section-header unfold">
+                    <div>Actions</div><div class="chevron"></div>
+                  </div>
+                  <div class="actions">
+                    <input id="connect" type="button" value="Connect"/>
+                    <input id="disconnect" type="button" value="Disconnect"/>
+                    <input id="restart_streaming" type="button" value="Restart streaming"/>
+                    <input id="fullscreen" type="button" value="Fullscreen"/>
+                  </div>
+                  <div class="actions">
+                    <input id="send_ctrl_alt_del" type="button" value="Ctrl+Alt+Del"/>
+                    <input id="download_logs" type="button" value="Download logs"/>
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-section-header">
+                    <div>Overlay configuration</div><div class="chevron"></div>
+                  </div>
+                  <div class="input-row">
+                    <label for="overlay_toggle_shortcut">Toggle shortcut</label>
+                    <input id="overlay_toggle_shortcut" type="text" value="" placeholder="Please press a key..." disabled />
+                    <input id="capture_shortcut" type="button" value="Capture"/>
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-section-header">
+                    <div>Information</div><div class="chevron"></div>
+                  </div>
+                  <div class="information">
+                    <div class="nav-client-status">
+                      <div>Connection status: </div>
+                      <div id="sidebar-client-status"></div>
+                    </div>
+                    <div class="metrics-section">
+                      <div id="metrics-toggles" class="metrics-toggles"></div>
+                      <div id="graph-overlay-wrapper">
+                        <canvas id="metricsChart"></canvas>
+
+                        <div class="metrics-stats">
+                          <div class="stat-item">
+                            <span class="stat-label">Total Latency:</span>
+                            <span id="latency-value">N/A</span>
+                          </div>
+                          <div class="stat-segments">
+                            <div class="stat-item small">
+                              <span class="stat-label">Server:</span>
+                              <span id="latency-server">N/A</span>
+                            </div>
+                            <div class="stat-item small">
+                              <span class="stat-label">Network:</span>
+                              <span id="latency-network">N/A</span>
+                            </div>
+                            <div class="stat-item small">
+                              <span class="stat-label">Client:</span>
+                              <span id="latency-client">N/A</span>
+                            </div>
+                          </div>
+                        </div>
+                        </div>
+                    </div>
+
+                    <div class="metrics-graph-options">
+                      <label>
+                        <input type="checkbox" id="hud-mode-toggle">
+                        Display the metrics graph
+                      </label>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  <div class="nav-section-header">
+                    <div>Documentation</div><div class="chevron"></div>
+                  </div>
+                  <div id="doc">
+                    <div class="doc-url-params">
+                      <h2>URL Parameters</h2>
+                      <ul>
+                        <li><b>host</b>: Where to connect. Default: <i>127.0.0.1</i></li>
+                        <li><b>port</b>: The port to use for connect. Default: <i>8080</i></li>
+                        <li><b>oidc_popup</b>: Open OIDC login in a popup window (boolean). Default: <i>true</i></li>
+                        <li><b>auth_method</b>: The authentication method used. Default: <i>basic</i>. Possible values:
+                          <ul>
+                            <li>basic</li>
+                            <li>jwt</li>
+                            <li>oidc</li>
+                          </ul>
+                        </li>
+                        <li>
+                          <b>protocol</b>: The protocol to use. Default: <i>kymux</i>. Possible values:
+                          <ul>
+                            <li>websocket</li>
+                            <li>kymux</li>
+                          </ul>
+                        </li>
+                        <li>
+                          <b>kymux_video</b>: The kymux video protocol to use. Default: <i>reliable</i>. Possible values:
+                          <ul>
+                            <li>reliable</li>
+                            <li>gopstream</li>
+                            <li>unreliable</li>
+                            <li>unreliable_fec</li>
+                          </ul>
+                        </li>
+                        <li>
+                          <b>kymux_audio</b>: The kymux audio protocol to use. Default: <i>reliable</i>. Possible values:
+                          <ul>
+                            <li>reliable</li>
+                            <li>unreliable</li>
+                            <li>unreliable_fec</li>
+                          </ul>
+                        </li>
+                        <li><b>bitrate</b>: Connection bitrate. Default: <i>20000000</i></li>
+                        <li>
+                          <b>video_codec</b>: The video codec to use. Default: <i>h264</i>. Possible values:
+                          <ul>
+                            <li>h264</li>
+                            <li>hevc</li>
+                          </ul>
+                        </li>
+                        <li><b>display_index</b>: The index of the display to grab. Default: <i>0</i></li>
+                        <li><b>yuv444</b>: Enable 4:4:4 chroma. Default: <i>false</i></li>
+                        <li><b>software_decode</b>: Force software decoding. Default: <i>false</i></li>
+                        <li><b>audio</b>: Enable audio. Default: <i>true</i></li>
+                        <li><b>audio_buffer</b>: Set audio buffer size. Default: <i>50</i></li>
+                        <li><b>inputs</b>: Forward inputs. Default: <i>true</i></li>
+                        <li><b>intra_refresh</b>: Enable intra refresh (boolean). Default: <i>true</i></li>
+                        <li><b>gamepad_force_xbox360</b>: Force to plug gamepads as Xbox 360 controllers (boolean). Default: <i>false</i></li>
+                        <li><b>clipboard</b>: Enable Clipboard support (boolean). Default: <i>true</i></li>
+                      </ul>
+
+                    </div>
+                  </div>
+                </li>
+              </ul>
+              </div>
+            <input type="button" id="hide_sidebar_btn" value="&larr;">
+          </nav>
+          <div id="audio-notice" hidden>Click anywhere to unmute</div>
+        </div>
+    </body>
+</html>

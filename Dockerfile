@@ -64,12 +64,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sed -i 's|"-Dbuild_server=enabled"|"-Dbuild_server=enabled" "-Dbuild_client=disabled"|g' build-linux.sh && \
     ./build-linux.sh -o /opt/kyber
 
-# 4. Clone Kyber Web Client
-WORKDIR /src
-RUN git clone --depth 1 https://gitlab.com/kyber.stream/apps/kyber-web.git && \
-    mkdir -p /opt/kyber/webclient && \
-    cp -r kyber-web/html/* /opt/kyber/webclient/ || true
-
 
 # ------------------------------------------------------------------------------
 # Stage 2: Final Runtime Gaming Image
@@ -184,6 +178,7 @@ RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || tr
 
 # 8. Copy Kyber from builder stage
 COPY --from=kyber-builder /opt/kyber /opt/kyber
+COPY webclient /opt/kyber/webclient
 
 # 9. Setup directories and copy project configurations & scripts
 RUN mkdir -p /etc/kyber/tls /etc/X11 /var/log/supervisor /run/user/1000 \
@@ -207,8 +202,8 @@ COPY scripts/install_nvidia_xorg.sh /usr/local/bin/install_nvidia_xorg.sh
 COPY scripts/client_autoresize.js /opt/kyber/webclient/autoresize.js
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Inject auto-resizer script into webclient index.html if present
-RUN if [ -f /opt/kyber/webclient/index.html ]; then \
+# Inject auto-resizer script into webclient index.html if not already present
+RUN if [ -f /opt/kyber/webclient/index.html ] && ! grep -q "autoresize.js" /opt/kyber/webclient/index.html; then \
         sed -i 's|</body>|<script src="autoresize.js"></script></body>|g' /opt/kyber/webclient/index.html; \
     fi
 

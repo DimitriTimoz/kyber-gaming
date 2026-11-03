@@ -21,8 +21,9 @@
         const key = `${width}x${height}`;
         if (key === lastSent) return;
 
-        const port = window.location.port ? 8081 : 8081;
-        const url = `http://${window.location.hostname}:${port}/api/resize`;
+        const port = 8081;
+        const protocol = window.location.protocol;
+        const url = `${protocol}//${window.location.hostname}:${port}/api/resize`;
 
         console.log(`[Kyber AutoResize] Requesting server display change to ${width}x${height}...`);
 

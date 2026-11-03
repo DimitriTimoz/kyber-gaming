@@ -11,6 +11,7 @@ import sys
 import json
 import subprocess
 import re
+import ssl
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -171,6 +172,16 @@ class ResizeHandler(BaseHTTPRequestHandler):
 def main():
     print(f"[resizer] Starting Dynamic Display Resizer Service on port {PORT} for display {DISPLAY}...")
     server = HTTPServer(("0.0.0.0", PORT), ResizeHandler)
+    tls_cert = os.environ.get("TLS_CERT", "/etc/kyber/tls/cert.pem")
+    tls_key = os.environ.get("TLS_KEY", "/etc/kyber/tls/key.pem")
+    if os.path.exists(tls_cert) and os.path.exists(tls_key):
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain(certfile=tls_cert, keyfile=tls_key)
+            server.socket = ctx.wrap_socket(server.socket, server_side=True)
+            print(f"[resizer] TLS enabled using {tls_cert}")
+        except Exception as e:
+            print(f"[resizer] Warning: Could not initialize TLS ({e}), falling back to HTTP.")
     server.serve_forever()
 
 if __name__ == "__main__":
