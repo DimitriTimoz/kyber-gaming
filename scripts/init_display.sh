@@ -32,7 +32,7 @@ exec /usr/lib/xorg/Xorg "$DISPLAY_NUM" \
     -config /etc/X11/xorg.conf \
     -ac \
     -noreset \
-    -extension GLX \
-    -extension RANDR \
+    +extension GLX \
+    +extension RANDR \
     +extension RENDER \
     -logfile /var/log/Xorg.0.log

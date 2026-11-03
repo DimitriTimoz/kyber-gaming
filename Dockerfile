@@ -35,21 +35,15 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.89.0 && \
     cargo install --locked cargo-c@0.10.15
 
-# Clone Kyber Desktop & patch build script to use HTTPS instead of SSH
+# Build Kyber controller
 WORKDIR /src
-RUN git clone --depth 1 https://gitlab.com/kyber.stream/apps/kyber-desktop.git && \
-    cd kyber-desktop && \
+RUN git clone --depth 1 https://gitlab.com/kyber.stream/core/kyctl.git && \
+    cd kyctl && \
+    sed -i 's|git@gitlab.com:${ROOT_NAMESPACE}/|https://gitlab.com/kyber.stream/|g' build-linux.sh && \
     sed -i 's|git@gitlab.com:|https://gitlab.com/|g' build-linux.sh && \
-    sed -i 's|git clone |git clone --depth 1 |g' build-linux.sh || true
-
-# Build Kyber host components (or fallback packaging)
-WORKDIR /src/kyber-desktop
-RUN ./build-linux.sh -o /opt/kyber || ( \
-        echo "Building Kyber host via cargo fallback..." && \
-        mkdir -p /opt/kyber/bin /opt/kyber/lib && \
-        cargo build --release && \
-        cp target/release/ky* /opt/kyber/bin/ 2>/dev/null || true \
-    )
+    sed -i 's|git clone |git clone --depth 1 |g' build-linux.sh && \
+    mkdir -p /opt/kyber/bin /opt/kyber/lib && \
+    ./build-linux.sh -s build-kycontroller -o /opt/kyber
 
 # Clone Kyber Web Client
 WORKDIR /src
