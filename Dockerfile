@@ -95,7 +95,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     x11-xserver-utils \
     xinit \
     xdotool \
-    xrandr \
     x11-utils \
     openbox \
     dbus \
@@ -108,7 +107,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     psmisc \
     procps \
     udev \
-    libuinput1 \
     libevdev2 \
     libinput10 \
     libva-x11-2 \
