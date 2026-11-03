@@ -1,35 +1,35 @@
 # 🎮 Kyber Cloud Gaming (Headless)
 
-Une solution de **Cloud Gaming headless** conteneurisée basée sur **Ubuntu 24.04 LTS**, propulsée par la technologie de streaming ultra-basse latence **[Kyber](https://kyber.tech/)** (écrite en Rust par l'équipe VideoLAN / VLC), avec émulation d'écran virtuel complète, **Steam (Big Picture)** et **Heroic Games Launcher**.
+A containerized **Headless Cloud Gaming** solution based on **Ubuntu 24.04 LTS**, powered by the ultra-low latency streaming technology **[Kyber](https://kyber.tech/)** (written in Rust by the VideoLAN / VLC team), featuring full virtual display emulation, **Steam (Big Picture)**, and the **Heroic Games Launcher**.
 
-Inspiré de `docker-steam-headless`, cette image modernise l'expérience en remplaçant Sunshine/Moonlight par le protocole **QUIC / WebTransport** de Kyber, accessible directement depuis un simple navigateur web moderne sans nécessiter d'application tierce.
+Inspired by `docker-steam-headless`, this project modernizes the experience by replacing Sunshine/Moonlight with Kyber's **QUIC / WebTransport** protocol, accessible directly from any modern web browser without requiring third-party client apps.
 
 ---
 
-## 🚀 Caractéristiques
+## 🚀 Features
 
-- 🖥️ **100% Headless** : Aucun écran physique, ni télévision, ni dongle HDMI "dummy" requis sur la machine hôte. L'écran et l'EDID sont simulés de façon logicielle avec accélération 3D matérielle complète.
-- ⚡ **Technologie Kyber** :
-  - Streaming QUIC / WebTransport à ultra-basse latence sur un **port unifié** (`8080/TCP+UDP`).
-  - Interface web cliente intégrée servie nativement (`/webclient`).
-  - Capture matérielle X11/NVFBC ou DRM/VA-API et encodage NVENC/VA-API.
-- 🕹️ **Launchers PC intégrés** :
-  - **Steam** (lancé nativement en mode *Big Picture*).
+- 🖥️ **100% Headless**: No physical monitor, TV, or HDMI "dummy plug" required on the host machine. The virtual display and EDID are fully simulated with complete 3D hardware acceleration.
+- ⚡ **Kyber Technology**:
+  - Ultra-low latency QUIC / WebTransport streaming on a **unified port** (`8080/TCP+UDP`).
+  - Integrated web client served natively (`/webclient`).
+  - Hardware capture via X11/NVFBC or DRM/VA-API with NVENC/VA-API hardware encoding.
+- 🕹️ **Integrated PC Launchers**:
+  - **Steam** (launches natively in *Big Picture* mode).
   - **Heroic Games Launcher** (Epic Games Store & GOG).
-  - Mode bureau léger (Openbox) disponible.
-- 🎮 **Support complet des manettes** : Injection uinput (Xbox 360, DualShock/DualSense) et souris/clavier à distance.
-- 🔊 **Audio virtuel PipeWire** : Routage transparent du son des jeux vers le flux Opus/AAC de Kyber sans carte son physique.
-- 📺 **Redimensionnement dynamique automatique** : L'écran virtuel s'adapte automatiquement à la dimension exacte de la fenêtre de votre navigateur ou de votre écran client grâce au micro-service de resize intégré (`port 8081`). Supporte également les résolutions manuelles (1080p, 1440p, 4K jusqu'à 144Hz).
+  - Lightweight desktop environment (Openbox) available.
+- 🎮 **Full Controller Support**: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
+- 🔊 **PipeWire Virtual Audio**: Transparent game audio routing to Kyber's Opus/AAC stream without a physical sound card.
+- 📺 **Automatic Dynamic Resizing**: The virtual display automatically adapts to the exact dimensions of your client browser window or device screen via an integrated resizer service (`port 8081`). Also supports manual resolutions (1080p, 1440p, 4K up to 144Hz).
 
 ---
 
-## 📋 Prérequis
+## 📋 Prerequisites
 
-1. **Docker Engine & Docker Compose** (version récente avec Compose V2).
-2. **Accélération graphique hôte** :
-   * **NVIDIA** : [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installé et configuré.
-   * **AMD / Intel** : Accès au nœud de rendu `/dev/dri`.
-3. **Module noyau `uinput`** chargé sur l'hôte :
+1. **Docker Engine & Docker Compose** (recent release with Compose V2).
+2. **Host GPU Acceleration**:
+   * **NVIDIA**: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed and configured.
+   * **AMD / Intel**: Access to the `/dev/dri` render node.
+3. **`uinput` kernel module** loaded on the host:
    ```bash
    sudo modprobe uinput
    echo "uinput" | sudo tee -a /etc/modules-load.d/uinput.conf
@@ -37,110 +37,112 @@ Inspiré de `docker-steam-headless`, cette image modernise l'expérience en remp
 
 ---
 
-## 🛠️ Démarrage Rapide
+## 🛠️ Quick Start
 
-### 1. Cloner le dépôt
+### 1. Clone the repository
 ```bash
-git clone https://github.com/votre-user/kyber-gaming.git
+git clone https://github.com/your-user/kyber-gaming.git
 cd kyber-gaming
 ```
 
-### 2. Lancer avec Docker Compose
+### 2. Launch with Docker Compose
 ```bash
 docker compose up -d --build
 ```
 
-### 3. Suivre les logs de démarrage
+### 3. Monitor startup logs
 ```bash
 docker compose logs -f
 ```
 
 ---
 
-## 🌐 Connexion au Stream
+## 🌐 Connecting to the Stream
 
-Dès que le conteneur est prêt, ouvre ton navigateur web (Google Chrome, Microsoft Edge ou Chromium recommandé) :
+Once the container is ready, open your web browser (Google Chrome, Microsoft Edge, or Chromium recommended):
 
-👉 **`https://<IP_DU_SERVEUR>:8080/webclient`**
+👉 **`https://<SERVER_IP>:8080/webclient`**
 
-> **Note sur le certificat TLS** : Au premier démarrage, un certificat TLS auto-signé est généré dans `./kyber_tls`. Ton navigateur affichera un avertissement de sécurité que tu peux ignorer pour accéder à l'interface.
+> **Note regarding the TLS certificate**: On first boot, a self-signed TLS certificate is generated in `./kyber_tls`. Your browser will display a security warning that you can bypass to access the interface.
 
 ---
 
-## ⚙️ Configuration & Variables d'Environnement
+## ⚙️ Configuration & Environment Variables
 
-Toutes les options principales sont configurables dans le fichier `docker-compose.yml` :
+All primary options are configurable in `docker-compose.yml`:
 
-| Variable | Valeur par défaut | Description |
+| Variable | Default | Description |
 | :--- | :--- | :--- |
-| `LAUNCHER` | `steam` | Application au boot : `steam` (Big Picture), `heroic` ou `desktop`. |
-| `RESOLUTION` | `1920x1080` | Résolution émulée (`1920x1080`, `2560x1440`, `3840x2160`). |
-| `REFRESH_RATE` | `60` | Fréquence de rafraîchissement (`60`, `120`, `144`). |
-| `PUID` | `1000` | UID de l'utilisateur interne pour les permissions de volumes. |
-| `PGID` | `1000` | GID de l'utilisateur interne. |
+| `LAUNCHER` | `steam` | Application on boot: `steam` (Big Picture), `heroic`, or `desktop`. |
+| `RESOLUTION` | `1920x1080` | Initial emulated resolution (`1920x1080`, `2560x1440`, `3840x2160`). |
+| `REFRESH_RATE` | `60` | Display refresh rate (`60`, `120`, `144`). |
+| `PUID` | `1000` | Internal user UID for volume permissions. |
+| `PGID` | `1000` | Internal user GID for volume permissions. |
 
 ---
 
-## 📁 Architecture des Fichiers
+## 📁 Repository Structure
 
 ```text
 kyber-gaming/
 ├── Dockerfile                      # Multi-stage build Ubuntu 24.04 (Kyber + Steam + Heroic)
-├── docker-compose.yml              # Fichier de déploiement type
-├── PLAN.md                         # Plan d'architecture technique complet
+├── docker-compose.yml              # Production-ready Compose deployment file
+├── PLAN.md                         # Technical architecture and implementation plan
 ├── config/
 │   ├── kyber/
-│   │   └── kyber_config.toml       # Paramètres Kyber (NVENC, NVFBC, uinput, ports)
+│   │   └── kyber_config.toml       # Kyber parameters (NVENC, NVFBC, uinput, ports)
 │   ├── supervisor/
-│   │   └── supervisord.conf        # Supervision (DBus, Xorg, PipeWire, Kyber, Steam)
+│   │   └── supervisord.conf        # Process supervisor (DBus, Xorg, PipeWire, Kyber, Steam)
 │   ├── xorg/
-│   │   ├── xorg.nvidia.conf        # Xorg headless pour GPU NVIDIA avec EDID virtuel
-│   │   └── xorg.dummy.conf         # Xorg dummy fallback pour GPU AMD/Intel
+│   │   ├── xorg.nvidia.conf        # Headless Xorg for NVIDIA GPUs with virtual EDID
+│   │   └── xorg.dummy.conf         # Xorg dummy fallback for AMD/Intel GPUs
 │   ├── openbox/
-│   │   ├── autostart               # Script d'init de session graphique
-│   │   └── rc.xml                  # Paramètres fenêtre sans bordures
+│   │   ├── autostart               # Graphical session initialization script
+│   │   └── rc.xml                  # Borderless window configuration
 │   └── pipewire/
 │       └── pipewire.conf.d/
-│           └── 10-virtual-sink.conf# Sink audio virtuel pour capter le son des jeux
+│           └── 10-virtual-sink.conf# Virtual audio sink to capture game audio
 └── scripts/
-    ├── entrypoint.sh               # Init du conteneur, permissions GPU et certificats TLS
-    ├── init_display.sh             # Détection GPU, génération EDID et démarrage Xorg
-    ├── make_edid.py                # Générateur binaire d'EDID 1.4 gaming
-    ├── run_kycontroller.sh         # Wrapper de lancement du démon Kyber
-    └── launch_game_session.sh      # Lancement conditionnel de Steam / Heroic
+    ├── entrypoint.sh               # Container setup, GPU permissions, and TLS certificates
+    ├── init_display.sh             # GPU detection, EDID generation, and Xorg startup
+    ├── make_edid.py                # Binary EDID 1.4 gaming generator
+    ├── run_kycontroller.sh         # Kyber controller startup wrapper
+    ├── resizer_service.py          # Dynamic resolution resize REST API service
+    ├── client_autoresize.js        # Browser client auto-resize reporting hook
+    └── launch_game_session.sh      # Launcher manager for Steam / Heroic
 ```
 
 ---
 
-## 🖥️ Redimensionnement d'écran dynamique
+## 🖥️ Dynamic Display Resizing
 
-Le conteneur intègre un micro-service de redimensionnement (`resizer_service.py` sur le port `8081`). 
-1. **Automatique** : Dès que vous ouvrez le webclient Kyber, le script injecté `autoresize.js` détecte votre résolution et demande au serveur d'adapter l'affichage X11 à votre fenêtre en direct.
-2. **Manuel / API** : Vous pouvez également forcer n'importe quelle résolution via un appel HTTP :
+The container includes an integrated display resizer micro-service (`resizer_service.py` on port `8081`).
+1. **Automatic**: When opening the Kyber web client, the injected `autoresize.js` script detects your browser viewport and requests the server to adapt the X11 display resolution live.
+2. **Manual / REST API**: You can also force any custom resolution via HTTP:
    ```bash
-   curl "http://<IP_DU_SERVEUR>:8081/api/resize?width=2560&height=1440&rate=120"
+   curl "http://<SERVER_IP>:8081/api/resize?width=2560&height=1440&rate=120"
    ```
 
 ---
 
-## 🎮 Manettes & Périphériques
+## 🎮 Gamepads & Peripherals
 
-Les manettes connectées à votre navigateur client (via la Gamepad API) sont transmises en temps réel à Kyber, qui les injecte via `/dev/uinput` sous forme de manettes virtuelles reconnues nativement par Steam et Proton.
+Controllers connected to your client browser (via the HTML5 Gamepad API) are transmitted in real-time to Kyber, which injects them through `/dev/uinput` as virtual controllers recognized natively by Steam and Proton.
 
-Si vous branchez des manettes physiques directement en USB sur le serveur hôte, le montage `/dev/input` permet également à Steam de les reconnaître directement.
+If you connect physical gamepads directly via USB to the host server, the `/dev/input` bind mount also allows Steam to recognize them directly.
 
 ---
 
-## 💡 Dépannage & FAQ
+## 💡 Troubleshooting & FAQ
 
-### 1. Pas de son dans le stream ?
-Vérifie dans Steam ou le jeu que la sortie audio sélectionnée est bien **"Kyber Virtual Audio Sink"** ou la sortie par défaut Pulse/PipeWire.
+### 1. No audio in the stream?
+Verify in Steam or the game's audio settings that the output device is set to **"Kyber Virtual Audio Sink"** or default system output.
 
-### 2. Le conteneur ne démarre pas sur GPU NVIDIA ?
-Assure-toi que `nvidia-container-toolkit` est bien fonctionnel sur ton hôte :
+### 2. Container fails to start with NVIDIA GPU?
+Ensure that `nvidia-container-toolkit` is working properly on the host:
 ```bash
 docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
 ```
 
-### 3. Comment ajouter des jeux non-Steam ou des consoles plus tard ?
-Le système utilise Openbox et des volumes persistants (`steam_data` et `heroic_data`). Tu pourras ajouter des émulateurs (RetroArch, PCSX2, RPCS3) ou des frontends (ES-DE) à tout moment en les déclarant dans le superviseur ou en les lançant depuis Steam en tant que raccourcis non-Steam.
+### 3. How to add non-Steam games or console emulators later?
+The system utilizes Openbox and persistent volumes (`steam_data` and `heroic_data`). You can install emulators (RetroArch, PCSX2, RPCS3) or frontends (ES-DE) at any time by configuring them in supervisor or launching them through Steam as non-Steam shortcuts.
