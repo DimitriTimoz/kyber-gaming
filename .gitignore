@@ -1,0 +1,23 @@
+# Kyber Cloud Gaming .gitignore
+
+# Auto-generated TLS certificates
+kyber_tls/
+*.pem
+*.key
+*.crt
+
+# Logs and runtime artifacts
+*.log
+/tmp/
+
+# OS and Editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python cache
+__pycache__/
+*.py[cod]

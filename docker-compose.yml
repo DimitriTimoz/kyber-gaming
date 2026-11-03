@@ -1,0 +1,66 @@
+services:
+  kyber-gaming:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kyber-gaming:latest
+    container_name: kyber-gaming
+    restart: unless-stopped
+    
+    # Unified WebTransport & HTTP ports, plus dynamic resolution API
+    ports:
+      - "8080:8080/tcp"
+      - "8080:8080/udp"
+      - "8081:8081/tcp"
+
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - RESOLUTION=1920x1080    # 1920x1080, 2560x1440, 3840x2160
+      - REFRESH_RATE=60        # 60, 120, 144
+      - LAUNCHER=steam          # Options: steam, heroic, desktop
+      
+      # NVIDIA Container Toolkit flags
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+
+    # Privileges required for virtual controllers and real-time audio
+    cap_add:
+      - SYS_ADMIN
+      - SYS_NICE
+
+    # Device passthrough for virtual and physical inputs
+    devices:
+      - /dev/uinput:/dev/uinput
+      # Uncomment for AMD / Intel GPU passthrough:
+      # - /dev/dri:/dev/dri
+
+    # Essential for high framerate games and low-latency buffer sharing
+    shm_size: "4gb"
+    ipc: host
+
+    # GPU acceleration reservation (NVIDIA)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, video, display]
+
+    volumes:
+      # Persistent game libraries and save states
+      - steam_data:/home/gamer/.local/share/Steam
+      - heroic_data:/home/gamer/.config/heroic
+      - gamer_home:/home/gamer
+      
+      # TLS certificates for WebTransport / HTTPS (auto-generated if missing)
+      - ./kyber_tls:/etc/kyber/tls
+      
+      # Direct access to host controllers if plugged into the host
+      - /dev/input:/dev/input
+
+volumes:
+  steam_data:
+  heroic_data:
+  gamer_home:

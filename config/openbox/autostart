@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Disable screen blanking and power saving
+xset s off
+xset s noblank
+xset -dpms
+
+# Dark background
+xsetroot -solid "#101216"
+
+# Apply initial resolution and refresh rate
+RES="${RESOLUTION:-1920x1080}"
+RATE="${REFRESH_RATE:-60}"
+xrandr --output default --mode "$RES" -r "$RATE" 2>/dev/null || xrandr -s "$RES" 2>/dev/null || true
+
+echo "[openbox] Graphical environment initialized."

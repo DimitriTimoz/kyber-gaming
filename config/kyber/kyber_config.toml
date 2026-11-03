@@ -1,0 +1,48 @@
+# Kyber Server Configuration for Cloud Gaming Headless
+
+[log]
+log_level = "info"
+
+[kyavserver]
+# Video encoder: nvenc (NVIDIA), vaapi (AMD/Intel), or x264 (Software CPU fallback)
+# Overridden dynamically at runtime by entrypoint if non-NVIDIA GPU is used
+encoder = "nvenc"
+
+# Capture backend: nvfbc (NVIDIA X11), drm (AMD/Intel VA-API), or xcb (Generic X11 CPU capture)
+grab_backend = "nvfbc"
+
+# Intra Refresh for lowest latency streaming with QUIC
+intra_refresh = true
+
+# Clock type for PTS (ZeroedOrigin recommended for lowest latency)
+clock_type = "ZeroedOrigin"
+
+# Minimum bitrate (8 Mbps default for clean gaming feed)
+minimum_bitrate = 8000000
+
+[kycontroller]
+# Port used for HTTP/HTTPS (TCP) and WebTransport / QUIC (UDP)
+port = 8080
+listen_mode = "dual_stack"
+
+# TLS certificates
+tls_cert = "/etc/kyber/tls/cert.pem"
+tls_key = "/etc/kyber/tls/key.pem"
+
+# Auto-generate dynamic certificate for WebTransport connections
+webtransport_gen_certificate = true
+
+# Allow client connections
+multi_client = true
+
+# Location of built-in web client
+webclient = "/opt/kyber/webclient"
+
+[kycontroller.security]
+# Allow connections from web browsers on LAN or remote domains
+trusted_origins = ["*"]
+same_site = false
+
+[kynputserver]
+clipboard_allow_copy = true
+clipboard_allow_paste = true
