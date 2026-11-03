@@ -55,10 +55,14 @@ fi
 # 5. Dynamic GPU configuration for Kyber
 KYBER_CONF="/etc/kyber/kyber_config.toml"
 if [ -f "$KYBER_CONF" ]; then
-    if [ -e /proc/driver/nvidia/version ] || command -v nvidia-smi >/dev/null 2>&1; then
-        echo "[entrypoint] NVIDIA GPU detected -> Configuring Kyber with nvenc + nvfbc."
+    if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ]; then
+        echo "[entrypoint] Native NVIDIA Xorg driver detected -> Configuring Kyber with nvenc + nvfbc."
         sed -i 's/^encoder = .*/encoder = "nvenc"/' "$KYBER_CONF"
         sed -i 's/^grab_backend = .*/grab_backend = "nvfbc"/' "$KYBER_CONF"
+    elif [ -e /proc/driver/nvidia/version ] || command -v nvidia-smi >/dev/null 2>&1; then
+        echo "[entrypoint] NVIDIA GPU detected with virtual screen -> Configuring Kyber with nvenc + xcb."
+        sed -i 's/^encoder = .*/encoder = "nvenc"/' "$KYBER_CONF"
+        sed -i 's/^grab_backend = .*/grab_backend = "xcb"/' "$KYBER_CONF"
     elif [ -e /dev/dri ]; then
         echo "[entrypoint] Non-NVIDIA GPU detected (/dev/dri) -> Configuring Kyber with vaapi + drm."
         sed -i 's/^encoder = .*/encoder = "vaapi"/' "$KYBER_CONF"

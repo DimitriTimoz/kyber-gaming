@@ -12,11 +12,11 @@ python3 /usr/local/bin/make_edid.py /etc/X11/edid.bin
 
 # 2. Select appropriate Xorg config
 mkdir -p /etc/X11
-if [ -e /proc/driver/nvidia/version ] || command -v nvidia-smi >/dev/null 2>&1; then
-    echo "[init_display] NVIDIA GPU detected. Using NVIDIA headless configuration with virtual EDID."
+if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ] && [ "${FORCE_DUMMY:-false}" != "true" ]; then
+    echo "[init_display] Native NVIDIA Xorg driver module found in container. Using NVIDIA Xorg configuration."
     cp /etc/kyber/xorg.nvidia.conf /etc/X11/xorg.conf
 else
-    echo "[init_display] Non-NVIDIA or generic GPU detected. Using Dummy driver configuration."
+    echo "[init_display] Using Xorg Dummy driver for reliable headless virtual screen."
     cp /etc/kyber/xorg.dummy.conf /etc/X11/xorg.conf
 fi
 
