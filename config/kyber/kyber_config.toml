@@ -43,6 +43,21 @@ webclient = "/opt/kyber/webclient"
 trusted_origins = []
 same_site = false
 
+[kycontroller.auth.basic]
+enabled = true
+
+[[kycontroller.auth.basic.logins]]
+username = "Default user"
+password = "c2bb5d1edbff196e3a879ec0a59aeb3952822266909b5ba07b45072d20a05446"
+
+[[kycontroller.auth.basic.logins]]
+username = "gamer"
+password = "ab6b786aa204199a39492078eab36895cfa6b650d969c79f85a0055d461a0c52"
+
+[[kycontroller.auth.basic.logins]]
+username = "admin"
+password = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+
 [kynputserver]
 clipboard_allow_copy = true
 clipboard_allow_paste = true
