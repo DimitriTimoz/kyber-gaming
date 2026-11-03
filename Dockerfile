@@ -151,12 +151,12 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # 6. Install Heroic Games Launcher
-RUN HEROIC_DEB_URL=$(curl -s https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest | grep "browser_download_url.*amd64.deb" | cut -d : -f 2,3 | tr -d '\"' | head -n 1) && \
-    if [ -n "$HEROIC_DEB_URL" ]; then \
-        wget -q -O /tmp/heroic.deb "$HEROIC_DEB_URL" && \
-        apt-get update && apt-get install -y --no-install-recommends /tmp/heroic.deb && \
-        rm -f /tmp/heroic.deb && rm -rf /var/lib/apt/lists/* ; \
-    fi
+ARG HEROIC_VERSION="2.22.4"
+RUN wget -q -O /tmp/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb" && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends /tmp/heroic.deb && \
+    rm -f /tmp/heroic.deb && \
+    rm -rf /var/lib/apt/lists/*
 
 # 7. Create gamer user with sudo & device privileges
 RUN useradd -m -s /bin/bash -u 1000 gamer && \
