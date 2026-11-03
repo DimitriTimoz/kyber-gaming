@@ -129,6 +129,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb-randr0 \
     zenity \
     xdg-utils \
+    xserver-xorg-input-libinput \
+    xserver-xorg-input-evdev \
+    xinput \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Install PipeWire audio stack
@@ -210,10 +213,10 @@ COPY scripts/install_nvidia_xorg.sh /usr/local/bin/install_nvidia_xorg.sh
 COPY scripts/client_autoresize.js /opt/kyber/webclient/autoresize.js
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Inject auto-resizer script into webclient index.html if not already present
-RUN if [ -f /opt/kyber/webclient/index.html ] && ! grep -q "autoresize.js" /opt/kyber/webclient/index.html; then \
-        sed -i 's|</body>|<script src="autoresize.js"></script></body>|g' /opt/kyber/webclient/index.html; \
-    fi
+# Configure ld.so for Kyber shared libraries
+RUN echo "/opt/kyber/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/kyber.conf && \
+    echo "/opt/kyber/lib" >> /etc/ld.so.conf.d/kyber.conf && \
+    ldconfig
 
 RUN chmod +x /usr/local/bin/*.sh /usr/local/bin/*.py /home/gamer/.config/openbox/autostart && \
     chown -R gamer:gamer /home/gamer /etc/kyber /opt/kyber

@@ -35,6 +35,23 @@ case "$LAUNCHER_MODE" in
             sleep infinity
         fi
 
+        # Pre-bootstrap Steam if not yet initialized, avoiding Zenity GUI prompts
+        STEAMDIR="$HOME/.steam/debian-installation"
+        if [ ! -f "$STEAMDIR/steam.sh" ]; then
+            echo "[launcher] Steam bootstrap not detected. Initializing headless bootstrap..."
+            mkdir -p "$STEAMDIR/deb-installer"
+            version="1.0.0.79"
+            url="https://repo.steampowered.com/steam/archive/beta/steam_${version}.tar.gz"
+            if curl -sSL "$url" -o "$STEAMDIR/deb-installer/steam_${version}.tar.gz"; then
+                tar -C "$STEAMDIR/deb-installer" -zxf "$STEAMDIR/deb-installer/steam_${version}.tar.gz" steam-launcher/bootstraplinux_ubuntu12_32.tar.xz 2>/dev/null || true
+                if [ -f "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz" ]; then
+                    tar -C "$STEAMDIR" -xf "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz"
+                    echo "$version" > "$STEAMDIR/deb-installer/version"
+                    echo "[launcher] Steam bootstrap installed successfully."
+                fi
+            fi
+        fi
+
         echo "[launcher] Executing: $STEAM_EXEC -bigpicture -no-cef-sandbox"
         exec "$STEAM_EXEC" -bigpicture -no-cef-sandbox
         ;;

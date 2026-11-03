@@ -29,6 +29,11 @@ services:
       - SYS_ADMIN
       - SYS_NICE
 
+    # Required for Steam pressure-vessel / bubblewrap user namespaces
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+
     # Device passthrough for virtual and physical inputs
     devices:
       - /dev/uinput:/dev/uinput
@@ -62,6 +67,8 @@ services:
       
       # Direct access to host controllers if plugged into the host
       - /dev/input:/dev/input
+      # Udev data so Xorg discovers virtual uinput devices created by kynput
+      - /run/udev:/run/udev:ro
 
 volumes:
   steam_data:
