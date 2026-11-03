@@ -12,8 +12,10 @@ python3 /usr/local/bin/make_edid.py /etc/X11/edid.bin
 
 # 2. Select appropriate Xorg config
 mkdir -p /etc/X11
-if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ] && [ "${FORCE_DUMMY:-false}" != "true" ]; then
-    echo "[init_display] Native NVIDIA Xorg driver module found in container. Using NVIDIA Xorg configuration."
+if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ] && \
+   [ -e /usr/lib/xorg/modules/extensions/libglxserver_nvidia.so ] && \
+   [ "${FORCE_DUMMY:-false}" != "true" ]; then
+    echo "[init_display] NVIDIA Xorg driver and GLX module found. Using NVIDIA Xorg configuration."
     cp /etc/kyber/xorg.nvidia.conf /etc/X11/xorg.conf
 else
     echo "[init_display] Using Xorg Dummy driver for reliable headless virtual screen."

@@ -52,13 +52,18 @@ if [ ! -f "$TLS_DIR/cert.pem" ] || [ ! -f "$TLS_DIR/key.pem" ]; then
     chown -R gamer:gamer "$TLS_DIR"
 fi
 
-# 5. Dynamic GPU configuration for Kyber
+# 5. Install NVIDIA Xorg GLX module matching the host driver (if NVIDIA Xorg driver is mounted)
+if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ]; then
+    /usr/local/bin/install_nvidia_xorg.sh || echo "[entrypoint] WARNING: NVIDIA Xorg module installation failed."
+fi
+
+# 6. Dynamic GPU configuration for Kyber
 KYBER_CONF="/etc/kyber/kyber_config.toml"
 if [ -f "$KYBER_CONF" ]; then
     if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ]; then
-        echo "[entrypoint] Native NVIDIA Xorg driver detected -> Configuring Kyber with nvenc + nvfbc."
+        echo "[entrypoint] Native NVIDIA Xorg driver detected -> Configuring Kyber with nvenc + xcb."
         sed -i 's/^encoder = .*/encoder = "nvenc"/' "$KYBER_CONF"
-        sed -i 's/^grab_backend = .*/grab_backend = "nvfbc"/' "$KYBER_CONF"
+        sed -i 's/^grab_backend = .*/grab_backend = "xcb"/' "$KYBER_CONF"
     elif [ -e /proc/driver/nvidia/version ] || command -v nvidia-smi >/dev/null 2>&1; then
         echo "[entrypoint] NVIDIA GPU detected with virtual screen -> Configuring Kyber with nvenc + xcb."
         sed -i 's/^encoder = .*/encoder = "nvenc"/' "$KYBER_CONF"

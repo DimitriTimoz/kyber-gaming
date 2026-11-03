@@ -12,10 +12,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install compilation prerequisites
 RUN apt-get update && apt-get install -y \
-    build-essential cmake meson ninja-build pkg-config \
-    llvm-dev libclang-dev clang libssl-dev \
+    build-essential cmake ninja-build pkg-config \
+    llvm-18-dev libclang-18-dev clang libssl-dev \
     autoconf libtool curl git wget unzip \
-    python3 python3-setuptools python3-mako python3-venv \
+    python3 python3-pip python3-setuptools python3-mako python3-venv \
     python3-jinja2 \
     lua5.4 liblua5.4-dev \
     autopoint gettext bison flex nasm help2man \
@@ -24,7 +24,9 @@ RUN apt-get update && apt-get install -y \
     libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
     libwayland-dev wayland-protocols libvulkan-dev \
     libevdev-dev libudev-dev libinput-dev \
+    libsdl2-dev libva-dev libvdpau-dev libasound2-dev \
     ca-certificates \
+    && pip3 install --break-system-packages meson \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust & cargo-c
@@ -35,7 +37,7 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.89.0 && \
     cargo install --locked cargo-c@0.10.15
 
-# Build Kyber controller
+# 1. Clone kyctl and checkout all dependencies (kymux, kyutil, kynput, kymedia) into /src
 WORKDIR /src
 RUN git clone --depth 1 https://gitlab.com/kyber.stream/core/kyctl.git && \
     cd kyctl && \
@@ -45,7 +47,24 @@ RUN git clone --depth 1 https://gitlab.com/kyber.stream/core/kyctl.git && \
     mkdir -p /opt/kyber/bin /opt/kyber/lib && \
     ./build-linux.sh -k -s -o /opt/kyber build-kycontroller
 
-# Clone Kyber Web Client
+# 2. Build kynput (kynputserver for remote input injection)
+WORKDIR /src/kynput
+RUN sed -i 's|git@gitlab.com:${ROOT_NAMESPACE}/|https://gitlab.com/kyber.stream/|g' build-linux.sh && \
+    sed -i 's|git@gitlab.com:|https://gitlab.com/|g' build-linux.sh && \
+    ./build-linux.sh -s -o /opt/kyber
+
+# 3. Build kymedia (kyavserver for audio/video capture and encoding)
+WORKDIR /src/kymedia
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libv4l-dev libxcb-shm0-dev libxcb-randr0-dev libedit-dev libcap-dev && \
+    rm -rf /var/lib/apt/lists/* && \
+    git submodule update --init --depth 1 subprojects/txproto subprojects/libavconv && \
+    sed -i 's|git@gitlab.com:${ROOT_NAMESPACE}/|https://gitlab.com/kyber.stream/|g' build-linux.sh && \
+    sed -i 's|git@gitlab.com:|https://gitlab.com/|g' build-linux.sh && \
+    sed -i 's|"-Dbuild_server=enabled"|"-Dbuild_server=enabled" "-Dbuild_client=disabled"|g' build-linux.sh && \
+    ./build-linux.sh -o /opt/kyber
+
+# 4. Clone Kyber Web Client
 WORKDIR /src
 RUN git clone --depth 1 https://gitlab.com/kyber.stream/apps/kyber-web.git && \
     mkdir -p /opt/kyber/webclient && \
@@ -107,6 +126,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libva-drm2 \
     libva2 \
     libvdpau1 \
+    libv4l-0 \
     zenity \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
@@ -183,6 +203,7 @@ COPY scripts/init_display.sh /usr/local/bin/init_display.sh
 COPY scripts/run_kycontroller.sh /usr/local/bin/run_kycontroller.sh
 COPY scripts/launch_game_session.sh /usr/local/bin/launch_game_session.sh
 COPY scripts/resizer_service.py /usr/local/bin/resizer_service.py
+COPY scripts/install_nvidia_xorg.sh /usr/local/bin/install_nvidia_xorg.sh
 COPY scripts/client_autoresize.js /opt/kyber/webclient/autoresize.js
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 

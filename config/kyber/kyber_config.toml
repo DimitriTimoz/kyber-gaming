@@ -8,8 +8,8 @@ log_level = "info"
 # Overridden dynamically at runtime by entrypoint if non-NVIDIA GPU is used
 encoder = "nvenc"
 
-# Capture backend: nvfbc (NVIDIA X11), drm (AMD/Intel VA-API), or xcb (Generic X11 CPU capture)
-grab_backend = "nvfbc"
+# Capture backend: nvfbc (NVIDIA Quadro), drm (AMD/Intel VA-API), or xcb (GeForce / Generic X11)
+grab_backend = "xcb"
 
 # Intra Refresh for lowest latency streaming with QUIC
 intra_refresh = true
@@ -40,7 +40,7 @@ webclient = "/opt/kyber/webclient"
 
 [kycontroller.security]
 # Allow connections from web browsers on LAN or remote domains
-trusted_origins = ["*"]
+trusted_origins = []
 same_site = false
 
 [kynputserver]

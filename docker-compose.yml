@@ -54,6 +54,9 @@ services:
       - heroic_data:/home/gamer/.config/heroic
       - gamer_home:/home/gamer
       
+      # Cache of the NVIDIA installer matching the host driver (avoids re-downloading ~300 MB)
+      - nvidia_driver_cache:/var/cache/nvidia-driver
+      
       # TLS certificates for WebTransport / HTTPS (auto-generated if missing)
       - ./kyber_tls:/etc/kyber/tls
       
@@ -64,3 +67,4 @@ volumes:
   steam_data:
   heroic_data:
   gamer_home:
+  nvidia_driver_cache:
