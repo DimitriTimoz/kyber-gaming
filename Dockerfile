@@ -158,8 +158,10 @@ RUN wget -q -O /tmp/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicG
     rm -f /tmp/heroic.deb && \
     rm -rf /var/lib/apt/lists/*
 
-# 7. Create gamer user with sudo & device privileges
-RUN useradd -m -s /bin/bash -u 1000 gamer && \
+# 7. Create gamer user with sudo & device privileges (Ubuntu 24.04 has default 'ubuntu' user with UID 1000)
+RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || true; fi && \
+    if getent group ubuntu >/dev/null 2>&1; then groupdel ubuntu 2>/dev/null || true; fi && \
+    useradd -m -s /bin/bash -u 1000 gamer && \
     groupadd -f render && \
     usermod -aG video,audio,input,render,sudo gamer && \
     echo "gamer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gamer && \
