@@ -6,12 +6,15 @@ services:
     image: kyber-gaming:latest
     container_name: kyber-gaming
     restart: unless-stopped
-    
+    network_mode: host
+    privileged: true
+
     # Unified WebTransport & HTTP ports, plus dynamic resolution API
-    ports:
-      - "8080:8080/tcp"
-      - "8080:8080/udp"
-      - "8081:8081/tcp"
+    # (Exposed directly on host via network_mode: host: 8080 TCP/UDP, 8081 TCP)
+    # ports:
+    #   - "8080:8080/tcp"
+    #   - "8080:8080/udp"
+    #   - "8081:8081/tcp"
 
     environment:
       - PUID=1000
@@ -23,8 +26,6 @@ services:
       # NVIDIA Container Toolkit flags
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-
-    privileged: true
 
     # Privileges required for virtual controllers and real-time audio
     cap_add:
