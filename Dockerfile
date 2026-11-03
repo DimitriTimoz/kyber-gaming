@@ -205,7 +205,7 @@ COPY config/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY config/openbox/rc.xml /home/gamer/.config/openbox/rc.xml
 COPY config/openbox/menu.xml /home/gamer/.config/openbox/menu.xml
 COPY config/openbox/autostart /home/gamer/.config/openbox/autostart
-COPY config/pipewire/pipewire.conf.d/10-virtual-sink.conf /home/gamer/.config/pipewire/pipewire.conf.d/10-virtual-sink.conf
+COPY config/pipewire/pipewire.conf.d/ /home/gamer/.config/pipewire/pipewire.conf.d/
 
 COPY scripts/make_edid.py /usr/local/bin/make_edid.py
 COPY scripts/init_display.sh /usr/local/bin/init_display.sh
