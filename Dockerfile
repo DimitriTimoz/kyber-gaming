@@ -148,6 +148,7 @@ RUN apt-get update && \
     (apt-get install -y --no-install-recommends steam-installer || \
      (wget -q -O /tmp/steam.deb https://repo.steampowered.com/steam/archive/stable/steam_latest.deb && \
       apt-get install -y --no-install-recommends /tmp/steam.deb && rm -f /tmp/steam.deb)) && \
+    (ln -sf /usr/games/steam /usr/local/bin/steam || true) && \
     rm -rf /var/lib/apt/lists/*
 
 # 6. Install Heroic Games Launcher
