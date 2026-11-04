@@ -653,14 +653,16 @@
 
         currentDesktopBrowsePath = relPath !== undefined ? relPath : currentDesktopBrowsePath;
         const controlPort = 8081;
+        const authUser = server.auth_user || server.user || 'gamer';
+        const authPassword = server.auth_password || server.password || 'kybergaming';
 
         try {
             const data = await tauriInvoke('rom_browse', {
                 host: server.host,
                 port: controlPort,
                 path: currentDesktopBrowsePath,
-                authUser: server.user || null,
-                authPassword: server.password || null
+                authUser: authUser,
+                authPassword: authPassword
             });
 
             if (data && data.status === 'ok') {
@@ -777,9 +779,9 @@
             // Render files
             const server = getSelectedRomServer();
             const controlPort = 8081;
-            const authParams = (server && server.user && server.password)
-                ? `&auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
-                : '';
+            const authUser = (server && (server.auth_user || server.user)) || 'gamer';
+            const authPassword = (server && (server.auth_password || server.password)) || 'kybergaming';
+            const authParams = `&auth_user=${encodeURIComponent(authUser)}&auth_pass=${encodeURIComponent(authPassword)}`;
 
             files.forEach(file => {
                 const fileType = file.type || file.kind || 'file';
@@ -842,6 +844,8 @@
         const server = getSelectedRomServer();
         if (!server) return;
         const controlPort = 8081;
+        const authUser = server.auth_user || server.user || 'gamer';
+        const authPassword = server.auth_password || server.password || 'kybergaming';
         showToast(`Downloading "${filename}"...`);
         try {
             const dest = await tauriInvoke('rom_download_file', {
@@ -849,8 +853,8 @@
                 port: controlPort,
                 path: relPath,
                 filename: filename,
-                authUser: server.user || null,
-                authPassword: server.password || null
+                authUser: authUser,
+                authPassword: authPassword
             });
             showToast(`Saved to ${dest}`);
         } catch (err) {
@@ -865,6 +869,8 @@
         const server = getSelectedRomServer();
         if (!server) return;
         const controlPort = 8081;
+        const authUser = server.auth_user || server.user || 'gamer';
+        const authPassword = server.auth_password || server.password || 'kybergaming';
 
         try {
             const data = await tauriInvoke('rom_create_folder', {
@@ -872,8 +878,8 @@
                 port: controlPort,
                 path: currentDesktopBrowsePath,
                 folderName: folderName.trim(),
-                authUser: server.user || null,
-                authPassword: server.password || null
+                authUser: authUser,
+                authPassword: authPassword
             });
             if (data && data.status === 'ok') {
                 showToast(`Created folder "${data.folder_name}"`);
@@ -894,14 +900,16 @@
         if (!confirm(`Are you sure you want to delete ${label}?`)) return;
 
         const controlPort = 8081;
+        const authUser = server.auth_user || server.user || 'gamer';
+        const authPassword = server.auth_password || server.password || 'kybergaming';
 
         try {
             const data = await tauriInvoke('rom_delete', {
                 host: server.host,
                 port: controlPort,
                 path: relPath,
-                authUser: server.user || null,
-                authPassword: server.password || null
+                authUser: authUser,
+                authPassword: authPassword
             });
             if (data && data.status === 'ok') {
                 showToast(`Deleted ${displayName}`);
@@ -927,7 +935,7 @@
         });
     }
 
-    const DESKTOP_CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB chunk size for smooth IPC transfer
+    const DESKTOP_CHUNK_SIZE = 512 * 1024; // 512 KB chunk size to ensure reliable WebKit IPC serialization
 
     async function uploadDesktopFilesChunked(files) {
         const server = getSelectedRomServer();
@@ -942,6 +950,8 @@
         let overallStartTime = performance.now();
 
         const controlPort = 8081;
+        const authUser = server.auth_user || server.user || 'gamer';
+        const authPassword = server.auth_password || server.password || 'kybergaming';
 
         for (let fileIdx = 0; fileIdx < fileArr.length; fileIdx++) {
             if (isDesktopUploadCancelled) {
@@ -975,8 +985,8 @@
                         totalChunks: totalChunks,
                         totalSize: file.size,
                         chunkBase64: chunkBase64,
-                        authUser: server.user || null,
-                        authPassword: server.password || null
+                        authUser: authUser,
+                        authPassword: authPassword
                     });
 
                     if (res && res.status === 'error') {

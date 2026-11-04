@@ -534,7 +534,15 @@ async fn rom_create_folder(
     }
 
     match req.send().await {
-        Ok(resp) => resp.json::<serde_json::Value>().await.map_err(|e| e.to_string()),
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status = resp.status();
+                let err_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status, err_text))
+            }
+        }
         Err(_) => {
             let http_url = format!("http://{}:{}/api/roms/create_folder", host, port);
             let mut req2 = client.post(&http_url).query(&query).json(&payload);
@@ -544,7 +552,13 @@ async fn rom_create_folder(
                 }
             }
             let resp2 = req2.send().await.map_err(|e| e.to_string())?;
-            resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            if resp2.status().is_success() {
+                resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status2 = resp2.status();
+                let err_text2 = resp2.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status2, err_text2))
+            }
         }
     }
 }
@@ -582,7 +596,15 @@ async fn rom_delete(
     }
 
     match req.send().await {
-        Ok(resp) => resp.json::<serde_json::Value>().await.map_err(|e| e.to_string()),
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status = resp.status();
+                let err_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status, err_text))
+            }
+        }
         Err(_) => {
             let http_url = format!("http://{}:{}/api/roms/delete", host, port);
             let mut req2 = client.post(&http_url).query(&query).json(&payload);
@@ -592,7 +614,13 @@ async fn rom_delete(
                 }
             }
             let resp2 = req2.send().await.map_err(|e| e.to_string())?;
-            resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            if resp2.status().is_success() {
+                resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status2 = resp2.status();
+                let err_text2 = resp2.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status2, err_text2))
+            }
         }
     }
 }
@@ -649,7 +677,15 @@ async fn rom_upload_chunk(
     }
 
     match req.send().await {
-        Ok(resp) => resp.json::<serde_json::Value>().await.map_err(|e| e.to_string()),
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status = resp.status();
+                let err_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status, err_text))
+            }
+        }
         Err(_) => {
             let http_url = format!("http://{}:{}/api/roms/upload_chunk", host, port);
             let mut req2 = client
@@ -663,7 +699,13 @@ async fn rom_upload_chunk(
                 }
             }
             let resp2 = req2.send().await.map_err(|e| e.to_string())?;
-            resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            if resp2.status().is_success() {
+                resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status2 = resp2.status();
+                let err_text2 = resp2.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status2, err_text2))
+            }
         }
     }
 }
