@@ -1,0 +1,79 @@
+# ==============================================================================
+# Kyber Gaming with Caddy Reverse Proxy (Production Automatic HTTPS & HTTP/3)
+# ==============================================================================
+
+services:
+  kyber-gaming:
+    image: ghcr.io/dimitritimoz/kyber-gaming:latest
+    container_name: kyber-gaming
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - RESOLUTION=1920x1080
+      - REFRESH_RATE=60
+      - LAUNCHER=menu
+      - AUTH_USER=gamer
+      - AUTH_PASSWORD=kybergaming
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    cap_add:
+      - SYS_ADMIN
+      - SYS_NICE
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    devices:
+      - /dev/uinput:/dev/uinput
+    shm_size: "4gb"
+    ipc: host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, video, display]
+    volumes:
+      - steam_data:/home/gamer/.local/share/Steam
+      - heroic_data:/home/gamer/.config/heroic
+      - gamer_home:/home/gamer
+      - roms_data:/home/gamer/roms
+      - bios_data:/home/gamer/bios
+      - saves_data:/home/gamer/saves
+      - ./config/launchers.json:/etc/kyber/launchers.json:ro
+      - /dev/input:/dev/input
+      - /run/udev:/run/udev:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k -f https://127.0.0.1:8081/api/launchers >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: kyber-caddy
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - DOMAIN=${DOMAIN:-gaming.example.com}
+    volumes:
+      - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      kyber-gaming:
+        condition: service_healthy
+
+volumes:
+  steam_data:
+  heroic_data:
+  gamer_home:
+  roms_data:
+  bios_data:
+  saves_data:
+  caddy_data:
+  caddy_config:

@@ -235,6 +235,10 @@ RUN chmod +x /usr/local/bin/*.sh /usr/local/bin/*.py /home/gamer/.config/openbox
 # Expose Kyber unified port (HTTP/TCP & QUIC/UDP) and dynamic resizer port
 EXPOSE 8080/tcp 8080/udp 8081/tcp
 
+# Healthcheck to verify Xorg, Resizer, and Web services
+HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=3 \
+    CMD curl -k -f https://127.0.0.1:8081/api/launchers >/dev/null 2>&1 || exit 1
+
 # Set working directory to gamer home
 WORKDIR /home/gamer
 

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
+use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerEntry {
@@ -146,17 +147,41 @@ async fn ping_server(host: String, port: u16) -> Result<PingResult, String> {
     }
 }
 
-fn find_kyclient_binary() -> Option<PathBuf> {
-    // 1. Check relative to current executable
-    if let Ok(mut exe) = std::env::current_exe() {
-        exe.pop();
-        let candidate = exe.join(if cfg!(windows) { "kyclient.exe" } else { "kyclient" });
-        if candidate.is_file() {
-            return Some(candidate);
+fn find_kyclient_binary(app_handle: Option<&tauri::AppHandle>) -> Option<PathBuf> {
+    let bin_name = if cfg!(windows) { "kyclient.exe" } else { "kyclient" };
+
+    // 1. Check in Tauri's resolved resource directory (bundled sidecar)
+    if let Some(app) = app_handle {
+        if let Ok(resource_dir) = app.path().resource_dir() {
+            let in_binaries = resource_dir.join("binaries").join(bin_name);
+            if in_binaries.is_file() {
+                return Some(in_binaries);
+            }
+            let direct = resource_dir.join(bin_name);
+            if direct.is_file() {
+                return Some(direct);
+            }
         }
     }
 
-    // 2. Common platform search paths
+    // 2. Check relative to current executable
+    if let Ok(mut exe) = std::env::current_exe() {
+        exe.pop();
+        let candidate = exe.join(bin_name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        let in_binaries = exe.join("binaries").join(bin_name);
+        if in_binaries.is_file() {
+            return Some(in_binaries);
+        }
+        let macos_resources = exe.join("../Resources/binaries").join(bin_name);
+        if macos_resources.is_file() {
+            return Some(macos_resources);
+        }
+    }
+
+    // 3. Common platform search paths
     let paths: &[&str] = if cfg!(windows) {
         &[
             "kyclient.exe",
@@ -187,8 +212,8 @@ fn find_kyclient_binary() -> Option<PathBuf> {
         }
     }
 
-    // 3. Fallback: check PATH via command lookup
-    Some(PathBuf::from(if cfg!(windows) { "kyclient.exe" } else { "kyclient" }))
+    // 4. Fallback: check PATH via command lookup
+    Some(PathBuf::from(bin_name))
 }
 
 #[tauri::command]
@@ -196,6 +221,7 @@ async fn launch_session(
     server: ServerEntry,
     settings: StreamSettings,
     window: tauri::Window,
+    app: tauri::AppHandle,
 ) -> Result<(), String> {
     // 1. Send resolution update to host resizer API
     let [w, h]: [&str; 2] = match settings.resolution.split('x').collect::<Vec<&str>>().as_slice() {
@@ -218,8 +244,8 @@ async fn launch_session(
         let _ = c.get(&resize_url).send().await;
     }
 
-    // 2. Find kyclient binary
-    let kyclient_bin = find_kyclient_binary().ok_or_else(|| {
+    // 2. Find kyclient binary (checking bundled resources first)
+    let kyclient_bin = find_kyclient_binary(Some(&app)).ok_or_else(|| {
         "Unable to locate kyclient executable on this system.".to_string()
     })?;
 

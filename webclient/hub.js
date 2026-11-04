@@ -663,6 +663,11 @@
                 badgeHostStatus.className = 'status-badge';
                 document.getElementById('hub-status-text').textContent = `Online (${latency} ms)`;
 
+                if (data.tls && data.tls.fingerprint_sha256) {
+                    state.tlsFingerprint = data.tls.fingerprint_sha256;
+                    window.KYBER_TLS_FINGERPRINT = data.tls.fingerprint_sha256;
+                }
+
                 if (data.gpu) {
                     const temp = data.gpu.temp ? ` [${data.gpu.temp}]` : '';
                     hostSpecsPill.textContent = `${data.gpu.name}${temp} | X11 Display: ${data.active_resolution || '1080p'}`;

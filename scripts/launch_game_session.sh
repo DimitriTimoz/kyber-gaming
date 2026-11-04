@@ -210,29 +210,51 @@ while true; do
 
             if [ -n "$EXEC_CMD" ]; then
                 echo "[session] Launching '$EXEC_CMD'..."
-                $EXEC_CMD >/dev/null 2>&1 &
+                setsid $EXEC_CMD >/dev/null 2>&1 &
                 APP_PID=$!
                 sleep 2
-                while kill -0 "$APP_PID" 2>/dev/null; do
+
+                # Watchdog loop: monitors process and any spawned child threads
+                while true; do
+                    # Check if main process or any process matching the target is alive
+                    IS_ALIVE=0
+                    if kill -0 "$APP_PID" 2>/dev/null; then
+                        IS_ALIVE=1
+                    elif pgrep -u gamer -f "$CURRENT_ACTION" >/dev/null 2>&1; then
+                        IS_ALIVE=1
+                    fi
+
+                    if [ "$IS_ALIVE" -eq 0 ]; then
+                        echo "[session] Process $CURRENT_ACTION has exited or terminated. Cleaning up..."
+                        break
+                    fi
+
+                    # Handle user requested switch
                     if [ -f /tmp/kyber_next_action ]; then
                         NEXT=$(cat /tmp/kyber_next_action)
                         rm -f /tmp/kyber_next_action 2>/dev/null || true
                         if [ "$NEXT" != "$CURRENT_ACTION" ]; then
-                            echo "[session] Action requested: $NEXT"
-                            kill -TERM "$APP_PID" 2>/dev/null || kill -9 "$APP_PID" 2>/dev/null || true
+                            echo "[session] Action switch requested: $NEXT"
+                            kill -TERM "$APP_PID" 2>/dev/null || true
+                            pkill -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
                             CURRENT_ACTION="$NEXT"
                             break
                         fi
                     fi
-                    sleep 0.5
+                    sleep 1
                 done
+
+                # Ensure any zombie child processes are cleaned up
+                pkill -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                xsetroot -solid "#0c0f17" 2>/dev/null || true
+
                 if [ "$CURRENT_ACTION" = "$CURRENT_ACTION" ]; then
-                    echo "[session] Application $CURRENT_ACTION has closed. Returning to Console Hub..."
+                    echo "[session] Returning cleanly to Console Hub..."
                     CURRENT_ACTION="menu"
                 fi
             else
                 echo "[session] Target '$CURRENT_ACTION' is not installed or not executable in PATH."
-                sleep 2
+                sleep 1.5
                 CURRENT_ACTION="menu"
             fi
             ;;

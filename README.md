@@ -97,6 +97,16 @@ docker compose up -d
 docker compose logs -f
 ```
 
+### Option 2: Production with Caddy Reverse Proxy (Automatic HTTPS & HTTP/3 QUIC)
+
+For zero-warning browser streaming over the internet with automatic Let's Encrypt / ZeroSSL TLS certificates:
+
+```bash
+DOMAIN=gaming.yourdomain.com docker compose -f docker-compose.caddy.yml up -d
+```
+
+This starts Caddy on host ports 80 and 443 with native HTTP/3 QUIC proxying to Kyber's WebTransport server.
+
 ---
 
 ## Connecting to the Stream

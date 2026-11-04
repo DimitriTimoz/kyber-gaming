@@ -1,0 +1,37 @@
+# Kyber Gaming Production Reverse Proxy (Caddy with HTTP/3 & QUIC)
+{
+    servers {
+        protocol {
+            experimental_http3
+        }
+    }
+}
+
+{$DOMAIN:gaming.example.com} {
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "no-referrer-when-downgrade"
+    }
+
+    # Reverse proxy dynamic display resizer & ROM manager API
+    handle_path /api/* {
+        reverse_proxy 127.0.0.1:8081
+    }
+
+    # Reverse proxy Hub kiosk static files
+    handle_path /hub/* {
+        reverse_proxy 127.0.0.1:8081
+    }
+
+    # Reverse proxy Kyber unified WebTransport stream, WebClient & signaling
+    handle {
+        reverse_proxy 127.0.0.1:8080 {
+            transport http {
+                versions h1 h2 h3
+            }
+        }
+    }
+}

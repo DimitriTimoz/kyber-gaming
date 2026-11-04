@@ -53,11 +53,21 @@ if [ ! -f "$TLS_DIR/cert.pem" ] || [ ! -f "$TLS_DIR/key.pem" ]; then
     openssl req -x509 -newkey rsa:2048 -nodes \
         -keyout "$TLS_DIR/key.pem" \
         -out "$TLS_DIR/cert.pem" \
-        -days 3650 \
+        -days 14 \
         -subj "/C=FR/ST=Cloud/L=Gaming/O=Kyber/CN=kyber.local" >/dev/null 2>&1
     chmod 644 "$TLS_DIR/cert.pem"
     chmod 600 "$TLS_DIR/key.pem"
     chown -R gamer:gamer "$TLS_DIR"
+fi
+
+# Compute SHA-256 certificate fingerprint for WebTransport serverCertificateHashes
+if [ -f "$TLS_DIR/cert.pem" ]; then
+    FINGERPRINT_HEX=$(openssl x509 -in "$TLS_DIR/cert.pem" -outform der | openssl dgst -sha256 2>/dev/null | awk '{print $NF}')
+    if [ -n "$FINGERPRINT_HEX" ]; then
+        echo "$FINGERPRINT_HEX" > "$TLS_DIR/fingerprint_sha256.txt"
+        chown gamer:gamer "$TLS_DIR/fingerprint_sha256.txt" 2>/dev/null || true
+        echo "[entrypoint] WebTransport SHA-256 certificate fingerprint: $FINGERPRINT_HEX"
+    fi
 fi
 
 # 5. Install NVIDIA Xorg GLX module matching the host driver (if NVIDIA Xorg driver is mounted)

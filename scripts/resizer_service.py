@@ -188,6 +188,23 @@ def is_authenticated(client_address, headers, params):
     return False
 
 
+def get_tls_fingerprint():
+    """Retrieve SHA-256 fingerprint for WebTransport serverCertificateHashes."""
+    fp_path = "/etc/kyber/tls/fingerprint_sha256.txt"
+    if os.path.exists(fp_path):
+        try:
+            with open(fp_path, "r") as f:
+                return {"has_tls": True, "fingerprint_sha256": f.read().strip()}
+        except Exception:
+            pass
+    cert_path = os.environ.get("TLS_CERT", "/etc/kyber/tls/cert.pem")
+    if os.path.exists(cert_path):
+        out = run_cmd(f"openssl x509 -in {cert_path} -outform der | openssl dgst -sha256 2>/dev/null")
+        if out:
+            fp = out.split()[-1]
+            return {"has_tls": True, "fingerprint_sha256": fp}
+    return {"has_tls": False, "fingerprint_sha256": None}
+
 def run_cmd(cmd):
     try:
         res = subprocess.run(
@@ -246,7 +263,8 @@ def get_system_info():
     return {
         "gpu": gpu_name,
         "resolution": current_res,
-        "hostname": hostname
+        "hostname": hostname,
+        "tls": get_tls_fingerprint()
     }
 
 def get_launchers_config():
@@ -420,6 +438,8 @@ class ResizeHandler(BaseHTTPRequestHandler):
             self._send_json_response(get_launchers_config())
         elif parsed.path == "/api/roms":
             self._send_json_response(list_roms_inventory())
+        elif parsed.path == "/api/tls/fingerprint":
+            self._send_json_response(get_tls_fingerprint())
         elif parsed.path == "/api/launcher/status":
             steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
             heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0

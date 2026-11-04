@@ -87,6 +87,13 @@ services:
       # Udev data so Xorg discovers virtual uinput devices created by kynput
       - /run/udev:/run/udev:ro
 
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k -f https://127.0.0.1:8081/api/launchers >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
 volumes:
   steam_data:
   heroic_data:
