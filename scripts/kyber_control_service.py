@@ -17,15 +17,53 @@ import re
 import ssl
 import shutil
 import base64
+import socket
+import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("KYBER_CONTROL_PORT", os.environ.get("RESIZER_PORT", "8081")))
+DISCOVERY_PORT = int(os.environ.get("KYBER_DISCOVERY_PORT", "8082"))
 DISPLAY = os.environ.get("DISPLAY", ":0")
 AUTH_USER = os.environ.get("AUTH_USER", "gamer")
 AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "kybergaming")
 ROMS_BASE_DIR = os.environ.get("ROMS_DIR", "/home/gamer/roms")
 BIOS_BASE_DIR = os.environ.get("BIOS_DIR", "/home/gamer/bios")
+
+def run_discovery_responder():
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        except Exception:
+            pass
+        sock.bind(("0.0.0.0", DISCOVERY_PORT))
+        print(f"[discovery] Listening for LAN auto-discovery probes on UDP port {DISCOVERY_PORT}...")
+        while True:
+            try:
+                data, addr = sock.recvfrom(2048)
+                if not data:
+                    continue
+                req_text = data.decode("utf-8", errors="ignore").strip()
+                if "KYBER_DISCOVER" in req_text or "discover" in req_text.lower():
+                    server_name = os.environ.get("SERVER_NAME", f"Kyber Gaming ({os.uname().nodename})")
+                    payload = json.dumps({
+                        "type": "kyber_server_announce",
+                        "name": server_name,
+                        "port": int(os.environ.get("KYBER_PORT", "8080")),
+                        "control_port": PORT,
+                        "version": "1.0.0"
+                    }).encode("utf-8")
+                    sock.sendto(payload, addr)
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[discovery] Warning: Unable to bind UDP port {DISCOVERY_PORT}: {e}")
+
+def start_discovery_responder():
+    t = threading.Thread(target=run_discovery_responder, daemon=True, name="DiscoveryResponder")
+    t.start()
 
 ROM_SYSTEMS_DEF = [
     {"id": "switch", "name": "Nintendo Switch & NX2 (Eglantine)", "extensions": [".nsp", ".xci", ".nsz", ".zip"]},
@@ -830,6 +868,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
 
 def main():
     print(f"[kyber-control] Starting Kyber Gaming Control Service on port {PORT} for display {DISPLAY}...")
+    start_discovery_responder()
     server = HTTPServer(("0.0.0.0", PORT), ResizeHandler)
     tls_cert = os.environ.get("TLS_CERT", "/etc/kyber/tls/cert.pem")
     tls_key = os.environ.get("TLS_KEY", "/etc/kyber/tls/key.pem")

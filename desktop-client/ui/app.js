@@ -27,9 +27,15 @@
     const serversGrid = document.getElementById('serversGrid');
     const quickServerCount = document.getElementById('quickServerCount');
     const btnRefreshPings = document.getElementById('btnRefreshPings');
+    const btnScanServers = document.getElementById('btnScanServers');
     const btnAddServer = document.getElementById('btnAddServer');
     const btnSaveSettings = document.getElementById('btnSaveSettings');
     const toast = document.getElementById('toast');
+
+    // Auto-Discovery Elements
+    const discoveredBanner = document.getElementById('discoveredBanner');
+    const discoveredCount = document.getElementById('discoveredCount');
+    const discoveredList = document.getElementById('discoveredList');
 
     // Modal Elements
     const serverModal = document.getElementById('serverModal');
@@ -44,6 +50,8 @@
     const serverPassInput = document.getElementById('serverPassInput');
 
     // Settings Input Elements
+    const settingPlayerMode = document.getElementById('settingPlayerMode');
+    const settingHudOverlay = document.getElementById('settingHudOverlay');
     const settingResolution = document.getElementById('settingResolution');
     const settingCustomResRow = document.getElementById('settingCustomResRow');
     const customInputW = document.getElementById('customInputW');
@@ -57,6 +65,26 @@
     const settingTlsSkip = document.getElementById('settingTlsSkip');
     const settingForceXbox = document.getElementById('settingForceXbox');
     const settingKeyboardGrab = document.getElementById('settingKeyboardGrab');
+
+    // Gamepad Elements
+    const gamepadSelect = document.getElementById('gamepadSelect');
+    const gamepadStatusBadge = document.getElementById('gamepadStatusBadge');
+    const gamepadStatusLabel = document.getElementById('gamepadStatusLabel');
+    const gamepadTelemetryCard = document.getElementById('gamepadTelemetryCard');
+    const lsIndicator = document.getElementById('lsIndicator');
+    const lsCoordText = document.getElementById('lsCoordText');
+    const rsIndicator = document.getElementById('rsIndicator');
+    const rsCoordText = document.getElementById('rsCoordText');
+    const ltBar = document.getElementById('ltBar');
+    const ltValText = document.getElementById('ltValText');
+    const rtBar = document.getElementById('rtBar');
+    const rtValText = document.getElementById('rtValText');
+    const gamepadButtonsGrid = document.getElementById('gamepadButtonsGrid');
+    const deadzoneSlider = document.getElementById('deadzoneSlider');
+    const deadzoneValText = document.getElementById('deadzoneValText');
+    const btnTestRumble = document.getElementById('btnTestRumble');
+    const lsDeadzoneCircle = document.getElementById('lsDeadzoneCircle');
+    const rsDeadzoneCircle = document.getElementById('rsDeadzoneCircle');
 
     // ROM Manager Elements
     const romServerSelect = document.getElementById('romServerSelect');
@@ -90,6 +118,8 @@
         bindModalEvents();
         bindSettingsEvents();
         bindRomManagerEvents();
+        bindDiscoveryEvents();
+        bindGamepadEvents();
 
         // Load config from Rust backend
         await loadConfig();
@@ -258,6 +288,11 @@
                 if (viewId === 'roms') {
                     updateRomServerOptions();
                     loadDesktopDirectory(currentDesktopBrowsePath);
+                    stopGamepadPolling();
+                } else if (viewId === 'gamepads') {
+                    startGamepadPolling();
+                } else {
+                    stopGamepadPolling();
                 }
             });
         });
@@ -365,7 +400,9 @@
 
         const effectiveSettings = {
             ...settings,
-            resolution: chosenResolution
+            resolution: chosenResolution,
+            player_mode: settingPlayerMode ? settingPlayerMode.value : (settings.player_mode || 'auto'),
+            hud_overlay: settingHudOverlay ? settingHudOverlay.value === 'true' : (settings.hud_overlay !== false)
         };
 
         try {
@@ -495,6 +532,8 @@
         if (settings.kymux_video) settingKymuxVideo.value = settings.kymux_video;
         if (settings.kymux_audio) settingKymuxAudio.value = settings.kymux_audio;
         if (settings.audio_buffer) settingAudioBuffer.value = settings.audio_buffer;
+        if (settings.player_mode && settingPlayerMode) settingPlayerMode.value = settings.player_mode;
+        if (settings.hud_overlay !== undefined && settingHudOverlay) settingHudOverlay.value = String(settings.hud_overlay);
         settingTlsSkip.checked = settings.tls_skip !== false;
         settingForceXbox.checked = settings.force_xbox !== false;
         settingKeyboardGrab.checked = settings.keyboard_grab !== false;
@@ -517,6 +556,8 @@
                 kymux_video: settingKymuxVideo.value,
                 kymux_audio: settingKymuxAudio.value,
                 audio_buffer: settingAudioBuffer.value,
+                player_mode: settingPlayerMode ? settingPlayerMode.value : 'auto',
+                hud_overlay: settingHudOverlay ? settingHudOverlay.value === 'true' : true,
                 tls_skip: settingTlsSkip.checked,
                 force_xbox: settingForceXbox.checked,
                 keyboard_grab: settingKeyboardGrab.checked
@@ -994,6 +1035,276 @@
                     uploadDesktopFilesChunked(e.dataTransfer.files);
                 }
             });
+        }
+    }
+
+    // ==========================================================================
+    // Server Auto-Discovery (UDP Broadcast / ZeroConf)
+    // ==========================================================================
+    function bindDiscoveryEvents() {
+        if (!btnScanServers) return;
+
+        btnScanServers.addEventListener('click', async () => {
+            btnScanServers.disabled = true;
+            btnScanServers.textContent = 'Scanning...';
+            showToast('Scanning local network for Kyber hosts...');
+
+            try {
+                const results = await tauriInvoke('scan_local_servers');
+                const list = Array.isArray(results) ? results : [];
+
+                if (list.length === 0) {
+                    showToast('No new Kyber servers responded on LAN.');
+                    if (discoveredBanner) discoveredBanner.style.display = 'none';
+                } else {
+                    if (discoveredBanner) discoveredBanner.style.display = 'block';
+                    if (discoveredCount) discoveredCount.textContent = `${list.length} discovered`;
+                    if (discoveredList) {
+                        discoveredList.innerHTML = '';
+                        list.forEach(srv => {
+                            const item = document.createElement('div');
+                            item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.6rem 0.8rem; background:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:6px;';
+                            
+                            const alreadyExists = servers.some(s => s.host === srv.host && s.port === srv.port);
+
+                            item.innerHTML = `
+                                <div>
+                                    <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">${srv.name}</div>
+                                    <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">${srv.host}:${srv.port} | v${srv.version}</div>
+                                </div>
+                                <div>
+                                    ${alreadyExists ? 
+                                        '<span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted);">Added</span>' :
+                                        `<button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px;" onclick="window.addDiscoveredServer('${srv.name}', '${srv.host}', ${srv.port})">Add Server</button>`
+                                    }
+                                </div>
+                            `;
+                            discoveredList.appendChild(item);
+                        });
+                    }
+
+                    showToast(`Found ${list.length} Kyber server(s) on LAN.`);
+                }
+            } catch (err) {
+                console.error('Scan error:', err);
+                showToast(`Scan failed: ${err}`);
+            } finally {
+                btnScanServers.disabled = false;
+                btnScanServers.textContent = 'Scan Network';
+            }
+        });
+
+        window.addDiscoveredServer = async function(name, host, port) {
+            servers.push({
+                id: 'srv-' + Date.now(),
+                name: name,
+                host: host,
+                port: port,
+                auth_user: 'gamer',
+                auth_password: 'kybergaming',
+                status: 'checking'
+            });
+            renderServers();
+            await saveCurrentConfig();
+            probeAllServers();
+            showToast(`Server ${name} added.`);
+            if (discoveredBanner) discoveredBanner.style.display = 'none';
+        };
+    }
+
+    // ==========================================================================
+    // Gamepad Diagnostic & Calibration Controller
+    // ==========================================================================
+    const GAMEPAD_BUTTON_LABELS = [
+        'A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT',
+        'SELECT', 'START', 'LS', 'RS', 'D-UP', 'D-DOWN', 'D-LEFT', 'D-RIGHT', 'GUIDE'
+    ];
+
+    let gamepadPollRaf = null;
+    let selectedGamepadIndex = null;
+    let currentDeadzone = 0.08;
+
+    function bindGamepadEvents() {
+        if (!gamepadButtonsGrid) return;
+
+        gamepadButtonsGrid.innerHTML = '';
+        GAMEPAD_BUTTON_LABELS.forEach((label, idx) => {
+            const btnEl = document.createElement('div');
+            btnEl.id = `gpBtn-${idx}`;
+            btnEl.textContent = label;
+            btnEl.style.cssText = `
+                padding: 8px 6px;
+                text-align: center;
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+                font-family: var(--font-mono);
+                font-size: 0.72rem;
+                font-weight: 600;
+                color: var(--text-muted);
+                transition: all 0.05s ease;
+            `;
+            gamepadButtonsGrid.appendChild(btnEl);
+        });
+
+        if (deadzoneSlider && deadzoneValText) {
+            deadzoneSlider.addEventListener('input', () => {
+                const pct = parseInt(deadzoneSlider.value, 10);
+                deadzoneValText.textContent = `${pct}%`;
+                currentDeadzone = pct / 100;
+                const dSize = Math.max(8, Math.round(120 * currentDeadzone));
+                if (lsDeadzoneCircle) {
+                    lsDeadzoneCircle.style.width = `${dSize}px`;
+                    lsDeadzoneCircle.style.height = `${dSize}px`;
+                }
+                if (rsDeadzoneCircle) {
+                    rsDeadzoneCircle.style.width = `${dSize}px`;
+                    rsDeadzoneCircle.style.height = `${dSize}px`;
+                }
+            });
+        }
+
+        if (btnTestRumble) {
+            btnTestRumble.addEventListener('click', async () => {
+                const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p !== null) : [];
+                const pad = selectedGamepadIndex !== null ? pads.find(p => p.index === selectedGamepadIndex) : pads[0];
+
+                if (!pad) {
+                    showToast('Connect a controller first.');
+                    return;
+                }
+
+                if (pad.vibrationActuator && typeof pad.vibrationActuator.playEffect === 'function') {
+                    try {
+                        await pad.vibrationActuator.playEffect('dual-rumble', {
+                            startDelay: 0,
+                            duration: 800,
+                            weakMagnitude: 0.8,
+                            strongMagnitude: 1.0
+                        });
+                        showToast('Haptic vibration triggered on controller.');
+                    } catch (e) {
+                        showToast(`Rumble effect rejected: ${e.message}`);
+                    }
+                } else if (pad.hapticActuators && pad.hapticActuators.length > 0) {
+                    try {
+                        pad.hapticActuators[0].pulse(1.0, 800);
+                        showToast('Haptic pulse triggered.');
+                    } catch (e) {
+                        showToast(`Haptic error: ${e.message}`);
+                    }
+                } else {
+                    showToast('Controller does not support browser haptic actuators.');
+                }
+            });
+        }
+
+        window.addEventListener('gamepadconnected', refreshGamepadList);
+        window.addEventListener('gamepaddisconnected', refreshGamepadList);
+
+        if (gamepadSelect) {
+            gamepadSelect.addEventListener('change', () => {
+                selectedGamepadIndex = gamepadSelect.value !== '' ? parseInt(gamepadSelect.value, 10) : null;
+            });
+        }
+
+        refreshGamepadList();
+    }
+
+    function refreshGamepadList() {
+        const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(p => p !== null) : [];
+        if (!gamepadSelect) return;
+
+        gamepadSelect.innerHTML = '';
+        if (pads.length === 0) {
+            gamepadSelect.innerHTML = '<option value="">Press any button on your controller to activate...</option>';
+            if (gamepadStatusBadge) gamepadStatusBadge.className = 'server-status-pill status-offline';
+            if (gamepadStatusLabel) gamepadStatusLabel.textContent = 'No Controller Detected';
+            if (gamepadTelemetryCard) gamepadTelemetryCard.style.opacity = '0.4';
+            selectedGamepadIndex = null;
+        } else {
+            pads.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.index;
+                opt.textContent = `[Slot ${p.index}] ${p.id}`;
+                gamepadSelect.appendChild(opt);
+            });
+            if (selectedGamepadIndex === null || !pads.some(p => p.index === selectedGamepadIndex)) {
+                selectedGamepadIndex = pads[0].index;
+            }
+            gamepadSelect.value = selectedGamepadIndex;
+            if (gamepadStatusBadge) gamepadStatusBadge.className = 'server-status-pill status-online';
+            if (gamepadStatusLabel) gamepadStatusLabel.textContent = `${pads.length} Connected`;
+            if (gamepadTelemetryCard) gamepadTelemetryCard.style.opacity = '1';
+        }
+    }
+
+    function pollGamepadFrame() {
+        const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+        const pad = selectedGamepadIndex !== null ? pads[selectedGamepadIndex] : null;
+
+        if (pad) {
+            let lx = pad.axes[0] || 0;
+            let ly = pad.axes[1] || 0;
+            let lr = Math.sqrt(lx * lx + ly * ly);
+            if (lr < currentDeadzone) {
+                lx = 0;
+                ly = 0;
+            }
+
+            let rx = pad.axes[2] || 0;
+            let ry = pad.axes[3] || 0;
+            let rr = Math.sqrt(rx * rx + ry * ry);
+            if (rr < currentDeadzone) {
+                rx = 0;
+                ry = 0;
+            }
+
+            if (lsIndicator) lsIndicator.style.transform = `translate(${lx * 42}px, ${ly * 42}px)`;
+            if (lsCoordText) lsCoordText.textContent = `X: ${lx.toFixed(2)} | Y: ${ly.toFixed(2)}`;
+
+            if (rsIndicator) rsIndicator.style.transform = `translate(${rx * 42}px, ${ry * 42}px)`;
+            if (rsCoordText) rsCoordText.textContent = `X: ${rx.toFixed(2)} | Y: ${ry.toFixed(2)}`;
+
+            const ltVal = pad.buttons[6] ? pad.buttons[6].value : 0;
+            const rtVal = pad.buttons[7] ? pad.buttons[7].value : 0;
+
+            if (ltBar) ltBar.style.width = `${Math.round(ltVal * 100)}%`;
+            if (ltValText) ltValText.textContent = `${Math.round(ltVal * 100)}%`;
+
+            if (rtBar) rtBar.style.width = `${Math.round(rtVal * 100)}%`;
+            if (rtValText) rtValText.textContent = `${Math.round(rtVal * 100)}%`;
+
+            pad.buttons.forEach((btn, idx) => {
+                const el = document.getElementById(`gpBtn-${idx}`);
+                if (el) {
+                    if (btn.pressed || btn.value > 0.5) {
+                        el.style.background = '#22c55e';
+                        el.style.color = '#000';
+                        el.style.borderColor = '#22c55e';
+                    } else {
+                        el.style.background = 'rgba(255, 255, 255, 0.03)';
+                        el.style.color = 'var(--text-muted)';
+                        el.style.borderColor = 'var(--border-color)';
+                    }
+                }
+            });
+        }
+
+        gamepadPollRaf = requestAnimationFrame(pollGamepadFrame);
+    }
+
+    function startGamepadPolling() {
+        refreshGamepadList();
+        if (!gamepadPollRaf) {
+            gamepadPollRaf = requestAnimationFrame(pollGamepadFrame);
+        }
+    }
+
+    function stopGamepadPolling() {
+        if (gamepadPollRaf) {
+            cancelAnimationFrame(gamepadPollRaf);
+            gamepadPollRaf = null;
         }
     }
 

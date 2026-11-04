@@ -29,12 +29,16 @@
                     <span class="nav-code">02</span>
                     <span>ROMS & GAMES</span>
                 </button>
-                <button class="nav-item" data-view="settings">
+                <button class="nav-item" data-view="gamepads">
                     <span class="nav-code">03</span>
+                    <span>GAMEPADS</span>
+                </button>
+                <button class="nav-item" data-view="settings">
+                    <span class="nav-code">04</span>
                     <span>SETTINGS</span>
                 </button>
                 <button class="nav-item" data-view="about">
-                    <span class="nav-code">04</span>
+                    <span class="nav-code">05</span>
                     <span>SYSTEM</span>
                 </button>
             </nav>
@@ -57,6 +61,9 @@
                         <p class="panel-desc">Machines available for low-latency game streaming.</p>
                     </div>
                     <div class="header-actions">
+                        <button class="btn btn-secondary" id="btnScanServers" title="Auto-discover Kyber servers on local network">
+                            Scan Network
+                        </button>
                         <button class="btn btn-secondary" id="btnRefreshPings" title="Refresh server ping status">
                             Refresh
                         </button>
@@ -64,6 +71,17 @@
                             Add Server
                         </button>
                     </div>
+                </div>
+
+                <!-- Auto-Discovered Servers Banner -->
+                <div id="discoveredBanner" style="display:none; margin-bottom: 1.5rem; padding: 1rem 1.25rem; background: rgba(59, 130, 246, 0.06); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                        <div style="font-family:var(--font-mono); font-size:0.78rem; font-weight:600; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.05em;">
+                            Discovered Local Servers
+                        </div>
+                        <span id="discoveredCount" style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted);">0 found</span>
+                    </div>
+                    <div id="discoveredList" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
                 </div>
 
                 <div class="servers-grid" id="serversGrid"></div>
@@ -156,6 +174,110 @@
                 </div>
             </section>
 
+            <!-- GAMEPADS VIEW -->
+            <section class="view-panel" id="viewGamepads">
+                <div class="panel-header">
+                    <div>
+                        <h1 class="panel-title">Gamepad Diagnostic & Calibration</h1>
+                        <p class="panel-desc">Real-time input telemetry, analog stick calibration, and haptic feedback testing.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" id="btnTestRumble" title="Test dual-motor vibration">
+                            Test Vibration
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-container">
+                    <div class="settings-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h2 class="settings-card-title" style="margin: 0;">Connected Controller</h2>
+                            <span id="gamepadStatusBadge" class="server-status-pill status-offline">
+                                <span class="status-dot"></span>
+                                <span id="gamepadStatusLabel" class="status-label">No Controller Detected</span>
+                            </span>
+                        </div>
+                        <div class="form-group">
+                            <label for="gamepadSelect">Active Gamepad Device</label>
+                            <select id="gamepadSelect" class="form-control">
+                                <option value="">Press any button on your controller to activate...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Visual Gamepad Telemetry -->
+                    <div class="settings-card" id="gamepadTelemetryCard" style="opacity: 0.5;">
+                        <h2 class="settings-card-title">Analog Sticks & Triggers</h2>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <!-- Left Stick -->
+                            <div style="display: flex; flex-direction: column; align-items: center; padding: 1.25rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 6px;">
+                                <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase;">Left Analog Stick (LS)</div>
+                                <div style="position: relative; width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--border-color); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                                    <div style="position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.1);"></div>
+                                    <div style="position: absolute; width: 1px; height: 100%; background: rgba(255,255,255,0.1);"></div>
+                                    <div id="lsDeadzoneCircle" style="position: absolute; width: 24px; height: 24px; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.2);"></div>
+                                    <div id="lsIndicator" style="position: absolute; width: 20px; height: 20px; border-radius: 50%; background: var(--text-primary); transition: transform 0.05s ease-out;"></div>
+                                </div>
+                                <div id="lsCoordText" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.75rem;">X: 0.00 | Y: 0.00</div>
+                            </div>
+
+                            <!-- Right Stick -->
+                            <div style="display: flex; flex-direction: column; align-items: center; padding: 1.25rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 6px;">
+                                <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase;">Right Analog Stick (RS)</div>
+                                <div style="position: relative; width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--border-color); background: rgba(255,255,255,0.02); display: flex; align-items: center; justify-content: center;">
+                                    <div style="position: absolute; width: 100%; height: 1px; background: rgba(255,255,255,0.1);"></div>
+                                    <div style="position: absolute; width: 1px; height: 100%; background: rgba(255,255,255,0.1);"></div>
+                                    <div id="rsDeadzoneCircle" style="position: absolute; width: 24px; height: 24px; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.2);"></div>
+                                    <div id="rsIndicator" style="position: absolute; width: 20px; height: 20px; border-radius: 50%; background: var(--text-primary); transition: transform 0.05s ease-out;"></div>
+                                </div>
+                                <div id="rsCoordText" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.75rem;">X: 0.00 | Y: 0.00</div>
+                            </div>
+                        </div>
+
+                        <!-- Triggers LT & RT -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.35rem;">
+                                    <span style="color: var(--text-muted);">LEFT TRIGGER (LT)</span>
+                                    <span id="ltValText" style="color: var(--text-secondary);">0%</span>
+                                </div>
+                                <div style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+                                    <div id="ltBar" style="width: 0%; height: 100%; background: var(--text-primary); transition: width 0.05s;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.35rem;">
+                                    <span style="color: var(--text-muted);">RIGHT TRIGGER (RT)</span>
+                                    <span id="rtValText" style="color: var(--text-secondary);">0%</span>
+                                </div>
+                                <div style="height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden;">
+                                    <div id="rtBar" style="width: 0%; height: 100%; background: var(--text-primary); transition: width 0.05s;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons Grid -->
+                        <h2 class="settings-card-title">Digital Buttons</h2>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem;" id="gamepadButtonsGrid"></div>
+                    </div>
+
+                    <!-- Deadzone Calibration Slider -->
+                    <div class="settings-card">
+                        <h2 class="settings-card-title">Deadzone Calibration</h2>
+                        <div class="form-group">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                                <label for="deadzoneSlider">Analog Deadzone</label>
+                                <span id="deadzoneValText" style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary);">8%</span>
+                            </div>
+                            <input type="range" id="deadzoneSlider" min="0" max="30" value="8" style="width: 100%;">
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                                Prevents uncommanded camera pan or character drift from worn joystick potentiometers.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- SETTINGS VIEW -->
             <section class="view-panel" id="viewSettings">
                 <div class="panel-header">
@@ -169,6 +291,28 @@
                 </div>
 
                 <div class="settings-container">
+                    <div class="settings-card">
+                        <h2 class="settings-card-title">Streaming Engine & Player Mode</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="settingPlayerMode">Streaming Player</label>
+                                <select id="settingPlayerMode" class="form-control">
+                                    <option value="auto" selected>Auto (Native kyclient or In-App Webview)</option>
+                                    <option value="in_app">In-App Webview (Embedded zero-dependency player)</option>
+                                    <option value="native">Native Binary (kyclient subprocess)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="settingHudOverlay">In-Game Performance HUD</label>
+                                <select id="settingHudOverlay" class="form-control">
+                                    <option value="true" selected>Enabled (Toggle with Ctrl+Shift+S or F10)</option>
+                                    <option value="false">Disabled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="settings-card">
                         <h2 class="settings-card-title">Resolution & Display</h2>
                         <div class="form-grid">

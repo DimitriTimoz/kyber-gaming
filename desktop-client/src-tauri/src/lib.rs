@@ -27,6 +27,8 @@ pub struct StreamSettings {
     pub tls_skip: bool,
     pub force_xbox: bool,
     pub keyboard_grab: bool,
+    pub player_mode: Option<String>,
+    pub hud_overlay: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,9 +77,20 @@ impl Default for AppConfig {
                 tls_skip: true,
                 force_xbox: true,
                 keyboard_grab: true,
+                player_mode: Some("auto".into()),
+                hud_overlay: Some(true),
             },
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscoveredServer {
+    pub name: String,
+    pub host: String,
+    pub port: u16,
+    pub control_port: u16,
+    pub version: String,
 }
 
 fn get_config_path() -> PathBuf {
@@ -145,6 +158,47 @@ async fn ping_server(host: String, port: u16) -> Result<PingResult, String> {
             }
         }
     }
+}
+
+#[tauri::command]
+async fn scan_local_servers() -> Result<Vec<DiscoveredServer>, String> {
+    let mut discovered: Vec<DiscoveredServer> = Vec::new();
+    let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+    let _ = socket.set_broadcast(true);
+    let _ = socket.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
+
+    let msg = b"KYBER_DISCOVER";
+    let _ = socket.send_to(msg, "255.255.255.255:8082");
+
+    let mut buf = [0u8; 2048];
+    let start = Instant::now();
+    while start.elapsed() < std::time::Duration::from_millis(1500) {
+        if let Ok((len, addr)) = socket.recv_from(&mut buf) {
+            if let Ok(text) = std::str::from_utf8(&buf[..len]) {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
+                    if val.get("type").and_then(|t| t.as_str()) == Some("kyber_server_announce") {
+                        let ip = addr.ip().to_string();
+                        let name = val.get("name").and_then(|n| n.as_str()).unwrap_or("Kyber Host").to_string();
+                        let port = val.get("port").and_then(|p| p.as_u64()).unwrap_or(8080) as u16;
+                        let control_port = val.get("control_port").and_then(|p| p.as_u64()).unwrap_or(8081) as u16;
+                        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
+
+                        if !discovered.iter().any(|s| s.host == ip && s.port == port) {
+                            discovered.push(DiscoveredServer {
+                                name,
+                                host: ip,
+                                port,
+                                control_port,
+                                version,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(discovered)
 }
 
 fn find_kyclient_binary(app_handle: Option<&tauri::AppHandle>) -> Option<PathBuf> {
@@ -244,12 +298,64 @@ async fn launch_session(
         let _ = c.get(&resize_url).send().await;
     }
 
-    // 2. Find kyclient binary (checking bundled resources first)
+    // 2. Determine player mode: check if user requested in-app or if native kyclient is unavailable
+    let mode = settings.player_mode.as_deref().unwrap_or("auto");
+    let is_native_usable = if mode == "in_app" {
+        false
+    } else {
+        match find_kyclient_binary(Some(&app)) {
+            Some(bin) => {
+                if let Ok(content) = fs::read(&bin) {
+                    !content.starts_with(b"#!") && content.len() > 1024
+                } else {
+                    false
+                }
+            }
+            None => false,
+        }
+    };
+
+    if mode == "in_app" || (!is_native_usable && mode == "auto") {
+        println!("[kyber-desktop] Spawning in-app Webview streaming window for {}", server.name);
+        let u = server.auth_user.as_deref().unwrap_or("gamer");
+        let p = server.auth_password.as_deref().unwrap_or("kybergaming");
+        let hud = if settings.hud_overlay.unwrap_or(true) { "1" } else { "0" };
+        let stream_url = format!(
+            "https://{}:{}/webclient?auto_connect=true&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&codec={}&hud={}",
+            server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
+        );
+
+        let parsed_url: tauri::Url = stream_url.parse().map_err(|e| format!("{}", e))?;
+        let window_label = "kyber-stream-player";
+
+        if let Some(existing) = app.get_webview_window(window_label) {
+            let _ = existing.navigate(parsed_url);
+            let _ = existing.show();
+            let _ = existing.set_focus();
+        } else {
+            tauri::WebviewWindowBuilder::new(
+                &app,
+                window_label,
+                tauri::WebviewUrl::External(parsed_url),
+            )
+            .title(format!("Kyber Stream - {}", server.name))
+            .inner_size(1280.0, 720.0)
+            .min_inner_size(800.0, 480.0)
+            .resizable(true)
+            .fullscreen(false)
+            .build()
+            .map_err(|e| e.to_string())?;
+        }
+
+        return Ok(());
+    }
+
+    // 3. Fallback to native kyclient process
     let kyclient_bin = find_kyclient_binary(Some(&app)).ok_or_else(|| {
         "Unable to locate kyclient executable on this system.".to_string()
     })?;
 
-    // 3. Build command arguments
+    // 4. Build command arguments
     let mut args: Vec<String> = vec![
         server.host.clone(),
         "--port".into(),
@@ -341,6 +447,7 @@ pub fn run() {
             get_config,
             save_config,
             ping_server,
+            scan_local_servers,
             launch_session
         ])
         .run(tauri::generate_context!())

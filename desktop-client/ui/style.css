@@ -803,3 +803,12 @@ html, body {
     border-color: var(--accent-blue) !important;
     background: rgba(37, 99, 235, 0.05) !important;
 }
+
+/* Gamepad Diagnostic & Auto-Discovery */
+input[type="range"] {
+    accent-color: var(--accent-blue);
+    background: rgba(255, 255, 255, 0.1);
+    height: 6px;
+    border-radius: 3px;
+    cursor: pointer;
+}
