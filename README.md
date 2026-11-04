@@ -31,6 +31,10 @@ A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, 
 
 ---
 
+## Installation & Setup
+
+For a detailed walkthrough covering GPU pass-through (NVIDIA, AMD, Intel), Tailscale networking, ROM library setup, archive extraction, and client builds, consult the dedicated [Installation Guide](docs/INSTALLATION.md).
+
 ## Quick Start
 
 ### Option 1: Docker Compose (Prebuilt or Local Build)
@@ -122,15 +126,15 @@ The container organizes emulator storage in a clean hierarchical structure with 
 
 ```text
 /home/gamer/roms/
-├── eglantine/
-│   ├── games/        # Base game ROMs (.nsp, .xci, .nsz)
-│   ├── updates/      # Game update patches (.nsp)
-│   ├── dlc/          # Downloadable content packs (.nsp)
-│   ├── keys/         # Decryption keys (prod.keys, title.keys)
-│   ├── firmware/     # Switch system firmware archives (.zip, .bin)
-│   └── mods/         # Game mods and custom content
-├── switch -> eglantine/games   # Backward-compatible symlink
-└── saves/            # Emulator save files and memory states
+|-- eglantine/
+|   |-- games/        # Base game ROMs (.nsp, .xci, .nsz)
+|   |-- updates/      # Game update patches (.nsp)
+|   |-- dlc/          # Downloadable content packs (.nsp)
+|   |-- keys/         # Decryption keys (prod.keys, title.keys)
+|   |-- firmware/     # Switch system firmware archives (.zip, .bin)
+|   `-- mods/         # Game mods and custom content
+|-- switch -> eglantine/games   # Backward-compatible symlink
+`-- saves/            # Emulator save files and memory states
 ```
 
 When keys or firmware files (such as `prod.keys` or `title.keys`) are uploaded to `eglantine/keys/` or `/home/gamer/bios/`, they are automatically mirrored to Eglantine's internal key directories (`/home/gamer/.local/share/eglantine/keys/` and `/home/gamer/.local/share/eden/keys/`). Eglantine is configured with recursive directory discovery (`deep_scan=true`), so games in subfolders are detected automatically.
