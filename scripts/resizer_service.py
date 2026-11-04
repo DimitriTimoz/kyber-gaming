@@ -21,6 +21,147 @@ PORT = int(os.environ.get("RESIZER_PORT", "8081"))
 DISPLAY = os.environ.get("DISPLAY", ":0")
 AUTH_USER = os.environ.get("AUTH_USER", "gamer")
 AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "kybergaming")
+ROMS_BASE_DIR = os.environ.get("ROMS_DIR", "/home/gamer/roms")
+BIOS_BASE_DIR = os.environ.get("BIOS_DIR", "/home/gamer/bios")
+
+ROM_SYSTEMS_DEF = [
+    {"id": "ps3", "name": "PlayStation 3 (RPCS3)", "extensions": [".iso", ".pkg", ".rap", ".bin"]},
+    {"id": "ps2", "name": "PlayStation 2 (PCSX2)", "extensions": [".iso", ".chd", ".bin", ".cso", ".gz"]},
+    {"id": "psx", "name": "PlayStation 1 (DuckStation / RetroArch)", "extensions": [".chd", ".cue", ".bin", ".iso", ".pbp"]},
+    {"id": "gamecube", "name": "Nintendo GameCube (Dolphin)", "extensions": [".iso", ".gcm", ".rvz", ".ciso"]},
+    {"id": "wii", "name": "Nintendo Wii (Dolphin)", "extensions": [".iso", ".wbfs", ".rvz"]},
+    {"id": "switch", "name": "Nintendo Switch", "extensions": [".nsp", ".xci", ".nsz"]},
+    {"id": "snes", "name": "Super Nintendo (RetroArch)", "extensions": [".sfc", ".smc", ".zip", ".7z"]},
+    {"id": "nes", "name": "NES (RetroArch)", "extensions": [".nes", ".zip"]},
+    {"id": "gba", "name": "Game Boy Advance (RetroArch)", "extensions": [".gba", ".zip"]},
+    {"id": "gbc", "name": "Game Boy / Color (RetroArch)", "extensions": [".gbc", ".gb", ".zip"]},
+    {"id": "genesis", "name": "Sega Genesis / Mega Drive (RetroArch)", "extensions": [".md", ".bin", ".gen", ".zip"]},
+    {"id": "n64", "name": "Nintendo 64 (RetroArch)", "extensions": [".n64", ".z64", ".v64", ".zip"]},
+    {"id": "arcade", "name": "Arcade / MAME (RetroArch)", "extensions": [".zip", ".7z"]},
+]
+
+def format_bytes(num_bytes):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if abs(num_bytes) < 1024.0:
+            return f"{num_bytes:3.1f} {unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} PB"
+
+def list_roms_inventory():
+    systems_data = []
+    total_roms = 0
+    total_bytes = 0
+
+    for sys_def in ROM_SYSTEMS_DEF:
+        sys_id = sys_def["id"]
+        sys_dir = os.path.join(ROMS_BASE_DIR, sys_id)
+        files = []
+        if os.path.exists(sys_dir) and os.path.isdir(sys_dir):
+            for entry in os.scandir(sys_dir):
+                if entry.is_file() and not entry.name.startswith("."):
+                    stat = entry.stat()
+                    total_roms += 1
+                    total_bytes += stat.st_size
+                    files.append({
+                        "name": entry.name,
+                        "size": stat.st_size,
+                        "size_formatted": format_bytes(stat.st_size),
+                        "modified": int(stat.st_mtime)
+                    })
+        files.sort(key=lambda x: x["name"].lower())
+        systems_data.append({
+            "id": sys_id,
+            "name": sys_def["name"],
+            "extensions": sys_def["extensions"],
+            "count": len(files),
+            "files": files
+        })
+
+    bios_files = []
+    if os.path.exists(BIOS_BASE_DIR) and os.path.isdir(BIOS_BASE_DIR):
+        for entry in os.scandir(BIOS_BASE_DIR):
+            if entry.is_file() and not entry.name.startswith("."):
+                stat = entry.stat()
+                bios_files.append({
+                    "name": entry.name,
+                    "size": stat.st_size,
+                    "size_formatted": format_bytes(stat.st_size),
+                    "modified": int(stat.st_mtime)
+                })
+    bios_files.sort(key=lambda x: x["name"].lower())
+
+    return {
+        "base_path": ROMS_BASE_DIR,
+        "bios_path": BIOS_BASE_DIR,
+        "total_roms": total_roms,
+        "total_size": format_bytes(total_bytes),
+        "total_bytes": total_bytes,
+        "systems": systems_data,
+        "bios": {
+            "count": len(bios_files),
+            "files": bios_files
+        }
+    }
+
+def save_uploaded_stream(system_id, filename, rfile, content_length):
+    valid_systems = [s["id"] for s in ROM_SYSTEMS_DEF] + ["bios"]
+    if system_id not in valid_systems:
+        system_id = "arcade"
+
+    safe_name = os.path.basename(filename)
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-\.\(\)\s]', '_', safe_name).strip()
+    if not safe_name:
+        safe_name = f"rom_upload_{int(os.getpid())}.bin"
+
+    target_dir = BIOS_BASE_DIR if system_id == "bios" else os.path.join(ROMS_BASE_DIR, system_id)
+    os.makedirs(target_dir, exist_ok=True)
+    target_path = os.path.join(target_dir, safe_name)
+
+    bytes_written = 0
+    chunk_size = 64 * 1024
+    with open(target_path, "wb") as f:
+        remaining = content_length
+        while remaining > 0:
+            to_read = min(chunk_size, remaining)
+            chunk = rfile.read(to_read)
+            if not chunk:
+                break
+            f.write(chunk)
+            remaining -= len(chunk)
+            bytes_written += len(chunk)
+
+    try:
+        shutil.chown(target_path, user="gamer", group="gamer")
+    except Exception:
+        pass
+
+    return {
+        "status": "ok",
+        "system": system_id,
+        "filename": safe_name,
+        "bytes_written": bytes_written,
+        "size_formatted": format_bytes(bytes_written),
+        "path": target_path
+    }
+
+def delete_rom_file(system_id, filename):
+    valid_systems = [s["id"] for s in ROM_SYSTEMS_DEF] + ["bios"]
+    if system_id not in valid_systems:
+        return {"error": "Invalid system", "status": "error"}
+
+    safe_name = os.path.basename(filename)
+    target_dir = BIOS_BASE_DIR if system_id == "bios" else os.path.join(ROMS_BASE_DIR, system_id)
+    target_path = os.path.abspath(os.path.join(target_dir, safe_name))
+
+    allowed_roms = os.path.abspath(ROMS_BASE_DIR)
+    allowed_bios = os.path.abspath(BIOS_BASE_DIR)
+    if not (target_path.startswith(allowed_roms) or target_path.startswith(allowed_bios)):
+        return {"error": "Access denied", "status": "error"}
+
+    if os.path.exists(target_path) and os.path.isfile(target_path):
+        os.remove(target_path)
+        return {"status": "ok", "deleted": safe_name}
+    return {"error": "File not found", "status": "error"}
 
 def is_authenticated(client_address, headers, params):
     # Local requests originating from container/host localhost (e.g. Console Hub kiosk) are trusted
@@ -133,7 +274,7 @@ def get_launchers_config():
     for item in config.get("items", []):
         cmd = item.get("command", "")
         cmd_bin = cmd.split()[0] if cmd else ""
-        if cmd_bin in ["desktop", "menu", "restart-steam"]:
+        if cmd_bin in ["desktop", "menu", "restart-steam", "rom-manager"]:
             item["installed"] = True
         else:
             item["installed"] = shutil.which(cmd_bin) is not None
@@ -277,6 +418,8 @@ class ResizeHandler(BaseHTTPRequestHandler):
             self._send_json_response(get_system_info())
         elif parsed.path == "/api/launchers":
             self._send_json_response(get_launchers_config())
+        elif parsed.path == "/api/roms":
+            self._send_json_response(list_roms_inventory())
         elif parsed.path == "/api/launcher/status":
             steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
             heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
@@ -327,7 +470,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
 
-        if parsed.path in ["/api/resize", "/api/launcher"]:
+        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/delete"]:
             if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
@@ -358,6 +501,28 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 app = "menu"
             subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
             self._send_json_response({"status": "ok", "app": app})
+        elif parsed.path == "/api/roms/upload":
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self._send_json_response({"error": "Empty upload body", "status": "error"}, code=400)
+                return
+            system = params.get("system", [self.headers.get("X-Rom-System", "arcade")])[0]
+            filename = params.get("filename", [self.headers.get("X-Rom-Filename", "")])[0]
+            if not filename:
+                filename = f"rom_{int(os.getpid())}.bin"
+            result = save_uploaded_stream(system, filename, self.rfile, content_length)
+            self._send_json_response(result)
+        elif parsed.path == "/api/roms/delete":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = {}
+            system = data.get("system", "")
+            filename = data.get("filename", "")
+            result = delete_rom_file(system, filename)
+            self._send_json_response(result)
         else:
             self.send_response(404)
             self._send_cors_headers()

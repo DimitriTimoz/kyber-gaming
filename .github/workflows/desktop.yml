@@ -1,0 +1,77 @@
+name: Package Desktop Clients
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'desktop-client/**'
+      - '.github/workflows/desktop.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'desktop-client/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-client:
+    name: Build Desktop Client (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            os: macos
+            args: '--target universal-apple-darwin'
+            bundle_path: 'desktop-client/src-tauri/target/universal-apple-darwin/release/bundle'
+          - platform: 'ubuntu-22.04'
+            os: linux
+            args: ''
+            bundle_path: 'desktop-client/src-tauri/target/release/bundle'
+          - platform: 'windows-latest'
+            os: windows
+            args: ''
+            bundle_path: 'desktop-client/src-tauri/target/release/bundle'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop-client/src-tauri
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - name: Install pre-built Tauri CLI via cargo-binstall
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+          cargo binstall --no-confirm tauri-cli@^2.0.0
+
+      - name: Build Tauri Desktop Client
+        working-directory: desktop-client
+        run: cargo tauri build ${{ matrix.args }}
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kyber-desktop-${{ matrix.os }}
+          path: ${{ matrix.bundle_path }}/**
+          retention-days: 30

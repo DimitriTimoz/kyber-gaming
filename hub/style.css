@@ -702,3 +702,377 @@ html, body {
     50% { width: 70%; margin-left: 15%; }
     100% { width: 100%; margin-left: 0; }
 }
+
+/* ==============================================================================
+   ROM & Game Manager Modal
+   ============================================================================== */
+.rom-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(4, 6, 11, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rom-modal.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.rom-modal-dialog {
+    width: 90vw;
+    max-width: 980px;
+    height: 82vh;
+    background: #0d111a;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 210, 255, 0.08);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalAppear 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalAppear {
+    from {
+        transform: scale(0.97) translateY(12px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+.rom-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 28px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: #090c14;
+}
+
+.rom-modal-badge {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--active-accent);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.rom-modal-title {
+    font-family: 'Geist', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #f8fafc;
+}
+
+.rom-modal-close {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.rom-modal-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.rom-systems-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px 28px;
+    overflow-x: auto;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: #0b0e17;
+    scrollbar-width: thin;
+}
+
+.rom-system-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+}
+
+.rom-system-pill:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.rom-system-pill.active {
+    background: rgba(0, 210, 255, 0.12);
+    border-color: var(--active-accent);
+    color: var(--active-accent);
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.2);
+}
+
+.rom-pill-count {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+}
+
+.rom-system-pill.active .rom-pill-count {
+    background: rgba(0, 210, 255, 0.25);
+    color: #ffffff;
+}
+
+.rom-upload-zone {
+    margin: 16px 28px;
+    padding: 18px 24px;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.rom-upload-zone:hover, .rom-upload-zone.dragover {
+    border-color: var(--active-accent);
+    background: rgba(0, 210, 255, 0.04);
+}
+
+.rom-upload-inner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.rom-upload-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    background: rgba(0, 210, 255, 0.1);
+    color: var(--active-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.rom-upload-title {
+    font-family: 'Geist', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.rom-browse-btn {
+    color: var(--active-accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.rom-upload-sub {
+    font-family: 'Geist', sans-serif;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+
+.rom-upload-progress {
+    margin-top: 12px;
+    position: relative;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.rom-upload-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--active-accent);
+    transition: width 0.1s linear;
+}
+
+.rom-upload-progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.rom-inventory-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0 28px 16px 28px;
+    background: #090c14;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.rom-inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 18px;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rom-inventory-count {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.rom-path-hint {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.rom-table-wrap {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.rom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.84rem;
+}
+
+.rom-table th {
+    position: sticky;
+    top: 0;
+    background: #0a0e18;
+    text-align: left;
+    padding: 10px 18px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rom-table td {
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: #e2e8f0;
+}
+
+.rom-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.rom-sys-badge {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    display: inline-block;
+}
+
+.rom-filename-cell {
+    font-family: 'Geist Mono', monospace;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.rom-size-cell {
+    font-family: 'Geist Mono', monospace;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.rom-del-btn {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.rom-del-btn:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: #ef4444;
+    color: #ffffff;
+}
+
+.rom-empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-family: 'Geist', sans-serif;
+    font-size: 0.88rem;
+}
+
+.rom-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 28px;
+    background: #090c14;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rom-footer-hint {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.rom-footer-hint kbd {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 3px;
+    padding: 2px 6px;
+    color: #cbd5e1;
+}

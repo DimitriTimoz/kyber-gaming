@@ -29,6 +29,14 @@ chmod 0700 "$XDG_DIR"
 # Ensure home directory ownership
 chown gamer:gamer /home/gamer
 
+# Setup emulator ROMs, BIOS, and saves directories
+ROM_SYSTEMS="ps3 ps2 psx gamecube wii switch snes nes gba gbc genesis n64 arcade"
+for sys in $ROM_SYSTEMS; do
+    mkdir -p "/home/gamer/roms/$sys"
+done
+mkdir -p /home/gamer/bios /home/gamer/saves
+chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves 2>/dev/null || true
+
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then
     chmod 666 /dev/uinput || true

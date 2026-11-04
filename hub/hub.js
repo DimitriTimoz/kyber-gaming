@@ -48,6 +48,23 @@
     const toastTitleEl = document.getElementById('toastTitle');
     const toastDescEl = document.getElementById('toastDesc');
     const btnRestartSteamEl = document.getElementById('btnRestartSteam');
+    const btnRomManagerEl = document.getElementById('btnRomManager');
+    const romModalEl = document.getElementById('romModal');
+    const btnRomModalCloseEl = document.getElementById('btnRomModalClose');
+    const romSystemsBarEl = document.getElementById('romSystemsBar');
+    const romUploadDropZoneEl = document.getElementById('romUploadDropZone');
+    const romFileInputEl = document.getElementById('romFileInput');
+    const btnBrowseRomEl = document.getElementById('btnBrowseRom');
+    const romUploadProgressEl = document.getElementById('romUploadProgress');
+    const romProgressFillEl = document.getElementById('romProgressFill');
+    const romProgressTextEl = document.getElementById('romProgressText');
+    const romInventoryCountEl = document.getElementById('romInventoryCount');
+    const romPathHintEl = document.getElementById('romPathHint');
+    const romTableBodyEl = document.getElementById('romTableBody');
+    const romEmptyStateEl = document.getElementById('romEmptyState');
+    let isRomModalOpen = false;
+    let romInventory = null;
+    let selectedRomSystem = 'all';
 
     // ==========================================================================
     // Synthesized Web Audio API Sound Effects
@@ -334,6 +351,11 @@
     function handleItemAction(item) {
         if (isLaunching) return;
 
+        if (item.id === 'rom-manager') {
+            openRomModal();
+            return;
+        }
+
         if (item.installed === false) {
             showToast(
                 `${item.name} is not installed`,
@@ -534,8 +556,18 @@
                 break;
             case 'Escape':
                 e.preventDefault();
+                if (isRomModalOpen) {
+                    closeRomModal();
+                    break;
+                }
                 const desk = allItems.find(i => i.id === 'desktop');
                 if (desk) handleItemAction(desk);
+                break;
+            case 'm':
+            case 'M':
+                e.preventDefault();
+                if (isRomModalOpen) closeRomModal();
+                else openRomModal();
                 break;
             case 'r':
             case 'R':
@@ -544,6 +576,276 @@
                 break;
         }
     });
+
+    // ==========================================================================
+    // ROM & Game Manager Controller
+    // ==========================================================================
+    function openRomModal() {
+        initAudio();
+        isRomModalOpen = true;
+        romModalEl.classList.add('active');
+        fetchRomInventory();
+    }
+
+    function closeRomModal() {
+        initAudio();
+        isRomModalOpen = false;
+        romModalEl.classList.remove('active');
+    }
+
+    function fetchRomInventory() {
+        fetch('/api/roms')
+            .then(res => res.json())
+            .then(data => {
+                romInventory = data;
+                renderRomManager();
+            })
+            .catch(err => {
+                console.warn('[hub] Error fetching ROM inventory:', err);
+            });
+    }
+
+    function renderRomManager() {
+        if (!romInventory) return;
+
+        // Render system pills
+        romSystemsBarEl.innerHTML = '';
+
+        // All pill
+        const allPill = document.createElement('button');
+        allPill.className = `rom-system-pill ${selectedRomSystem === 'all' ? 'active' : ''}`;
+        allPill.innerHTML = `<span>All Games</span> <span class="rom-pill-count">${romInventory.total_roms}</span>`;
+        allPill.addEventListener('click', () => {
+            selectedRomSystem = 'all';
+            renderRomManager();
+        });
+        romSystemsBarEl.appendChild(allPill);
+
+        // System pills
+        const pillNames = {
+            ps3: 'PS3',
+            ps2: 'PS2',
+            psx: 'PS1',
+            gamecube: 'GameCube',
+            wii: 'Wii',
+            switch: 'Switch',
+            snes: 'SNES',
+            nes: 'NES',
+            gba: 'GBA',
+            gbc: 'GBC',
+            genesis: 'Genesis',
+            n64: 'N64',
+            arcade: 'Arcade'
+        };
+
+        (romInventory.systems || []).forEach(sys => {
+            const pill = document.createElement('button');
+            pill.className = `rom-system-pill ${selectedRomSystem === sys.id ? 'active' : ''}`;
+            const label = pillNames[sys.id] || sys.id.toUpperCase();
+            pill.innerHTML = `<span>${label}</span> <span class="rom-pill-count">${sys.count}</span>`;
+            pill.addEventListener('click', () => {
+                selectedRomSystem = sys.id;
+                renderRomManager();
+            });
+            romSystemsBarEl.appendChild(pill);
+        });
+
+        // BIOS pill
+        const biosPill = document.createElement('button');
+        biosPill.className = `rom-system-pill ${selectedRomSystem === 'bios' ? 'active' : ''}`;
+        biosPill.innerHTML = `<span>BIOS</span> <span class="rom-pill-count">${romInventory.bios ? romInventory.bios.count : 0}</span>`;
+        biosPill.addEventListener('click', () => {
+            selectedRomSystem = 'bios';
+            renderRomManager();
+        });
+        romSystemsBarEl.appendChild(biosPill);
+
+        // Path hint & count
+        if (selectedRomSystem === 'all') {
+            romInventoryCountEl.textContent = `${romInventory.total_roms} games installed (${romInventory.total_size})`;
+            romPathHintEl.textContent = `Storage path: ${romInventory.base_path}`;
+        } else if (selectedRomSystem === 'bios') {
+            const count = romInventory.bios ? romInventory.bios.count : 0;
+            romInventoryCountEl.textContent = `${count} BIOS files installed`;
+            romPathHintEl.textContent = `Storage path: ${romInventory.bios_path}`;
+        } else {
+            const currentSys = (romInventory.systems || []).find(s => s.id === selectedRomSystem);
+            const count = currentSys ? currentSys.count : 0;
+            romInventoryCountEl.textContent = `${count} games installed for ${currentSys ? currentSys.name : selectedRomSystem}`;
+            romPathHintEl.textContent = `Storage path: ${romInventory.base_path}/${selectedRomSystem}`;
+        }
+
+        // Populate table
+        romTableBodyEl.innerHTML = '';
+        let displayList = [];
+
+        if (selectedRomSystem === 'all') {
+            (romInventory.systems || []).forEach(sys => {
+                (sys.files || []).forEach(f => {
+                    displayList.push({ ...f, system: sys.id, systemName: sys.name });
+                });
+            });
+        } else if (selectedRomSystem === 'bios') {
+            (romInventory.bios ? romInventory.bios.files : []).forEach(f => {
+                displayList.push({ ...f, system: 'bios', systemName: 'BIOS Firmware' });
+            });
+        } else {
+            const currentSys = (romInventory.systems || []).find(s => s.id === selectedRomSystem);
+            if (currentSys) {
+                (currentSys.files || []).forEach(f => {
+                    displayList.push({ ...f, system: currentSys.id, systemName: currentSys.name });
+                });
+            }
+        }
+
+        if (displayList.length === 0) {
+            romEmptyStateEl.style.display = 'block';
+        } else {
+            romEmptyStateEl.style.display = 'none';
+            displayList.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="rom-sys-badge">${item.system.toUpperCase()}</span></td>
+                    <td class="rom-filename-cell">${escapeHtml(item.name)}</td>
+                    <td class="rom-size-cell">${item.size_formatted}</td>
+                    <td style="text-align:right;">
+                        <button class="rom-del-btn" data-system="${item.system}" data-filename="${escapeHtml(item.name)}">Delete</button>
+                    </td>
+                `;
+                const delBtn = tr.querySelector('.rom-del-btn');
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteRomFile(item.system, item.name);
+                });
+                romTableBodyEl.appendChild(tr);
+            });
+        }
+    }
+
+    function escapeHtml(str) {
+        return (str || '').replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
+    }
+
+    function deleteRomFile(system, filename) {
+        if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+
+        fetch('/api/roms/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ system: system, filename: filename })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ok') {
+                showToast('File Removed', `Deleted ${filename}`);
+                fetchRomInventory();
+            } else {
+                showToast('Delete Error', res.error || 'Failed to remove file');
+            }
+        })
+        .catch(err => {
+            showToast('Delete Error', 'Network error occurred');
+        });
+    }
+
+    function detectSystemForFile(filename) {
+        const ext = '.' + filename.split('.').pop().toLowerCase();
+        if (selectedRomSystem !== 'all') return selectedRomSystem;
+
+        if (['.pkg', '.rap'].includes(ext)) return 'ps3';
+        if (['.iso'].includes(ext)) return 'ps2';
+        if (['.rvz', '.gcm'].includes(ext)) return 'gamecube';
+        if (['.wbfs'].includes(ext)) return 'wii';
+        if (['.nsp', '.xci', '.nsz'].includes(ext)) return 'switch';
+        if (['.sfc', '.smc'].includes(ext)) return 'snes';
+        if (['.nes'].includes(ext)) return 'nes';
+        if (['.gba'].includes(ext)) return 'gba';
+        if (['.gbc', '.gb'].includes(ext)) return 'gbc';
+        if (['.md', '.gen'].includes(ext)) return 'genesis';
+        if (['.n64', '.z64', '.v64'].includes(ext)) return 'n64';
+        if (['.chd', '.pbp'].includes(ext)) return 'psx';
+        if (filename.toLowerCase().includes('bios')) return 'bios';
+        return 'arcade';
+    }
+
+    function uploadFilesSequentially(files) {
+        if (!files || files.length === 0) return;
+        const fileArr = Array.from(files);
+        let index = 0;
+
+        romUploadProgressEl.style.display = 'block';
+
+        function uploadNext() {
+            if (index >= fileArr.length) {
+                romUploadProgressEl.style.display = 'none';
+                showToast('Upload Complete', `Successfully uploaded ${fileArr.length} file(s).`);
+                fetchRomInventory();
+                return;
+            }
+
+            const file = fileArr[index];
+            const targetSys = detectSystemForFile(file.name);
+            const uploadUrl = `/api/roms/upload?system=${encodeURIComponent(targetSys)}&filename=${encodeURIComponent(file.name)}`;
+
+            romProgressTextEl.textContent = `Uploading ${file.name} (${index + 1}/${fileArr.length})...`;
+            romProgressFillEl.style.width = '0%';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', uploadUrl, true);
+            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    romProgressFillEl.style.width = `${pct}%`;
+                    romProgressTextEl.textContent = `Uploading ${file.name} (${pct}%)...`;
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    index++;
+                    uploadNext();
+                } else {
+                    romUploadProgressEl.style.display = 'none';
+                    showToast('Upload Failed', `Error uploading ${file.name} (HTTP ${xhr.status})`);
+                }
+            };
+
+            xhr.onerror = function() {
+                romUploadProgressEl.style.display = 'none';
+                showToast('Upload Failed', `Network error uploading ${file.name}`);
+            };
+
+            xhr.send(file);
+        }
+
+        uploadNext();
+    }
+
+    if (btnRomManagerEl) btnRomManagerEl.addEventListener('click', openRomModal);
+    if (btnRomModalCloseEl) btnRomModalCloseEl.addEventListener('click', closeRomModal);
+    if (btnBrowseRomEl) btnBrowseRomEl.addEventListener('click', () => romFileInputEl.click());
+    if (romFileInputEl) romFileInputEl.addEventListener('change', (e) => uploadFilesSequentially(e.target.files));
+
+    if (romUploadDropZoneEl) {
+        romUploadDropZoneEl.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            romUploadDropZoneEl.classList.add('dragover');
+        });
+        romUploadDropZoneEl.addEventListener('dragleave', () => {
+            romUploadDropZoneEl.classList.remove('dragover');
+        });
+        romUploadDropZoneEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            romUploadDropZoneEl.classList.remove('dragover');
+            if (e.dataTransfer && e.dataTransfer.files) {
+                uploadFilesSequentially(e.dataTransfer.files);
+            }
+        });
+    }
 
     btnRestartSteamEl.addEventListener('click', () => {
         initAudio();

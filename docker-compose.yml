@@ -61,10 +61,17 @@ services:
               capabilities: [gpu, video, display]
 
     volumes:
-      # Persistent game libraries and save states
+      # Persistent game libraries, save states, and emulator ROMs
       - steam_data:/home/gamer/.local/share/Steam
       - heroic_data:/home/gamer/.config/heroic
       - gamer_home:/home/gamer
+      - roms_data:/home/gamer/roms
+      - bios_data:/home/gamer/bios
+      - saves_data:/home/gamer/saves
+      
+      # Optional: Bind-mount local/NAS ROM collections directly:
+      # - /mnt/nas/roms:/home/gamer/roms
+      # - /mnt/nas/bios:/home/gamer/bios
       
       # Cache of the NVIDIA installer matching the host driver (avoids re-downloading ~300 MB)
       - nvidia_driver_cache:/var/cache/nvidia-driver
@@ -84,4 +91,7 @@ volumes:
   steam_data:
   heroic_data:
   gamer_home:
+  roms_data:
+  bios_data:
+  saves_data:
   nvidia_driver_cache:

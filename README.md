@@ -1,169 +1,182 @@
-# 🎮 Kyber Cloud Gaming (Headless)
+# Kyber Cloud Gaming (Headless)
 
-A containerized **Headless Cloud Gaming** solution based on **Ubuntu 24.04 LTS**, powered by the ultra-low latency streaming technology **[Kyber](https://kyber.tech/)** (written in Rust by the VideoLAN / VLC team), featuring full virtual display emulation, **Steam (Big Picture)**, and the **Heroic Games Launcher**.
-
-Inspired by `docker-steam-headless`, this project modernizes the experience by replacing Sunshine/Moonlight with Kyber's **QUIC / WebTransport** protocol, accessible directly from any modern web browser without requiring third-party client apps.
+A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, powered by the low-latency streaming protocol Kyber (VideoLAN / VLC team), with virtual display emulation, Steam Big Picture, Heroic Games Launcher, console emulators, and an integrated ROM & game manager.
 
 ---
 
-## 🚀 Features
+## Features
 
-- 🖥️ **100% Headless**: No physical monitor, TV, or HDMI "dummy plug" required on the host machine. The virtual display and EDID are fully simulated with complete 3D hardware acceleration.
-- ⚡ **Kyber Technology**:
-  - Ultra-low latency QUIC / WebTransport streaming on a **unified port** (`8080/TCP+UDP`).
-  - Integrated web client served natively (`/webclient`).
-  - Hardware capture via X11/NVFBC or DRM/VA-API with NVENC/VA-API hardware encoding.
-- 🕹️ **Integrated PC Launchers**:
-  - **Steam** (launches natively in *Big Picture* mode).
-  - **Heroic Games Launcher** (Epic Games Store & GOG).
-  - Lightweight desktop environment (Openbox) available.
-- 🎮 **Full Controller Support**: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
-- 🔊 **PipeWire Virtual Audio**: Transparent game audio routing to Kyber's Opus/AAC stream without a physical sound card.
-- 📺 **Automatic Dynamic Resizing**: The virtual display automatically adapts to the exact dimensions of your client browser window or device screen via an integrated resizer service (`port 8081`). Also supports manual resolutions (1080p, 1440p, 4K up to 144Hz).
-
----
-
-## 📋 Prerequisites
-
-1. **Docker Engine & Docker Compose** (recent release with Compose V2).
-2. **Host GPU Acceleration**:
-   * **NVIDIA**: [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed and configured.
-   * **AMD / Intel**: Access to the `/dev/dri` render node.
-3. **`uinput` kernel module** loaded on the host:
-   ```bash
-   sudo modprobe uinput
-   echo "uinput" | sudo tee -a /etc/modules-load.d/uinput.conf
-   ```
+- Headless Virtual Display: Runs on headless servers without a physical monitor or HDMI dummy plug. Virtual display and EDID are fully simulated with hardware 3D acceleration.
+- Kyber Streaming Engine:
+  - Ultra-low latency QUIC / WebTransport streaming on a unified port (8080 TCP/UDP).
+  - Web client served directly from the container (`/webclient`).
+  - Hardware-accelerated video capture via X11/NVFBC or DRM/VA-API with NVENC/VA-API encoding.
+- Gaming Launchers & Console Emulators:
+  - Steam (Desktop and Big Picture console modes).
+  - Heroic Games Launcher (Epic Games Store and GOG).
+  - RetroArch, RPCS3 (PS3), PCSX2 (PS2), Dolphin (GameCube/Wii), DuckStation (PS1).
+  - Google Chrome for game wikis, mod downloads, and web browsing.
+  - Openbox window manager with custom keyboard shortcuts.
+- ROM & Game Installation Manager:
+  - Integrated REST API (`/api/roms`) and Web/Desktop management interface.
+  - Drag-and-drop ROM uploading with auto-detection for consoles (`.iso`, `.chd`, `.rvz`, `.nsp`, `.pkg`, `.sfc`, `.zip`).
+  - Dedicated persistent volumes for ROMs (`/home/gamer/roms`), BIOS firmware (`/home/gamer/bios`), and game saves (`/home/gamer/saves`).
+  - Direct host or NAS mount support.
+- Controller & Peripheral Support: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
+- Virtual Audio: PipeWire audio routing to Kyber Opus/AAC stream without a physical sound card.
+- Dynamic Display Resizing: Automatically adapts to the client browser or desktop window dimensions via REST API (`port 8081`).
+- Secure Authentication: Password-protected streaming controller and resizer API.
 
 ---
 
-## 🛠️ Quick Start
+## Architecture & CI/CD Packaging
 
-### 1. Clone the repository
+Kyber Gaming includes automated continuous integration and packaging pipelines:
+
+1. Docker Container Packaging (`.github/workflows/docker.yml`):
+   - Multi-stage image build for `linux/amd64` using Docker Buildx and GitHub Actions cache.
+   - Automatically publishes tagged and latest images to GitHub Container Registry:
+     `ghcr.io/<owner>/kyber-gaming:latest`
+2. Desktop Client Matrix (`.github/workflows/desktop.yml`):
+   - Cross-platform build with Rust toolchain and pre-built Tauri CLI.
+   - Compiles native bundles for:
+     - macOS: Universal binary DMG (`universal-apple-darwin` for Apple Silicon & Intel)
+     - Linux: Debian package (`.deb`) and standalone `.AppImage`
+     - Windows: Microsoft Installer (`.msi`) and standalone `.exe`
+3. Release Automation (`.github/workflows/release.yml`):
+   - Triggered on Git tags (`v*.*.*`).
+   - Builds both the release container image and all desktop installers.
+   - Computes SHA-256 checksums (`SHA256SUMS.txt`) and publishes a GitHub Release with assets attached.
+
+---
+
+## Quick Start
+
+### Option 1: Docker Compose (Prebuilt or Local Build)
+
+1. Clone repository:
 ```bash
-git clone https://github.com/your-user/kyber-gaming.git
+git clone https://github.com/DimitriTimoz/kyber-gaming.git
 cd kyber-gaming
 ```
 
-### 2. Launch with Docker Compose
-```bash
-docker compose up -d --build
+2. Configure environment in `docker-compose.yml`:
+```yaml
+services:
+  kyber-gaming:
+    image: ghcr.io/dimitritimoz/kyber-gaming:latest
+    # Or build locally:
+    # build: .
+    network_mode: host
+    privileged: true
+    environment:
+      - RESOLUTION=1920x1080
+      - REFRESH_RATE=60
+      - LAUNCHER=menu
+      - AUTH_USER=gamer
+      - AUTH_PASSWORD=kybergaming
+    volumes:
+      - steam_data:/home/gamer/.local/share/Steam
+      - heroic_data:/home/gamer/.config/heroic
+      - gamer_home:/home/gamer
+      - roms_data:/home/gamer/roms
+      - bios_data:/home/gamer/bios
+      - saves_data:/home/gamer/saves
+      # Optional: Mount your NAS or host ROM library directly:
+      # - /mnt/nas/roms:/home/gamer/roms
+      # - /mnt/nas/bios:/home/gamer/bios
 ```
 
-### 3. Monitor startup logs
+3. Launch container:
+```bash
+docker compose up -d
+```
+
+4. View logs:
 ```bash
 docker compose logs -f
 ```
 
 ---
 
-## 🌐 Connecting to the Stream
+## Connecting to the Stream
 
-### Option A : Console Web Hub intégré ⚡ *(Zero Install - Recommandé)*
-Le conteneur Docker intègre nativement un **Lobby Console & Web Hub** avant le stream. Il fonctionne instantanément sur n'importe quel appareil (**Windows, macOS, Linux, Steam Deck, iPad, Android**) sans rien installer :
+### 1. Browser Client (Zero Install)
 
-👉 **`https://<SERVER_IP>:8080/webclient`**
+Navigate to:
+`https://<SERVER_IP>:8080/webclient`
 
-- **Console Lobby Pré-Stream** : Détection des specs GPU (modèle, température, VRAM) et latence en temps réel.
-- **Réglages en 1 clic** : Résolution virtuelle (1080p, 1440p, 4K), Framerate (60, 120, 144 FPS), Débit (30, 50, 80 Mbps), Codecs (H.264, HEVC).
-- **Détecteur de Manettes** : Reconnaissance automatique via l'API Web Gamepad (Xbox, PlayStation DualSense, Switch) avec test de vibration.
-- **Sélecteur de Launcher** : Switch en direct entre le **Console OS Hub**, **Steam Big Picture** ou **Heroic Games**.
-- **Barre rapide en jeu** : Accès instantané au plein écran, rechargement du flux ou retour au lobby via le menu flottant.
+- Enter credentials (default: `gamer` / `kybergaming`).
+- Select target resolution (or use Detected Screen).
+- Click Connect to start the session.
 
-### Option B : Client Desktop Cross-Platform (Rust + Tauri v2) 🚀
-Pour les utilisateurs avancés recherchant les performances natives de `kyclient` :
-Une application de bureau multiplateforme (**Windows**, **Linux**, **macOS**) est disponible dans [`desktop-client/`](./desktop-client/) :
-- Gestionnaire multi-serveurs avec ping asynchrone ultrarapide (<1 ms).
-- Persistance standardisée (`~/.config/kyber` sur Linux, `%APPDATA%\kyber` sur Windows, `~/Library/Application Support/kyber` sur macOS).
-- Redimensionnement dynamique de l'hôte (`/api/resize`) et supervision du cycle de vie du streaming.
-- Pipeline GitHub Actions inclus pour compiler automatiquement les binaires Windows (`.exe`), Linux (`.AppImage` / `.deb`) et macOS (`.dmg`).
+### 2. Desktop Client (Native Rust + Tauri v2)
 
-Pour lancer en développement :
+Native client installers are available in GitHub Releases for macOS, Linux, and Windows:
+- Multi-server manager with ping latency checks.
+- Dedicated ROM & Game Manager view.
+- Persistent configuration per OS standards (`~/.config/kyber`, `%APPDATA%\kyber`, or `~/Library/Application Support/kyber`).
+
+To run locally in development mode:
 ```bash
 cd desktop-client
 cargo tauri dev
 ```
 
-
-
 ---
 
-## ⚙️ Configuration & Environment Variables
+## ROM & Emulator Game Management
 
-All primary options are configurable in `docker-compose.yml`:
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `LAUNCHER` | `steam` | Application on boot: `steam` (Big Picture), `heroic`, or `desktop`. |
-| `RESOLUTION` | `1920x1080` | Initial emulated resolution (`1920x1080`, `2560x1440`, `3840x2160`). |
-| `REFRESH_RATE` | `60` | Display refresh rate (`60`, `120`, `144`). |
-| `PUID` | `1000` | Internal user UID for volume permissions. |
-| `PGID` | `1000` | Internal user GID for volume permissions. |
-
----
-
-## 📁 Repository Structure
+The container organizes emulator storage in standard directories:
 
 ```text
-kyber-gaming/
-├── Dockerfile                      # Multi-stage build Ubuntu 24.04 (Kyber + Steam + Heroic)
-├── docker-compose.yml              # Production-ready Compose deployment file
-├── PLAN.md                         # Technical architecture and implementation plan
-├── config/
-│   ├── kyber/
-│   │   └── kyber_config.toml       # Kyber parameters (NVENC, NVFBC, uinput, ports)
-│   ├── supervisor/
-│   │   └── supervisord.conf        # Process supervisor (DBus, Xorg, PipeWire, Kyber, Steam)
-│   ├── xorg/
-│   │   ├── xorg.nvidia.conf        # Headless Xorg for NVIDIA GPUs with virtual EDID
-│   │   └── xorg.dummy.conf         # Xorg dummy fallback for AMD/Intel GPUs
-│   ├── openbox/
-│   │   ├── autostart               # Graphical session initialization script
-│   │   └── rc.xml                  # Borderless window configuration
-│   └── pipewire/
-│       └── pipewire.conf.d/
-│           └── 10-virtual-sink.conf# Virtual audio sink to capture game audio
-└── scripts/
-    ├── entrypoint.sh               # Container setup, GPU permissions, and TLS certificates
-    ├── init_display.sh             # GPU detection, EDID generation, and Xorg startup
-    ├── make_edid.py                # Binary EDID 1.4 gaming generator
-    ├── run_kycontroller.sh         # Kyber controller startup wrapper
-    ├── resizer_service.py          # Dynamic resolution resize REST API service
-    ├── client_autoresize.js        # Browser client auto-resize reporting hook
-    └── launch_game_session.sh      # Launcher manager for Steam / Heroic
+/home/gamer/
+├── roms/
+│   ├── ps3/            # RPCS3 (.iso, .pkg, .rap, .bin)
+│   ├── ps2/            # PCSX2 (.iso, .chd, .bin, .cso, .gz)
+│   ├── psx/            # DuckStation / RetroArch (.chd, .cue, .bin, .iso, .pbp)
+│   ├── gamecube/       # Dolphin (.iso, .gcm, .rvz, .ciso)
+│   ├── wii/            # Dolphin (.iso, .wbfs, .rvz)
+│   ├── switch/         # Switch emulators (.nsp, .xci, .nsz)
+│   ├── snes/           # Super Nintendo (.sfc, .smc, .zip)
+│   ├── nes/            # Nintendo Entertainment System (.nes, .zip)
+│   ├── gba/            # Game Boy Advance (.gba, .zip)
+│   ├── gbc/            # Game Boy / Color (.gbc, .gb, .zip)
+│   ├── genesis/        # Sega Genesis / Mega Drive (.md, .bin, .zip)
+│   ├── n64/            # Nintendo 64 (.n64, .z64, .v64, .zip)
+│   └── arcade/         # Arcade / MAME (.zip, .7z)
+├── bios/               # Emulator firmware BIOS files
+└── saves/              # Game saves and memory cards
 ```
 
----
+### Accessing the Manager
 
-## 🖥️ Dynamic Display Resizing
-
-The container includes an integrated display resizer micro-service (`resizer_service.py` on port `8081`).
-1. **Automatic**: When opening the Kyber web client, the injected `autoresize.js` script detects your browser viewport and requests the server to adapt the X11 display resolution live.
-2. **Manual / REST API**: You can also force any custom resolution via HTTP:
-   ```bash
-   curl "http://<SERVER_IP>:8081/api/resize?width=2560&height=1440&rate=120"
-   ```
+- In Console Hub: Press `M` on keyboard, select the ROM Manager card in Emulators, or click the bottom bar button.
+- In Desktop Client: Select the `02 ROMS & GAMES` tab in the sidebar.
+- Via REST API:
+  - Inventory: `GET /api/roms`
+  - Upload: `POST /api/roms/upload?system=<sys>&filename=<name>`
+  - Delete: `POST /api/roms/delete` with JSON `{"system": "...", "filename": "..."}`
 
 ---
 
-## 🎮 Gamepads & Peripherals
+## Dynamic Display Resizing
 
-Controllers connected to your client browser (via the HTML5 Gamepad API) are transmitted in real-time to Kyber, which injects them through `/dev/uinput` as virtual controllers recognized natively by Steam and Proton.
+The virtual X11 screen adjusts on the fly via port 8081:
 
-If you connect physical gamepads directly via USB to the host server, the `/dev/input` bind mount also allows Steam to recognize them directly.
-
----
-
-## 💡 Troubleshooting & FAQ
-
-### 1. No audio in the stream?
-Verify in Steam or the game's audio settings that the output device is set to **"Kyber Virtual Audio Sink"** or default system output.
-
-### 2. Container fails to start with NVIDIA GPU?
-Ensure that `nvidia-container-toolkit` is working properly on the host:
+1. Automatic: Injected client scripts detect the viewport and request the server to match the display dimensions.
+2. Manual REST API:
 ```bash
-docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi
+curl -k "https://<SERVER_IP>:8081/api/resize?width=2560&height=1440&rate=120&auth_user=gamer&auth_pass=kybergaming"
 ```
 
-### 3. How to add non-Steam games or console emulators later?
-The system utilizes Openbox and persistent volumes (`steam_data` and `heroic_data`). You can install emulators (RetroArch, PCSX2, RPCS3) or frontends (ES-DE) at any time by configuring them in supervisor or launching them through Steam as non-Steam shortcuts.
+---
+
+## Keyboard & Gamepad Shortcuts
+
+- `A` / `Enter`: Launch selected item
+- `B` / `Esc`: Minimize / Desktop Mode
+- `M`: Open ROM & Game Manager
+- `R`: Clean reload Steam cache and process
+- `Q` / `E` (or Bumpers): Switch category tabs
+- `Ctrl+Shift+Q` (Web Client) or `Ctrl+Q` (Desktop Client): Exit active session

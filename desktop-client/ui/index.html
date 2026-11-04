@@ -25,12 +25,16 @@
                     <span class="nav-code">01</span>
                     <span>SERVERS</span>
                 </button>
-                <button class="nav-item" data-view="settings">
+                <button class="nav-item" data-view="roms">
                     <span class="nav-code">02</span>
+                    <span>ROMS & GAMES</span>
+                </button>
+                <button class="nav-item" data-view="settings">
+                    <span class="nav-code">03</span>
                     <span>SETTINGS</span>
                 </button>
                 <button class="nav-item" data-view="about">
-                    <span class="nav-code">03</span>
+                    <span class="nav-code">04</span>
                     <span>SYSTEM</span>
                 </button>
             </nav>
@@ -68,6 +72,68 @@
                     <div class="quit-banner-title">Streaming Session Exit Shortcut:</div>
                     <div class="quit-banner-text">
                         In a native <code>kyclient</code> session, use <kbd>Ctrl+Q</kbd> (or <kbd>Cmd+Q</kbd> on macOS) or close the streaming window to return to this manager.
+                    </div>
+                </div>
+            </section>
+
+            <!-- ROMS & EMULATOR GAMES VIEW -->
+            <section class="view-panel" id="viewRoms">
+                <div class="panel-header">
+                    <div>
+                        <h1 class="panel-title">ROM & Game Manager</h1>
+                        <p class="panel-desc">Manage console emulator ROMs and firmware BIOS files on the active server.</p>
+                    </div>
+                    <div class="header-actions">
+                        <select id="romServerSelect" class="form-control" style="width: 220px; padding: 6px 12px;"></select>
+                        <button class="btn btn-secondary" id="btnRefreshRoms">Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Systems Selector Bar -->
+                <div class="rom-systems-bar" id="desktopRomSystemsBar">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Upload Zone -->
+                <div class="rom-upload-zone" id="desktopRomDropZone" style="margin: 16px 0;">
+                    <input type="file" id="desktopRomFileInput" multiple style="display:none;">
+                    <div class="rom-upload-inner">
+                        <div class="rom-upload-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                        </div>
+                        <div class="rom-upload-info">
+                            <div class="rom-upload-title">Drop ROM / BIOS files here, or <span class="rom-browse-btn" id="btnDesktopBrowseRom">browse files</span></div>
+                            <div class="rom-upload-sub">Auto-detects console system (.iso, .chd, .rvz, .nsp, .pkg, .sfc, .zip) or uploads to current selected system.</div>
+                        </div>
+                    </div>
+                    <div class="rom-upload-progress" id="desktopRomUploadProgress" style="display:none;">
+                        <div class="rom-upload-progress-fill" id="desktopRomProgressFill"></div>
+                        <span class="rom-upload-progress-text" id="desktopRomProgressText">Uploading...</span>
+                    </div>
+                </div>
+
+                <!-- ROMs List & Storage Info -->
+                <div class="settings-card" style="padding: 0; overflow: hidden;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02);">
+                        <div id="desktopRomCount" style="font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600;">0 games installed</div>
+                        <div id="desktopRomPath" style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">Storage: /home/gamer/roms</div>
+                    </div>
+
+                    <div style="max-height: 380px; overflow-y: auto;">
+                        <table class="rom-table" style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr>
+                                    <th style="padding: 10px 18px; text-align: left; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">SYSTEM</th>
+                                    <th style="padding: 10px 18px; text-align: left; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">FILENAME</th>
+                                    <th style="padding: 10px 18px; text-align: left; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">SIZE</th>
+                                    <th style="padding: 10px 18px; text-align: right; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="desktopRomTableBody"></tbody>
+                        </table>
+                        <div id="desktopRomEmpty" style="padding: 30px; text-align: center; color: var(--text-muted); font-size: 0.85rem; display: none;">
+                            No ROM files installed for this system. Upload files above or drop them into the server's mounted roms directory.
+                        </div>
                     </div>
                 </div>
             </section>

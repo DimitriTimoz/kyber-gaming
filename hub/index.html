@@ -74,6 +74,11 @@
                     <span>Reload Steam</span>
                     <span class="btn-badge">R</span>
                 </button>
+                <button class="btn-action" id="btnRomManager">
+                    <span class="btn-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zm-7-2h2v-3h3V9h-3V6h-2v3h-3v2h3z"/></svg></span>
+                    <span>ROM & Game Manager</span>
+                    <span class="btn-badge">M</span>
+                </button>
             </div>
 
             <div class="nav-hints">
@@ -122,6 +127,75 @@
         <div class="toast-body">
             <div class="toast-title" id="toastTitle">Emulator Not Installed</div>
             <div class="toast-desc" id="toastDesc">To enable it in your homelab, install the corresponding package into the container.</div>
+        </div>
+    </div>
+
+    <!-- ROM & Game Manager Modal -->
+    <div class="rom-modal" id="romModal">
+        <div class="rom-modal-dialog">
+            <div class="rom-modal-header">
+                <div class="rom-modal-title-wrap">
+                    <span class="rom-modal-badge">STORAGE & LIBRARY</span>
+                    <h2 class="rom-modal-title">ROM & Emulator Game Manager</h2>
+                </div>
+                <button class="rom-modal-close" id="btnRomModalClose" title="Close (Esc)">&#x2715;</button>
+            </div>
+
+            <!-- Systems Navigation Bar -->
+            <div class="rom-systems-bar" id="romSystemsBar">
+                <!-- Dynamically generated system filter pills -->
+            </div>
+
+            <!-- Upload Zone & File Drop -->
+            <div class="rom-upload-zone" id="romUploadDropZone">
+                <input type="file" id="romFileInput" multiple style="display:none;">
+                <div class="rom-upload-inner">
+                    <div class="rom-upload-icon">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                    </div>
+                    <div class="rom-upload-info">
+                        <div class="rom-upload-title">Drop ROM / BIOS files here, or <span class="rom-browse-btn" id="btnBrowseRom">browse files</span></div>
+                        <div class="rom-upload-sub" id="romUploadSub">Auto-detects console system (.iso, .chd, .rvz, .nsp, .pkg, .sfc, .zip) or uploads to current selected system.</div>
+                    </div>
+                </div>
+                <div class="rom-upload-progress" id="romUploadProgress" style="display:none;">
+                    <div class="rom-upload-progress-fill" id="romProgressFill"></div>
+                    <span class="rom-upload-progress-text" id="romProgressText">Uploading...</span>
+                </div>
+            </div>
+
+            <!-- ROMs List & Storage Info -->
+            <div class="rom-inventory-container">
+                <div class="rom-inventory-header">
+                    <div class="rom-inventory-count" id="romInventoryCount">0 games installed</div>
+                    <div class="rom-path-hint" id="romPathHint">Storage path: /home/gamer/roms</div>
+                </div>
+
+                <div class="rom-table-wrap">
+                    <table class="rom-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">System</th>
+                                <th style="width: 48%;">Filename</th>
+                                <th style="width: 15%;">Size</th>
+                                <th style="width: 15%; text-align:right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="romTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                    <div class="rom-empty-state" id="romEmptyState" style="display:none;">
+                        No ROM files installed for this system yet. Upload files above or place them in your host mount directory.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Hints -->
+            <div class="rom-modal-footer">
+                <div class="rom-footer-hint"><kbd>Esc</kbd> Close</div>
+                <div class="rom-footer-hint"><kbd>M</kbd> Toggle Manager</div>
+            </div>
         </div>
     </div>
 

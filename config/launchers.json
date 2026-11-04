@@ -46,6 +46,19 @@
       "badge_pad": "X"
     },
     {
+      "id": "rom-manager",
+      "category": "emulators",
+      "name": "ROM Manager",
+      "tag": "STORAGE & INSTALLS",
+      "desc": "Manage, upload, and organize emulator ROMs, ISOs, and BIOS firmware files.",
+      "command": "rom-manager",
+      "icon": "gamepad",
+      "color": "#a855f7",
+      "color_glow": "rgba(168, 85, 247, 0.45)",
+      "badge_key": "M",
+      "badge_pad": "SEL"
+    },
+    {
       "id": "retroarch",
       "category": "emulators",
       "name": "RetroArch",

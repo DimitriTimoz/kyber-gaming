@@ -20,6 +20,7 @@ terminate_browser() {
 
 # Notify the session manager loop
 echo "$TARGET" > /tmp/kyber_next_action
+chmod 666 /tmp/kyber_next_action 2>/dev/null || true
 
 case "$TARGET" in
     menu)
