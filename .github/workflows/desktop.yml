@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: desktop-${{ github.ref }}
@@ -79,3 +79,44 @@ jobs:
           name: kyber-desktop-${{ matrix.os }}
           path: ${{ matrix.bundle_path }}/**
           retention-days: 30
+
+  publish-desktop-release:
+    name: Publish Desktop Clients to GitHub Releases
+    needs: [build-client]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all desktop artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: client-artifacts
+          pattern: kyber-desktop-*
+          merge-multiple: true
+
+      - name: Stage client installers
+        shell: bash
+        run: |
+          mkdir -p release-files
+          find client-artifacts -type f \( -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" -o -name "*.msi" -o -name "*setup.exe" \) -exec cp {} release-files/ \;
+          cd release-files
+          sha256sum * > SHA256SUMS.txt
+          ls -la
+
+      - name: Create or update Rolling Desktop Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous
+          name: "Kyber Desktop Client (Rolling Release)"
+          body: |
+            Automated rolling release containing the latest cross-platform Kyber Gaming desktop client installers built from the `main` branch.
+
+            ### Client Installers:
+            - **macOS (Universal Apple Silicon & Intel)**: `Kyber Gaming_*_universal.dmg`
+            - **Linux (Debian / Ubuntu)**: `Kyber Gaming_*_amd64.deb`
+            - **Linux (Standalone AppImage)**: `Kyber Gaming_*_amd64.AppImage`
+            - **Linux (Fedora / RHEL)**: `Kyber Gaming-*-1.x86_64.rpm`
+            - **Windows (x64 Setup)**: `Kyber Gaming_*_x64-setup.exe`
+            - **Windows (x64 MSI)**: `Kyber Gaming_*_x64_en-US.msi`
+          files: release-files/*
+          prerelease: true
+          draft: false
