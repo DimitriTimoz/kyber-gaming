@@ -61,15 +61,14 @@ services:
       - AUTH_USER=gamer
       - AUTH_PASSWORD=kybergaming
     volumes:
-      - steam_data:/home/gamer/.local/share/Steam
-      - heroic_data:/home/gamer/.config/heroic
+      # Main persistent user data (Steam, Heroic, configs, saves, ROMs)
       - gamer_home:/home/gamer
-      - roms_data:/home/gamer/roms
-      - bios_data:/home/gamer/bios
-      - saves_data:/home/gamer/saves
-      # Optional: Mount your NAS or host ROM library directly:
+      # Optional: Bind-mount your external drive or NAS ROM library directly:
       # - /mnt/nas/roms:/home/gamer/roms
-      # - /mnt/nas/bios:/home/gamer/bios
+```
+
+volumes:
+  gamer_home:
 ```
 
 3. Launch container:

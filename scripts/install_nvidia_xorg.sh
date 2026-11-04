@@ -10,7 +10,13 @@
 set -e
 
 LOG_PREFIX="[nvidia-driver]"
-CACHE_DIR="${NVIDIA_DRIVER_CACHE:-/var/cache/nvidia-driver}"
+if [ -n "$NVIDIA_DRIVER_CACHE" ]; then
+    CACHE_DIR="$NVIDIA_DRIVER_CACHE"
+elif [ -d /var/cache/nvidia-driver ] && grep -q "/var/cache/nvidia-driver" /proc/mounts 2>/dev/null; then
+    CACHE_DIR="/var/cache/nvidia-driver"
+else
+    CACHE_DIR="/home/gamer/.cache/nvidia-driver"
+fi
 XORG_EXT_DIR="/usr/lib/xorg/modules/extensions"
 LIB64_DIR="/usr/lib/x86_64-linux-gnu"
 LIB32_DIR="/usr/lib/i386-linux-gnu"

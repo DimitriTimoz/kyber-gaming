@@ -37,12 +37,7 @@ services:
               count: all
               capabilities: [gpu, video, display]
     volumes:
-      - steam_data:/home/gamer/.local/share/Steam
-      - heroic_data:/home/gamer/.config/heroic
       - gamer_home:/home/gamer
-      - roms_data:/home/gamer/roms
-      - bios_data:/home/gamer/bios
-      - saves_data:/home/gamer/saves
       - ./config/launchers.json:/etc/kyber/launchers.json:ro
       - /dev/input:/dev/input
       - /run/udev:/run/udev:ro
@@ -69,11 +64,6 @@ services:
         condition: service_healthy
 
 volumes:
-  steam_data:
-  heroic_data:
   gamer_home:
-  roms_data:
-  bios_data:
-  saves_data:
   caddy_data:
   caddy_config:

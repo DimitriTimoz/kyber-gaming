@@ -97,26 +97,16 @@ services:
       - AUTH_USER=gamer
       - AUTH_PASSWORD=kybergaming
     volumes:
-      - steam_data:/home/gamer/.local/share/Steam
-      - heroic_data:/home/gamer/.config/heroic
+      # Main persistent user data (Steam, Heroic, emulators, configs, saves, ROMs)
       - gamer_home:/home/gamer
-      - roms_data:/home/gamer/roms
-      - bios_data:/home/gamer/bios
-      - saves_data:/home/gamer/saves
       # Optional: Bind-mount your existing host or NAS directories:
       # - /mnt/storage/games/roms:/home/gamer/roms
-      # - /mnt/storage/games/saves:/home/gamer/saves
     devices:
       - /dev/uinput:/dev/uinput
       - /dev/input:/dev/input
 
 volumes:
-  steam_data:
-  heroic_data:
   gamer_home:
-  roms_data:
-  bios_data:
-  saves_data:
 ```
 
 3. Start the container in detached mode:
