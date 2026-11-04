@@ -220,7 +220,7 @@ async fn launch_session(
 
     // 2. Find kyclient binary
     let kyclient_bin = find_kyclient_binary().ok_or_else(|| {
-        "Impossible de localiser l'exécutable kyclient sur ce système.".to_string()
+        "Unable to locate kyclient executable on this system.".to_string()
     })?;
 
     // 3. Build command arguments
