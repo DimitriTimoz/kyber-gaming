@@ -59,11 +59,26 @@ docker compose logs -f
 
 ## 🌐 Connecting to the Stream
 
-Once the container is ready, open your web browser (Google Chrome, Microsoft Edge, or Chromium recommended):
+### Option A : Application Native Client (macOS) ⚡ *(Recommandé)*
+Une application native macOS **Kyber Gaming.app** est disponible dans `client-launcher/`.
+Elle offre un tableau de bord complet avec :
+- **Sélection des serveurs** (LAN direct, Tailscale, homelab) avec test de latence en temps réel (<1 ms).
+- **Réglages avancés** : Résolution (1080p, 1440p, 4K), Taux de rafraîchissement (60, 120, 144 FPS), Débit réseau (20 à 80 Mbps), Codecs (H.264, HEVC, AV1), transport Kymux ultra-faible latence (`gopstream`, `unreliable_fec`), buffer audio et émulation de manette Xbox 360.
+- **Lancement en 1 clic** : lance `kyclient` optimisé et redimensionne automatiquement l'affichage distant.
+
+Pour compiler et installer l'application sur votre Mac :
+```bash
+./client-launcher/build.sh
+open "/Applications/Kyber Gaming.app"
+```
+
+### Option B : Navigateur Web (Zero Install)
+Ouvrez simplement votre navigateur (Google Chrome, Microsoft Edge ou Brave) :
 
 👉 **`https://<SERVER_IP>:8080/webclient`**
 
 > **Note regarding the TLS certificate**: On first boot, a self-signed TLS certificate is generated in `./kyber_tls`. Your browser will display a security warning that you can bypass to access the interface.
+
 
 ---
 
