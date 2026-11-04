@@ -118,11 +118,26 @@ On a server without a monitor, the GPU driver often refuses to initialize render
 - Web Browser: Google Chrome for web browsing, game wikis, and mod downloads.
 
 ### 3.5. ROM & Emulator Game Manager
-- Centralized storage structure: `/home/gamer/roms/<system>`, `/home/gamer/bios`, `/home/gamer/saves`.
-- REST endpoints in `resizer_service.py`:
-  - `GET /api/roms`: Returns inventory of games per system with file sizes and counts.
-  - `POST /api/roms/upload`: Binary streaming upload supporting multi-gigabyte ISOs with progress tracking.
-  - `POST /api/roms/delete`: Secure deletion with path traversal protection.
+- Centralized hierarchical storage structure:
+  - `/home/gamer/roms/eglantine/games`: Switch & NX2 base games (`.nsp`, `.xci`, `.nsz`).
+  - `/home/gamer/roms/eglantine/updates`: Game update patches (`.nsp`).
+  - `/home/gamer/roms/eglantine/dlc`: Downloadable content packs (`.nsp`).
+  - `/home/gamer/roms/eglantine/keys`: Decryption keys (`prod.keys`, `title.keys` with auto-sync to internal emulator keys directory).
+  - `/home/gamer/roms/eglantine/firmware`: System firmware archives (`.zip`, `.bin`).
+  - `/home/gamer/roms/eglantine/mods`: LayeredFS game mods and custom assets.
+  - `/home/gamer/roms/saves`: Emulator save files and states.
+  - `/home/gamer/roms/switch`: Backward-compatible symlink to `eglantine/games`.
+- High-Performance Chunked Upload Engine:
+  - Large Switch game files (10GB–25GB) are sliced client-side into 10 MB chunks.
+  - Prevents HTTP gateway timeouts and memory pressure.
+  - Real-time telemetry: transfer rate in MB/s, ETA calculation, and progress tracking.
+- REST endpoints in `resizer_service.py` (Port 8081):
+  - `GET /api/roms/browse?path=<rel_path>`: Recursive directory listing with breadcrumbs, subfolders, files, and statistics.
+  - `GET /api/roms/download?path=<rel_path>`: File streaming download.
+  - `POST /api/roms/create_folder`: Directory creation with safe name sanitization.
+  - `POST /api/roms/upload_chunk`: Chunked upload handler with atomic assembly and automatic key synchronization.
+  - `POST /api/roms/delete`: Secure file and recursive folder deletion with path traversal protection.
+- 100% native UI inside custom clients (Hub Kiosk and Tauri Desktop Client); no third-party file manager dependency.
 
 ### 3.6. Packaging & CI/CD Pipelines
 - Docker Container CI (`.github/workflows/docker.yml`): Automated buildx compilation and push to GHCR (`ghcr.io`).

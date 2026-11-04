@@ -136,65 +136,83 @@
             <div class="rom-modal-header">
                 <div class="rom-modal-title-wrap">
                     <span class="rom-modal-badge">STORAGE & LIBRARY</span>
-                    <h2 class="rom-modal-title">ROM & Emulator Game Manager</h2>
+                    <h2 class="rom-modal-title">ROM & Game Library Explorer</h2>
                 </div>
                 <button class="rom-modal-close" id="btnRomModalClose" title="Close (Esc)">&#x2715;</button>
             </div>
 
-            <!-- Systems Navigation Bar -->
+            <!-- Quick Preset Folders Bar -->
             <div class="rom-systems-bar" id="romSystemsBar">
-                <!-- Dynamically generated system filter pills -->
+                <!-- Dynamically generated emulator folder preset pills -->
             </div>
 
-            <!-- Upload Zone & File Drop -->
-            <div class="rom-upload-zone" id="romUploadDropZone">
-                <input type="file" id="romFileInput" multiple style="display:none;">
-                <div class="rom-upload-inner">
-                    <div class="rom-upload-icon">
-                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
-                    </div>
-                    <div class="rom-upload-info">
-                        <div class="rom-upload-title">Drop ROM / BIOS files here, or <span class="rom-browse-btn" id="btnBrowseRom">browse files</span></div>
-                        <div class="rom-upload-sub" id="romUploadSub">Auto-detects Nintendo Switch ROMs (.nsp, .xci, .nsz) and firmware keys (prod.keys, title.keys).</div>
-                    </div>
+            <!-- Explorer Breadcrumbs & Action Toolbar -->
+            <div class="rom-toolbar">
+                <div class="rom-breadcrumbs" id="romBreadcrumbs">
+                    <!-- Populated dynamically: Root / eglantine / games -->
                 </div>
-                <div class="rom-upload-progress" id="romUploadProgress" style="display:none;">
-                    <div class="rom-upload-progress-fill" id="romProgressFill"></div>
-                    <span class="rom-upload-progress-text" id="romProgressText">Uploading...</span>
+                <div class="rom-toolbar-actions">
+                    <input type="text" id="romSearchInput" class="rom-search-input" placeholder="Filter files...">
+                    <button class="rom-action-btn" id="btnNewFolder" title="Create new directory in current path">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z"/></svg>
+                        <span>New Folder</span>
+                    </button>
+                    <button class="rom-action-btn rom-action-primary" id="btnUploadFiles" title="Upload files to current folder">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+                        <span>Upload Files</span>
+                    </button>
+                    <input type="file" id="romFileInput" multiple style="display:none;">
+                    <input type="file" id="romFolderInput" webkitdirectory directory multiple style="display:none;">
                 </div>
             </div>
 
-            <!-- ROMs List & Storage Info -->
-            <div class="rom-inventory-container">
-                <div class="rom-inventory-header">
-                    <div class="rom-inventory-count" id="romInventoryCount">0 games installed</div>
-                    <div class="rom-path-hint" id="romPathHint">Storage path: /home/gamer/roms</div>
+            <!-- Active Upload Progress & Telemetry Card -->
+            <div class="rom-upload-card" id="romUploadCard" style="display:none;">
+                <div class="rom-upload-card-header">
+                    <div class="rom-upload-card-title" id="romUploadCardTitle">Uploading 1 of 1...</div>
+                    <button class="rom-upload-cancel-btn" id="btnCancelUpload">Cancel</button>
                 </div>
+                <div class="rom-upload-card-progress">
+                    <div class="rom-upload-card-bar" id="romUploadCardBar"></div>
+                </div>
+                <div class="rom-upload-card-stats">
+                    <span id="romUploadStatProgress">0% (0 B / 0 B)</span>
+                    <span id="romUploadStatSpeed">0.0 MB/s</span>
+                    <span id="romUploadStatEta">Estimating...</span>
+                </div>
+            </div>
 
+            <!-- File Explorer Container (also acts as drag & drop target) -->
+            <div class="rom-inventory-container" id="romDropTarget">
                 <div class="rom-table-wrap">
                     <table class="rom-table">
                         <thead>
                             <tr>
-                                <th style="width: 22%;">System</th>
-                                <th style="width: 48%;">Filename</th>
+                                <th style="width: 44%;">Name</th>
+                                <th style="width: 16%;">Type</th>
                                 <th style="width: 15%;">Size</th>
-                                <th style="width: 15%; text-align:right;">Actions</th>
+                                <th style="width: 13%;">Modified</th>
+                                <th style="width: 12%; text-align:right;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="romTableBody">
-                            <!-- Populated dynamically -->
+                            <!-- Populated dynamically with folders and files -->
                         </tbody>
                     </table>
                     <div class="rom-empty-state" id="romEmptyState" style="display:none;">
-                        No ROM files installed for this system yet. Upload files above or place them in your host mount directory.
+                        <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor" style="opacity:0.3; margin-bottom:12px;"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                        <div>This folder is empty. Drag and drop ROMs, keys, or folders here to upload.</div>
                     </div>
                 </div>
             </div>
 
             <!-- Modal Footer Hints -->
             <div class="rom-modal-footer">
-                <div class="rom-footer-hint"><kbd>Esc</kbd> Close</div>
-                <div class="rom-footer-hint"><kbd>M</kbd> Toggle Manager</div>
+                <div class="rom-footer-hint" id="romStorageHint">Storage root: /home/gamer/roms</div>
+                <div class="rom-footer-actions">
+                    <div class="rom-footer-hint"><kbd>Esc</kbd> Close</div>
+                    <div class="rom-footer-hint"><kbd>M</kbd> Toggle Explorer</div>
+                </div>
             </div>
         </div>
     </div>

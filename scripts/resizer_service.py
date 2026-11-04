@@ -28,12 +28,232 @@ ROM_SYSTEMS_DEF = [
     {"id": "switch", "name": "Nintendo Switch & NX2 (Eglantine)", "extensions": [".nsp", ".xci", ".nsz", ".zip"]},
 ]
 
+UPLOAD_TEMP_DIR = "/tmp/kyber_uploads"
+os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
+
 def format_bytes(num_bytes):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if abs(num_bytes) < 1024.0:
             return f"{num_bytes:3.1f} {unit}"
         num_bytes /= 1024.0
     return f"{num_bytes:.1f} PB"
+
+def resolve_safe_storage_path(rel_path=""):
+    clean_rel = os.path.normpath(str(rel_path).strip().lstrip("/\\"))
+    if clean_rel in [".", ""]:
+        return ROMS_BASE_DIR, ""
+
+    if clean_rel == "bios" or clean_rel.startswith("bios/"):
+        sub = clean_rel[4:].lstrip("/\\")
+        base = os.path.abspath(BIOS_BASE_DIR)
+        full = os.path.abspath(os.path.join(base, sub))
+        if os.path.commonpath([base, full]) != base:
+            return None, None
+        return full, clean_rel
+
+    base = os.path.abspath(ROMS_BASE_DIR)
+    full = os.path.abspath(os.path.join(base, clean_rel))
+    if os.path.commonpath([base, full]) != base:
+        return None, None
+    return full, clean_rel
+
+def classify_file_type(filename):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in [".nsp", ".xci", ".nsz"]:
+        return "rom"
+    if ext in [".keys"] or "key" in filename.lower():
+        return "key"
+    if ext in [".zip", ".7z", ".rar", ".tar", ".gz"]:
+        return "archive"
+    if ext in [".bin", ".dat"]:
+        return "binary"
+    if ext in [".sav", ".srm", ".state"]:
+        return "save"
+    return "file"
+
+def browse_directory(rel_path=""):
+    full_path, clean_rel = resolve_safe_storage_path(rel_path)
+    if not full_path or not os.path.exists(full_path):
+        return {"error": "Directory not found", "status": "error"}
+
+    if not os.path.isdir(full_path):
+        return {"error": "Path is not a directory", "status": "error"}
+
+    parts = [p for p in clean_rel.split("/") if p]
+    breadcrumbs = [{"name": "ROMs Root", "path": ""}]
+    acc = ""
+    for p in parts:
+        acc = f"{acc}/{p}".lstrip("/")
+        breadcrumbs.append({"name": p, "path": acc})
+
+    parent_path = "/".join(parts[:-1]) if parts else None
+
+    folders = []
+    files = []
+    total_bytes = 0
+
+    for entry in os.scandir(full_path):
+        if entry.name.startswith("."):
+            continue
+        try:
+            stat = entry.stat()
+            if entry.is_dir():
+                sub_count = 0
+                sub_bytes = 0
+                try:
+                    for sub in os.scandir(entry.path):
+                        if not sub.name.startswith("."):
+                            sub_count += 1
+                            if sub.is_file():
+                                sub_bytes += sub.stat().st_size
+                except Exception:
+                    pass
+                folders.append({
+                    "name": entry.name,
+                    "path": f"{clean_rel}/{entry.name}".lstrip("/"),
+                    "item_count": sub_count,
+                    "size_formatted": format_bytes(sub_bytes),
+                    "modified": int(stat.st_mtime)
+                })
+            elif entry.is_file():
+                total_bytes += stat.st_size
+                files.append({
+                    "name": entry.name,
+                    "path": f"{clean_rel}/{entry.name}".lstrip("/"),
+                    "size": stat.st_size,
+                    "size_formatted": format_bytes(stat.st_size),
+                    "extension": os.path.splitext(entry.name)[1].lower(),
+                    "type": classify_file_type(entry.name),
+                    "modified": int(stat.st_mtime)
+                })
+        except Exception:
+            pass
+
+    folders.sort(key=lambda x: x["name"].lower())
+    files.sort(key=lambda x: x["name"].lower())
+
+    return {
+        "status": "ok",
+        "current_path": clean_rel,
+        "parent_path": parent_path,
+        "breadcrumbs": breadcrumbs,
+        "folders": folders,
+        "files": files,
+        "total_folders": len(folders),
+        "total_files": len(files),
+        "total_size": format_bytes(total_bytes),
+        "storage_root": ROMS_BASE_DIR
+    }
+
+def create_directory(rel_path, folder_name):
+    full_path, clean_rel = resolve_safe_storage_path(rel_path)
+    if not full_path or not os.path.exists(full_path):
+        return {"error": "Base path not found", "status": "error"}
+
+    safe_folder = re.sub(r'[^a-zA-Z0-9_\-\.\s]', '_', folder_name).strip()
+    if not safe_folder:
+        return {"error": "Invalid folder name", "status": "error"}
+
+    target_dir = os.path.join(full_path, safe_folder)
+    try:
+        os.makedirs(target_dir, exist_ok=True)
+        shutil.chown(target_dir, user="gamer", group="gamer")
+        return {
+            "status": "ok",
+            "folder_name": safe_folder,
+            "path": f"{clean_rel}/{safe_folder}".lstrip("/")
+        }
+    except Exception as e:
+        return {"error": str(e), "status": "error"}
+
+def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data):
+    upload_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(upload_id))
+    if not upload_id:
+        return {"error": "Invalid upload ID", "status": "error"}
+
+    safe_name = os.path.basename(filename)
+    safe_name = re.sub(r'[^a-zA-Z0-9_\-\.\(\)\s]', '_', safe_name).strip()
+    if not safe_name:
+        safe_name = f"upload_{upload_id}.bin"
+
+    temp_session_dir = os.path.join(UPLOAD_TEMP_DIR, upload_id)
+    os.makedirs(temp_session_dir, exist_ok=True)
+    chunk_file = os.path.join(temp_session_dir, f"part_{chunk_index:06d}")
+
+    with open(chunk_file, "wb") as f:
+        f.write(chunk_data)
+
+    existing_chunks = [f for f in os.listdir(temp_session_dir) if f.startswith("part_")]
+    if len(existing_chunks) >= total_chunks:
+        dest_dir, _ = resolve_safe_storage_path(target_path)
+        if not dest_dir:
+            dest_dir = os.path.join(ROMS_BASE_DIR, "eglantine/games")
+        os.makedirs(dest_dir, exist_ok=True)
+
+        final_dest = os.path.join(dest_dir, safe_name)
+        with open(final_dest, "wb") as outfile:
+            for idx in range(total_chunks):
+                p = os.path.join(temp_session_dir, f"part_{idx:06d}")
+                if os.path.exists(p):
+                    with open(p, "rb") as infile:
+                        shutil.copyfileobj(infile, outfile)
+
+        shutil.rmtree(temp_session_dir, ignore_errors=True)
+        try:
+            shutil.chown(final_dest, user="gamer", group="gamer")
+        except Exception:
+            pass
+
+        # Auto-mirror keys
+        if safe_name.endswith(".keys") or "key" in safe_name.lower():
+            for kdir in ["/home/gamer/.local/share/eglantine/keys", "/home/gamer/.local/share/eden/keys"]:
+                try:
+                    os.makedirs(kdir, exist_ok=True)
+                    shutil.copy2(final_dest, os.path.join(kdir, safe_name))
+                    shutil.chown(os.path.join(kdir, safe_name), user="gamer", group="gamer")
+                except Exception:
+                    pass
+
+        file_stat = os.stat(final_dest)
+        return {
+            "status": "completed",
+            "filename": safe_name,
+            "path": final_dest,
+            "size": file_stat.st_size,
+            "size_formatted": format_bytes(file_stat.st_size)
+        }
+
+    return {
+        "status": "chunk_received",
+        "chunk_index": chunk_index,
+        "total_chunks": total_chunks
+    }
+
+def delete_storage_item(rel_path):
+    full_path, clean_rel = resolve_safe_storage_path(rel_path)
+    if not full_path or not os.path.exists(full_path):
+        return {"error": "Item not found", "status": "error"}
+
+    if os.path.abspath(full_path) in [os.path.abspath(ROMS_BASE_DIR), os.path.abspath(BIOS_BASE_DIR)]:
+        return {"error": "Cannot delete root directory", "status": "error"}
+
+    try:
+        if os.path.isdir(full_path):
+            shutil.rmtree(full_path)
+        else:
+            os.remove(full_path)
+            safe_name = os.path.basename(full_path)
+            if safe_name.endswith(".keys") or "key" in safe_name.lower():
+                for kdir in ["/home/gamer/.local/share/eglantine/keys", "/home/gamer/.local/share/eden/keys"]:
+                    kp = os.path.join(kdir, safe_name)
+                    if os.path.exists(kp):
+                        try:
+                            os.remove(kp)
+                        except Exception:
+                            pass
+        return {"status": "ok", "deleted": clean_rel}
+    except Exception as e:
+        return {"error": str(e), "status": "error"}
 
 def list_roms_inventory():
     systems_data = []
@@ -444,6 +664,25 @@ class ResizeHandler(BaseHTTPRequestHandler):
             self._send_json_response(get_launchers_config())
         elif parsed.path == "/api/roms":
             self._send_json_response(list_roms_inventory())
+        elif parsed.path == "/api/roms/browse":
+            target_path = params.get("path", [""])[0]
+            self._send_json_response(browse_directory(target_path))
+        elif parsed.path == "/api/roms/download":
+            target_path = params.get("path", [""])[0]
+            full_path, clean_rel = resolve_safe_storage_path(target_path)
+            if not full_path or not os.path.exists(full_path) or not os.path.isfile(full_path):
+                self._send_json_response({"error": "File not found", "status": "error"}, code=404)
+                return
+            filename = os.path.basename(full_path)
+            file_size = os.path.getsize(full_path)
+            self.send_response(200)
+            self._send_cors_headers()
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Length", str(file_size))
+            self.end_headers()
+            with open(full_path, "rb") as f:
+                shutil.copyfileobj(f, self.wfile)
         elif parsed.path == "/api/tls/fingerprint":
             self._send_json_response(get_tls_fingerprint())
         elif parsed.path == "/api/launcher/status":
@@ -496,7 +735,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
 
-        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/delete"]:
+        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/upload_chunk", "/api/roms/create_folder", "/api/roms/delete"]:
             if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
@@ -527,12 +766,38 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 app = "menu"
             subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
             self._send_json_response({"status": "ok", "app": app})
+        elif parsed.path == "/api/roms/create_folder":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = {}
+            target_path = data.get("path", "")
+            folder_name = data.get("folder_name", "")
+            result = create_directory(target_path, folder_name)
+            self._send_json_response(result)
+        elif parsed.path == "/api/roms/upload_chunk":
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self._send_json_response({"error": "Empty chunk body", "status": "error"}, code=400)
+                return
+            upload_id = params.get("upload_id", [self.headers.get("X-Upload-ID", "")])[0]
+            filename = params.get("filename", [self.headers.get("X-Filename", "")])[0]
+            target_path = params.get("target_path", [self.headers.get("X-Target-Path", "eglantine/games")])[0]
+            chunk_index = int(params.get("chunk_index", [self.headers.get("X-Chunk-Index", 0)])[0])
+            total_chunks = int(params.get("total_chunks", [self.headers.get("X-Total-Chunks", 1)])[0])
+            total_size = int(params.get("total_size", [self.headers.get("X-Total-Size", 0)])[0])
+
+            chunk_data = self.rfile.read(content_length)
+            result = save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data)
+            self._send_json_response(result)
         elif parsed.path == "/api/roms/upload":
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length <= 0:
                 self._send_json_response({"error": "Empty upload body", "status": "error"}, code=400)
                 return
-            system = params.get("system", [self.headers.get("X-Rom-System", "arcade")])[0]
+            system = params.get("system", [self.headers.get("X-Rom-System", "switch")])[0]
             filename = params.get("filename", [self.headers.get("X-Rom-Filename", "")])[0]
             if not filename:
                 filename = f"rom_{int(os.getpid())}.bin"
@@ -545,9 +810,11 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 data = json.loads(body.decode("utf-8"))
             except Exception:
                 data = {}
-            system = data.get("system", "")
-            filename = data.get("filename", "")
-            result = delete_rom_file(system, filename)
+            path = data.get("path", "")
+            if not path and "filename" in data:
+                sys_id = data.get("system", "switch")
+                path = f"{sys_id}/{data['filename']}" if sys_id != "bios" else f"bios/{data['filename']}"
+            result = delete_storage_item(path)
             self._send_json_response(result)
         else:
             self.send_response(404)

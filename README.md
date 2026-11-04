@@ -18,11 +18,12 @@ A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, 
   - Google Chrome for game wikis, mod downloads, and web browsing.
   - Openbox window manager with custom keyboard shortcuts.
 - ROM & Game Installation Manager:
-  - Integrated REST API (`/api/roms`) and Web/Desktop management interface.
-  - Drag-and-drop ROM uploading for Nintendo Switch / NX2 packages (`.nsp`, `.xci`, `.nsz`, `.zip`).
+  - Integrated REST API (`/api/roms/browse`, `/api/roms/upload_chunk`) and 100% native Web/Desktop management interface (no third-party file managers).
+  - Dedicated hierarchical subfolder structure per emulator: `eglantine/games`, `eglantine/updates`, `eglantine/dlc`, `eglantine/keys`, `eglantine/firmware`, `eglantine/mods`, `saves`.
+  - High-performance chunked file uploader (10 MB slices) with real-time throughput telemetry (MB/s), ETA calculation, and progress tracking.
+  - Interactive breadcrumbs navigation, real-time client search filter, folder creation, and safe deletion.
   - Automatic synchronization of uploaded `prod.keys` and `title.keys` to Eglantine key storage (`/home/gamer/.local/share/eglantine/keys`).
-  - Dedicated persistent volumes for ROMs (`/home/gamer/roms/switch`), BIOS/keys (`/home/gamer/bios`), and game saves (`/home/gamer/saves`).
-  - Direct host or NAS mount support.
+  - Persistent volume support for `/home/gamer/roms` with host/NAS mount options.
 - Controller & Peripheral Support: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
 - Virtual Audio: PipeWire audio routing to Kyber Opus/AAC stream without a physical sound card.
 - Dynamic Display Resizing: Automatically adapts to the client browser or desktop window dimensions via REST API (`port 8081`).
@@ -138,26 +139,41 @@ cargo tauri dev
 
 ## ROM & Emulator Game Management
 
-The container organizes emulator storage in standard directories:
+The container organizes emulator storage in a clean hierarchical structure with dedicated subfolders per emulator:
 
 ```text
-/home/gamer/
-├── roms/
-│   └── switch/         # Eglantine Switch & NX2 ROMs (.nsp, .xci, .nsz, .zip)
-├── bios/               # Firmware and keys (prod.keys, title.keys)
-└── saves/              # Game saves and memory states
+/home/gamer/roms/
+├── eglantine/
+│   ├── games/        # Base game ROMs (.nsp, .xci, .nsz)
+│   ├── updates/      # Game update patches (.nsp)
+│   ├── dlc/          # Downloadable content packs (.nsp)
+│   ├── keys/         # Decryption keys (prod.keys, title.keys)
+│   ├── firmware/     # Switch system firmware archives (.zip, .bin)
+│   └── mods/         # Game mods and custom content
+├── switch -> eglantine/games   # Backward-compatible symlink
+└── saves/            # Emulator save files and memory states
 ```
 
-When keys or firmware files (such as `prod.keys` or `title.keys`) are uploaded to `/home/gamer/bios/` via the ROM Manager or REST API, they are automatically mirrored to Eglantine's internal keys directory (`/home/gamer/.local/share/eglantine/keys/`).
+When keys or firmware files (such as `prod.keys` or `title.keys`) are uploaded to `eglantine/keys/` or `/home/gamer/bios/`, they are automatically mirrored to Eglantine's internal key directories (`/home/gamer/.local/share/eglantine/keys/` and `/home/gamer/.local/share/eden/keys/`). Eglantine is configured with recursive directory discovery (`deep_scan=true`), so games in subfolders are detected automatically.
 
-### Accessing the Manager
+### High-Performance Chunked Uploader
+
+The management interface features a built-in chunked upload engine:
+- Large Switch games (10GB–25GB) are sliced into 10 MB chunks via the browser/desktop client.
+- Uploads avoid HTTP gateway timeouts and can be monitored via live telemetry: speed in **MB/s**, remaining time (**ETA**), and dual progress bars.
+- Drag-and-drop is supported anywhere within the file explorer.
+
+### Accessing the Library Explorer
 
 - In Console Hub: Press `M` on keyboard, select the ROM Manager card in Emulators, or click the bottom bar button.
 - In Desktop Client: Select the `02 ROMS & GAMES` tab in the sidebar.
 - Via REST API:
-  - Inventory: `GET /api/roms`
-  - Upload: `POST /api/roms/upload?system=<sys>&filename=<name>`
-  - Delete: `POST /api/roms/delete` with JSON `{"system": "...", "filename": "..."}`
+  - Directory Browsing: `GET /api/roms/browse?path=<rel_path>`
+  - File Download: `GET /api/roms/download?path=<rel_path>`
+  - Folder Creation: `POST /api/roms/create_folder` with JSON `{"path": "...", "folder_name": "..."}`
+  - Chunk Upload: `POST /api/roms/upload_chunk?upload_id=...&filename=...&target_path=...&chunk_index=...&total_chunks=...&total_size=...`
+  - Safe Item Deletion: `POST /api/roms/delete` with JSON `{"path": "..."}`
+  - Legacy Inventory: `GET /api/roms`
 
 ---
 

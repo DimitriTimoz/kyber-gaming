@@ -29,17 +29,56 @@ chmod 0700 "$XDG_DIR"
 # Ensure home directory ownership
 chown gamer:gamer /home/gamer
 
-# Setup emulator ROMs, keys/firmware, and saves directories
-mkdir -p /home/gamer/roms/switch /home/gamer/bios /home/gamer/saves /home/gamer/.local/share/eglantine/keys
+# Setup structured emulator directories
+mkdir -p \
+    /home/gamer/roms/eglantine/games \
+    /home/gamer/roms/eglantine/updates \
+    /home/gamer/roms/eglantine/dlc \
+    /home/gamer/roms/eglantine/keys \
+    /home/gamer/roms/eglantine/firmware \
+    /home/gamer/roms/eglantine/mods \
+    /home/gamer/roms/saves \
+    /home/gamer/bios \
+    /home/gamer/.local/share/eglantine/keys \
+    /home/gamer/.local/share/eden/keys \
+    /home/gamer/.config/eden
 
-# Auto-link any uploaded Switch keys from bios to Eglantine's keys directory
-for keyfile in /home/gamer/bios/*.keys; do
-    if [ -f "$keyfile" ]; then
-        ln -sf "$keyfile" "/home/gamer/.local/share/eglantine/keys/$(basename "$keyfile")" 2>/dev/null || true
+# Backwards compatibility symlink: roms/switch -> roms/eglantine/games
+if [ ! -e /home/gamer/roms/switch ]; then
+    ln -s /home/gamer/roms/eglantine/games /home/gamer/roms/switch 2>/dev/null || true
+fi
+
+# Auto-link any uploaded Switch keys from eglantine/keys or bios to Eglantine/Eden keys directory
+for keydir in /home/gamer/roms/eglantine/keys /home/gamer/bios; do
+    if [ -d "$keydir" ]; then
+        for keyfile in "$keydir"/*.keys; do
+            if [ -f "$keyfile" ]; then
+                ln -sf "$keyfile" "/home/gamer/.local/share/eglantine/keys/$(basename "$keyfile")" 2>/dev/null || true
+                ln -sf "$keyfile" "/home/gamer/.local/share/eden/keys/$(basename "$keyfile")" 2>/dev/null || true
+            fi
+        done
     fi
 done
 
-chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local 2>/dev/null || true
+# Ensure Eglantine config points to game directories with recursive scanning
+EDEN_CONF="/home/gamer/.config/eden/qt-config.ini"
+if [ ! -f "$EDEN_CONF" ]; then
+    mkdir -p "$(dirname "$EDEN_CONF")"
+    cat << 'EOF' > "$EDEN_CONF"
+[UI]
+fullscreen=true
+singleWindowMode=true
+Paths\gamedirs\size=2
+Paths\gamedirs\1\path=/home/gamer/roms/eglantine/games
+Paths\gamedirs\1\deep_scan=true
+Paths\gamedirs\1\expanded=true
+Paths\gamedirs\2\path=/home/gamer/roms/switch
+Paths\gamedirs\2\deep_scan=true
+Paths\gamedirs\2\expanded=true
+EOF
+fi
+
+chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config 2>/dev/null || true
 
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then

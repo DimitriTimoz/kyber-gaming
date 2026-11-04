@@ -725,9 +725,9 @@ html, body {
 }
 
 .rom-modal-dialog {
-    width: 90vw;
-    max-width: 980px;
-    height: 82vh;
+    width: 92vw;
+    max-width: 1180px;
+    height: 86vh;
     background: #0d111a;
     border: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 210, 255, 0.08);
@@ -753,7 +753,7 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 28px;
+    padding: 18px 28px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: #090c14;
 }
@@ -800,7 +800,7 @@ html, body {
 .rom-systems-bar {
     display: flex;
     gap: 8px;
-    padding: 12px 28px;
+    padding: 10px 28px;
     overflow-x: auto;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     background: #0b0e17;
@@ -813,7 +813,7 @@ html, body {
     border-radius: 6px;
     padding: 6px 12px;
     font-family: 'Geist Mono', monospace;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 500;
     color: var(--text-secondary);
     cursor: pointer;
@@ -849,121 +849,205 @@ html, body {
     color: #ffffff;
 }
 
-.rom-upload-zone {
-    margin: 16px 28px;
-    padding: 18px 24px;
-    border: 1px dashed rgba(255, 255, 255, 0.18);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.02);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-}
-
-.rom-upload-zone:hover, .rom-upload-zone.dragover {
-    border-color: var(--active-accent);
-    background: rgba(0, 210, 255, 0.04);
-}
-
-.rom-upload-inner {
+/* Explorer Toolbar & Breadcrumbs */
+.rom-toolbar {
     display: flex;
+    justify-content: space-between;
     align-items: center;
+    padding: 12px 28px;
+    background: #090c14;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     gap: 16px;
+    flex-wrap: wrap;
 }
 
-.rom-upload-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 8px;
-    background: rgba(0, 210, 255, 0.1);
-    color: var(--active-accent);
+.rom-breadcrumbs {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.8rem;
 }
 
-.rom-upload-title {
-    font-family: 'Geist', sans-serif;
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: #f8fafc;
-}
-
-.rom-browse-btn {
+.rom-crumb-btn {
+    background: transparent;
+    border: none;
     color: var(--active-accent);
-    text-decoration: underline;
-    text-underline-offset: 3px;
     cursor: pointer;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
 }
 
-.rom-upload-sub {
-    font-family: 'Geist', sans-serif;
-    font-size: 0.78rem;
+.rom-crumb-btn:hover {
+    background: rgba(0, 210, 255, 0.12);
+    text-decoration: underline;
+}
+
+.rom-crumb-btn.active {
+    color: #ffffff;
+    cursor: default;
+    text-decoration: none;
+}
+
+.rom-crumb-btn.active:hover {
+    background: transparent;
+}
+
+.rom-crumb-sep {
     color: var(--text-muted);
-    margin-top: 3px;
+    font-size: 0.75rem;
 }
 
-.rom-upload-progress {
-    margin-top: 12px;
-    position: relative;
-    height: 20px;
+.rom-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rom-search-input {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.8rem;
+    color: #ffffff;
+    outline: none;
+    width: 170px;
+    transition: all 0.2s ease;
+}
+
+.rom-search-input:focus {
+    border-color: var(--active-accent);
+    background: rgba(0, 210, 255, 0.05);
+    width: 220px;
+}
+
+.rom-action-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f1f5f9;
+    border-radius: 6px;
+    padding: 7px 13px;
+    font-family: 'Geist', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.rom-action-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+.rom-action-primary {
+    background: rgba(0, 210, 255, 0.15);
+    border-color: var(--active-accent);
+    color: var(--active-accent);
+}
+
+.rom-action-primary:hover {
+    background: var(--active-accent);
+    color: #0c0f17;
+    font-weight: 600;
+}
+
+/* Active Upload Progress & Telemetry Card */
+.rom-upload-card {
+    margin: 14px 28px 0 28px;
+    padding: 14px 18px;
+    background: #0f1624;
+    border: 1px solid rgba(0, 210, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 210, 255, 0.1);
+    border-radius: 8px;
+    animation: fadeIn 0.2s ease;
+}
+
+.rom-upload-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.rom-upload-card-title {
+    font-family: 'Geist', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rom-upload-cancel-btn {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.rom-upload-cancel-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #ffffff;
+}
+
+.rom-upload-card-progress {
+    height: 8px;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 4px;
     overflow: hidden;
+    position: relative;
 }
 
-.rom-upload-progress-fill {
+.rom-upload-card-bar {
     height: 100%;
     width: 0%;
-    background: var(--active-accent);
-    transition: width 0.1s linear;
+    background: linear-gradient(90deg, #00d2ff, #38bdf8, #10b981);
+    transition: width 0.15s ease;
 }
 
-.rom-upload-progress-text {
-    position: absolute;
-    inset: 0;
+.rom-upload-card-stats {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
+    margin-top: 8px;
     font-family: 'Geist Mono', monospace;
     font-size: 0.72rem;
-    font-weight: 600;
-    color: #ffffff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    color: var(--text-secondary);
 }
 
 .rom-inventory-container {
     flex: 1;
     display: flex;
     flex-direction: column;
-    margin: 0 28px 16px 28px;
+    margin: 14px 28px 14px 28px;
     background: #090c14;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 8px;
     overflow: hidden;
+    transition: border-color 0.2s ease, background 0.2s ease;
 }
 
-.rom-inventory-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 18px;
-    background: rgba(255, 255, 255, 0.02);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.rom-inventory-count {
-    font-family: 'Geist Mono', monospace;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #cbd5e1;
-}
-
-.rom-path-hint {
-    font-family: 'Geist Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--text-muted);
+.rom-inventory-container.dragover {
+    border-color: var(--active-accent);
+    background: rgba(0, 210, 255, 0.03);
 }
 
 .rom-table-wrap {
@@ -992,62 +1076,152 @@ html, body {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 2;
 }
 
 .rom-table td {
-    padding: 12px 18px;
+    padding: 10px 18px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     color: #e2e8f0;
 }
 
 .rom-table tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(255, 255, 255, 0.03);
 }
 
-.rom-sys-badge {
+.rom-entry-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Geist', sans-serif;
+    font-weight: 500;
+    color: #f1f5f9;
+}
+
+.rom-entry-folder {
+    cursor: pointer;
+}
+
+.rom-entry-folder .rom-entry-name {
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.rom-entry-folder:hover td {
+    background: rgba(56, 189, 248, 0.06);
+}
+
+.rom-entry-icon {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.rom-type-tag {
     font-family: 'Geist Mono', monospace;
-    font-size: 0.72rem;
-    padding: 2px 8px;
+    font-size: 0.7rem;
+    padding: 2px 7px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
     color: #94a3b8;
     display: inline-block;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
-.rom-filename-cell {
-    font-family: 'Geist Mono', monospace;
-    font-weight: 500;
-    word-break: break-all;
+.rom-type-rom {
+    background: rgba(225, 29, 72, 0.15);
+    color: #fb7185;
+    border: 1px solid rgba(225, 29, 72, 0.3);
 }
 
-.rom-size-cell {
-    font-family: 'Geist Mono', monospace;
-    color: var(--text-secondary);
-    font-size: 0.78rem;
+.rom-type-key {
+    background: rgba(234, 179, 8, 0.15);
+    color: #facc15;
+    border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
-.rom-del-btn {
+.rom-type-folder {
+    background: rgba(56, 189, 248, 0.12);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.rom-type-archive {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.rom-actions-cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+}
+
+.rom-table-btn {
     background: transparent;
-    border: 1px solid rgba(239, 68, 68, 0.35);
-    color: #f87171;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
     font-family: 'Geist Mono', monospace;
     font-size: 0.72rem;
-    padding: 4px 10px;
+    padding: 4px 8px;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
-.rom-del-btn:hover {
+.rom-table-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.rom-table-btn.btn-delete:hover {
     background: rgba(239, 68, 68, 0.18);
     border-color: #ef4444;
     color: #ffffff;
 }
 
 .rom-empty-state {
-    padding: 40px 20px;
+    padding: 60px 20px;
     text-align: center;
     color: var(--text-muted);
+    font-family: 'Geist', sans-serif;
+    font-size: 0.88rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.rom-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 28px;
+    background: #090c14;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.rom-footer-hint {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.rom-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
     font-family: 'Geist', sans-serif;
     font-size: 0.88rem;
 }

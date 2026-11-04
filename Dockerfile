@@ -194,7 +194,6 @@ RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || tr
 COPY scripts/install_eglantine.sh /tmp/install_eglantine.sh
 RUN chmod +x /tmp/install_eglantine.sh && /tmp/install_eglantine.sh && rm -f /tmp/install_eglantine.sh
 
-# 8. Copy Kyber from builder stage
 # 9. Copy Kyber from builder stage
 COPY --from=kyber-builder /opt/kyber /opt/kyber
 COPY webclient /opt/kyber/webclient

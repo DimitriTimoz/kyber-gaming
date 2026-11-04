@@ -50,19 +50,27 @@
     const romModalEl = document.getElementById('romModal');
     const btnRomModalCloseEl = document.getElementById('btnRomModalClose');
     const romSystemsBarEl = document.getElementById('romSystemsBar');
-    const romUploadDropZoneEl = document.getElementById('romUploadDropZone');
+    const romBreadcrumbsEl = document.getElementById('romBreadcrumbs');
+    const romSearchInputEl = document.getElementById('romSearchInput');
+    const btnNewFolderEl = document.getElementById('btnNewFolder');
+    const btnUploadFilesEl = document.getElementById('btnUploadFiles');
     const romFileInputEl = document.getElementById('romFileInput');
-    const btnBrowseRomEl = document.getElementById('btnBrowseRom');
-    const romUploadProgressEl = document.getElementById('romUploadProgress');
-    const romProgressFillEl = document.getElementById('romProgressFill');
-    const romProgressTextEl = document.getElementById('romProgressText');
-    const romInventoryCountEl = document.getElementById('romInventoryCount');
-    const romPathHintEl = document.getElementById('romPathHint');
+    const romFolderInputEl = document.getElementById('romFolderInput');
+    const romUploadCardEl = document.getElementById('romUploadCard');
+    const romUploadCardTitleEl = document.getElementById('romUploadCardTitle');
+    const btnCancelUploadEl = document.getElementById('btnCancelUpload');
+    const romUploadCardBarEl = document.getElementById('romUploadCardBar');
+    const romUploadStatProgressEl = document.getElementById('romUploadStatProgress');
+    const romUploadStatSpeedEl = document.getElementById('romUploadStatSpeed');
+    const romUploadStatEtaEl = document.getElementById('romUploadStatEta');
+    const romDropTargetEl = document.getElementById('romDropTarget');
     const romTableBodyEl = document.getElementById('romTableBody');
     const romEmptyStateEl = document.getElementById('romEmptyState');
+    const romStorageHintEl = document.getElementById('romStorageHint');
     let isRomModalOpen = false;
-    let romInventory = null;
-    let selectedRomSystem = 'all';
+    let currentBrowsePath = 'eglantine/games';
+    let currentDirData = null;
+    let isUploadCancelled = false;
 
     // ==========================================================================
     // Synthesized Web Audio API Sound Effects
@@ -576,13 +584,34 @@
     });
 
     // ==========================================================================
-    // ROM & Game Manager Controller
+    // ROM & Game Library Explorer Controller (Hierarchical & Chunked Upload)
     // ==========================================================================
+    const PRESET_FOLDERS = [
+        { id: 'switch_games', name: 'Switch Games', path: 'eglantine/games' },
+        { id: 'switch_updates', name: 'Updates', path: 'eglantine/updates' },
+        { id: 'switch_dlc', name: 'DLC Packs', path: 'eglantine/dlc' },
+        { id: 'switch_keys', name: 'Keys', path: 'eglantine/keys' },
+        { id: 'switch_firmware', name: 'Firmware', path: 'eglantine/firmware' },
+        { id: 'switch_mods', name: 'Mods', path: 'eglantine/mods' },
+        { id: 'saves', name: 'Saves', path: 'saves' },
+        { id: 'all', name: 'All Folders', path: '' }
+    ];
+
+    const FILE_ICONS = {
+        folder: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>`,
+        rom: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7.7 2C3.4 2 0 5.4 0 9.7v4.6C0 18.6 3.4 22 7.7 22H9V2H7.7zM6 9.5c.8 0 1.5.7 1.5 1.5s-.7 1.5-1.5 1.5S4.5 11.8 4.5 11s.7-1.5 1.5-1.5zm10.3-7.5H15v20h1.3c4.3 0 7.7-3.4 7.7-7.7V9.7C24 5.4 20.6 2 16.3 2zM18 14.5c-.8 0-1.5-.7-1.5-1.5s.7-1.5 1.5-1.5 1.5.7 1.5 1.5-.7 1.5-1.5 1.5z"/></svg>`,
+        key: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 14c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5c0 .65-.13 1.26-.36 1.83L18 17.17V20h-3v-2h-2v-2h-2.17l-1.01-1.01C9.26 15.37 8.15 16 7 16zm0-8C5.34 6 4 7.34 4 9s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`,
+        archive: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-6 10h-4v-2h4v2zm0-3h-4v-2h4v2zm0-3h-4V8h4v2z"/></svg>`,
+        save: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>`,
+        file: `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>`
+    };
+
     function openRomModal() {
         initAudio();
         isRomModalOpen = true;
         romModalEl.classList.add('active');
-        fetchRomInventory();
+        renderPresetPills();
+        loadDirectory(currentBrowsePath);
     }
 
     function closeRomModal() {
@@ -591,122 +620,209 @@
         romModalEl.classList.remove('active');
     }
 
-    function fetchRomInventory() {
-        fetch('/api/roms')
-            .then(res => res.json())
-            .then(data => {
-                romInventory = data;
-                renderRomManager();
-            })
-            .catch(err => {
-                console.warn('[hub] Error fetching ROM inventory:', err);
+    function renderPresetPills() {
+        romSystemsBarEl.innerHTML = '';
+        PRESET_FOLDERS.forEach(preset => {
+            const btn = document.createElement('button');
+            const isActive = currentBrowsePath === preset.path || (preset.path !== '' && currentBrowsePath.startsWith(preset.path));
+            btn.className = `rom-system-pill ${isActive ? 'active' : ''}`;
+            btn.innerHTML = `<span>${preset.name}</span>`;
+            btn.addEventListener('click', () => {
+                initAudio();
+                loadDirectory(preset.path);
             });
+            romSystemsBarEl.appendChild(btn);
+        });
     }
 
-    function renderRomManager() {
-        if (!romInventory) return;
-
-        // Render system pills
-        romSystemsBarEl.innerHTML = '';
-
-        // All pill
-        const allPill = document.createElement('button');
-        allPill.className = `rom-system-pill ${selectedRomSystem === 'all' ? 'active' : ''}`;
-        allPill.innerHTML = `<span>All Games</span> <span class="rom-pill-count">${romInventory.total_roms}</span>`;
-        allPill.addEventListener('click', () => {
-            selectedRomSystem = 'all';
-            renderRomManager();
-        });
-        romSystemsBarEl.appendChild(allPill);
-
-        // System pills
-        const pillNames = {
-            switch: 'Switch / NX2',
-            bios: 'Keys & Firmware'
-        };
-
-        (romInventory.systems || []).forEach(sys => {
-            const pill = document.createElement('button');
-            pill.className = `rom-system-pill ${selectedRomSystem === sys.id ? 'active' : ''}`;
-            const label = pillNames[sys.id] || sys.id.toUpperCase();
-            pill.innerHTML = `<span>${label}</span> <span class="rom-pill-count">${sys.count}</span>`;
-            pill.addEventListener('click', () => {
-                selectedRomSystem = sys.id;
-                renderRomManager();
-            });
-            romSystemsBarEl.appendChild(pill);
-        });
-
-        // BIOS & Keys pill
-        const biosPill = document.createElement('button');
-        biosPill.className = `rom-system-pill ${selectedRomSystem === 'bios' ? 'active' : ''}`;
-        biosPill.innerHTML = `<span>Keys & Firmware</span> <span class="rom-pill-count">${romInventory.bios ? romInventory.bios.count : 0}</span>`;
-        biosPill.addEventListener('click', () => {
-            selectedRomSystem = 'bios';
-            renderRomManager();
-        });
-        romSystemsBarEl.appendChild(biosPill);
-
-        // Path hint & count
-        if (selectedRomSystem === 'all') {
-            romInventoryCountEl.textContent = `${romInventory.total_roms} games installed (${romInventory.total_size})`;
-            romPathHintEl.textContent = `Storage path: ${romInventory.base_path}`;
-        } else if (selectedRomSystem === 'bios') {
-            const count = romInventory.bios ? romInventory.bios.count : 0;
-            romInventoryCountEl.textContent = `${count} BIOS files installed`;
-            romPathHintEl.textContent = `Storage path: ${romInventory.bios_path}`;
-        } else {
-            const currentSys = (romInventory.systems || []).find(s => s.id === selectedRomSystem);
-            const count = currentSys ? currentSys.count : 0;
-            romInventoryCountEl.textContent = `${count} games installed for ${currentSys ? currentSys.name : selectedRomSystem}`;
-            romPathHintEl.textContent = `Storage path: ${romInventory.base_path}/${selectedRomSystem}`;
+    async function loadDirectory(relPath) {
+        currentBrowsePath = relPath || '';
+        try {
+            const res = await fetch(`/api/roms/browse?path=${encodeURIComponent(currentBrowsePath)}`);
+            if (res.ok) {
+                const data = await res.json();
+                currentDirData = data;
+                renderDirectoryView();
+                renderPresetPills();
+            } else {
+                showToast('Browse Error', 'Failed to read directory');
+            }
+        } catch (e) {
+            console.warn('[hub] Failed to browse directory:', e);
+            showToast('Network Error', 'Unable to reach backend storage service');
         }
+    }
 
-        // Populate table
-        romTableBodyEl.innerHTML = '';
-        let displayList = [];
+    function renderDirectoryView() {
+        if (!currentDirData) return;
 
-        if (selectedRomSystem === 'all') {
-            (romInventory.systems || []).forEach(sys => {
-                (sys.files || []).forEach(f => {
-                    displayList.push({ ...f, system: sys.id, systemName: sys.name });
-                });
-            });
-        } else if (selectedRomSystem === 'bios') {
-            (romInventory.bios ? romInventory.bios.files : []).forEach(f => {
-                displayList.push({ ...f, system: 'bios', systemName: 'BIOS Firmware' });
-            });
-        } else {
-            const currentSys = (romInventory.systems || []).find(s => s.id === selectedRomSystem);
-            if (currentSys) {
-                (currentSys.files || []).forEach(f => {
-                    displayList.push({ ...f, system: currentSys.id, systemName: currentSys.name });
+        // 1. Breadcrumbs
+        romBreadcrumbsEl.innerHTML = '';
+        (currentDirData.breadcrumbs || []).forEach((crumb, idx, arr) => {
+            const isLast = idx === arr.length - 1;
+            const item = document.createElement('span');
+            item.className = `rom-crumb-item ${isLast ? 'active' : ''}`;
+            item.textContent = crumb.name;
+            if (!isLast) {
+                item.addEventListener('click', () => {
+                    initAudio();
+                    loadDirectory(crumb.path);
                 });
             }
+            romBreadcrumbsEl.appendChild(item);
+
+            if (!isLast) {
+                const sep = document.createElement('span');
+                sep.className = 'rom-crumb-sep';
+                sep.textContent = '/';
+                romBreadcrumbsEl.appendChild(sep);
+            }
+        });
+
+        // 2. Storage Hint
+        const currentPath = currentDirData.current_path !== undefined ? currentDirData.current_path : (currentDirData.path || '');
+        const storageRoot = currentDirData.storage_root || currentDirData.absolute_path || '/home/gamer/roms';
+        const totalSize = currentDirData.total_size || currentDirData.total_size_formatted || '0 B';
+
+        if (romStorageHintEl) {
+            romStorageHintEl.textContent = `Location: ${storageRoot}/${currentPath} (${currentDirData.total_folders || 0} folders, ${currentDirData.total_files || 0} files, ${totalSize})`;
         }
 
-        if (displayList.length === 0) {
+        // 3. Search Filter
+        const query = (romSearchInputEl ? romSearchInputEl.value : '').trim().toLowerCase();
+
+        const folders = (currentDirData.folders || []).filter(f => !query || f.name.toLowerCase().includes(query));
+        const files = (currentDirData.files || []).filter(f => !query || f.name.toLowerCase().includes(query));
+
+        romTableBodyEl.innerHTML = '';
+
+        // Parent Directory row if not at root
+        if (currentBrowsePath !== '') {
+            const parentParts = currentBrowsePath.split('/').filter(Boolean);
+            parentParts.pop();
+            const parentPath = parentParts.join('/');
+
+            const trParent = document.createElement('tr');
+            trParent.className = 'rom-folder-row';
+            trParent.innerHTML = `
+                <td class="rom-filename-cell">
+                    <span class="rom-item-icon" style="color:var(--text-muted);">${FILE_ICONS.folder}</span>
+                    <span class="rom-folder-link">.. [Up one directory]</span>
+                </td>
+                <td><span class="rom-sys-badge">PARENT</span></td>
+                <td class="rom-size-cell">--</td>
+                <td class="rom-date-cell">--</td>
+                <td style="text-align:right;"></td>
+            `;
+            trParent.addEventListener('click', () => {
+                initAudio();
+                loadDirectory(parentPath);
+            });
+            romTableBodyEl.appendChild(trParent);
+        }
+
+        if (folders.length === 0 && files.length === 0) {
             romEmptyStateEl.style.display = 'block';
         } else {
             romEmptyStateEl.style.display = 'none';
-            displayList.forEach(item => {
+
+            // Render folders
+            folders.forEach(folder => {
                 const tr = document.createElement('tr');
+                tr.className = 'rom-folder-row';
+                const count = folder.item_count !== undefined ? folder.item_count : (folder.items_count || 0);
                 tr.innerHTML = `
-                    <td><span class="rom-sys-badge">${item.system.toUpperCase()}</span></td>
-                    <td class="rom-filename-cell">${escapeHtml(item.name)}</td>
-                    <td class="rom-size-cell">${item.size_formatted}</td>
+                    <td class="rom-filename-cell">
+                        <span class="rom-item-icon" style="color:#60a5fa;">${FILE_ICONS.folder}</span>
+                        <span class="rom-folder-link">${escapeHtml(folder.name)}</span>
+                    </td>
+                    <td><span class="rom-sys-badge" style="background:rgba(59,130,246,0.12);color:#93c5fd;">FOLDER</span></td>
+                    <td class="rom-size-cell">${folder.size_formatted} (${count} items)</td>
+                    <td class="rom-date-cell">${formatTimestamp(folder.modified)}</td>
                     <td style="text-align:right;">
-                        <button class="rom-del-btn" data-system="${item.system}" data-filename="${escapeHtml(item.name)}">Delete</button>
+                        <button class="rom-del-btn" title="Delete Folder">Delete</button>
                     </td>
                 `;
+
+                tr.querySelector('.rom-folder-link').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    initAudio();
+                    loadDirectory(folder.path);
+                });
+
+                tr.addEventListener('click', () => {
+                    initAudio();
+                    loadDirectory(folder.path);
+                });
+
                 const delBtn = tr.querySelector('.rom-del-btn');
                 delBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    deleteRomFile(item.system, item.name);
+                    initAudio();
+                    deleteStorageItem(folder.path, folder.name, true);
                 });
+
+                romTableBodyEl.appendChild(tr);
+            });
+
+            // Render files
+            files.forEach(file => {
+                const fileType = file.type || file.kind || 'file';
+                const fileExt = file.extension || file.ext || '';
+                const iconSvg = FILE_ICONS[fileType] || FILE_ICONS.file;
+                const tr = document.createElement('tr');
+                tr.className = 'rom-file-row';
+
+                let kindBadge = 'FILE';
+                let kindBadgeStyle = '';
+                if (fileType === 'rom') {
+                    kindBadge = fileExt.replace('.', '').toUpperCase() || 'ROM';
+                    kindBadgeStyle = 'background:rgba(239,68,68,0.12);color:#fca5a5;';
+                } else if (fileType === 'key') {
+                    kindBadge = 'KEY';
+                    kindBadgeStyle = 'background:rgba(234,179,8,0.12);color:#fde047;';
+                } else if (fileType === 'archive') {
+                    kindBadge = 'ARCHIVE';
+                    kindBadgeStyle = 'background:rgba(168,85,247,0.12);color:#d8b4fe;';
+                }
+
+                tr.innerHTML = `
+                    <td class="rom-filename-cell">
+                        <span class="rom-item-icon">${iconSvg}</span>
+                        <span class="rom-file-name">${escapeHtml(file.name)}</span>
+                    </td>
+                    <td><span class="rom-sys-badge" style="${kindBadgeStyle}">${kindBadge}</span></td>
+                    <td class="rom-size-cell">${file.size_formatted}</td>
+                    <td class="rom-date-cell">${formatTimestamp(file.modified)}</td>
+                    <td style="text-align:right;">
+                        <div class="rom-row-actions">
+                            <a href="/api/roms/download?path=${encodeURIComponent(file.path)}" class="rom-action-icon-btn" title="Download File" download>
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            </a>
+                            <button class="rom-del-btn" title="Delete File">Delete</button>
+                        </div>
+                    </td>
+                `;
+
+                const delBtn = tr.querySelector('.rom-del-btn');
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    initAudio();
+                    deleteStorageItem(file.path, file.name, false);
+                });
+
                 romTableBodyEl.appendChild(tr);
             });
         }
+    }
+
+    function formatTimestamp(ts) {
+        if (!ts) return '--';
+        if (typeof ts === 'number') {
+            const d = new Date(ts * 1000);
+            return d.toISOString().slice(0, 16).replace('T', ' ');
+        }
+        return String(ts);
     }
 
     function escapeHtml(str) {
@@ -715,110 +831,200 @@
         });
     }
 
-    function deleteRomFile(system, filename) {
-        if (!confirm(`Are you sure you want to delete ${filename}?`)) return;
+    // Create New Folder
+    async function promptCreateFolder() {
+        const folderName = window.prompt(`Create new folder inside "${currentBrowsePath || 'root'}":`);
+        if (!folderName || !folderName.trim()) return;
 
-        fetch('/api/roms/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ system: system, filename: filename })
-        })
-        .then(r => r.json())
-        .then(res => {
-            if (res.status === 'ok') {
-                showToast('File Removed', `Deleted ${filename}`);
-                fetchRomInventory();
+        try {
+            const res = await fetch('/api/roms/create_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: currentBrowsePath,
+                    folder_name: folderName.trim()
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                showToast('Folder Created', `Created folder "${data.folder_name}"`);
+                loadDirectory(data.created_path);
             } else {
-                showToast('Delete Error', res.error || 'Failed to remove file');
+                showToast('Folder Error', data.error || 'Failed to create folder');
             }
-        })
-        .catch(err => {
+        } catch (e) {
+            showToast('Network Error', 'Failed to reach server');
+        }
+    }
+
+    // Delete item (file or folder)
+    async function deleteStorageItem(relPath, displayName, isFolder) {
+        const label = isFolder ? `folder "${displayName}" and all its contents` : `file "${displayName}"`;
+        if (!confirm(`Are you sure you want to delete ${label}?`)) return;
+
+        try {
+            const res = await fetch('/api/roms/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: relPath })
+            });
+            const data = await res.json();
+            if (res.ok && data.status === 'ok') {
+                showToast('Deleted', `Removed ${displayName}`);
+                loadDirectory(currentBrowsePath);
+            } else {
+                showToast('Delete Error', data.error || 'Failed to delete item');
+            }
+        } catch (e) {
             showToast('Delete Error', 'Network error occurred');
-        });
+        }
     }
 
-    function detectSystemForFile(filename) {
-        const ext = '.' + filename.split('.').pop().toLowerCase();
-        if (selectedRomSystem !== 'all') return selectedRomSystem;
+    // ==========================================================================
+    // Chunked High-Performance File Uploader Engine (10 MB chunks with telemetry)
+    // ==========================================================================
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB chunks
 
-        if (['.nsp', '.xci', '.nsz'].includes(ext)) return 'switch';
-        if (['.keys', '.bin', '.dat'].includes(ext) || filename.toLowerCase().includes('key') || filename.toLowerCase().includes('firmware') || filename.toLowerCase().includes('bios')) return 'bios';
-        return 'switch';
-    }
-
-    function uploadFilesSequentially(files) {
+    async function uploadFilesChunked(files) {
         if (!files || files.length === 0) return;
         const fileArr = Array.from(files);
-        let index = 0;
+        isUploadCancelled = false;
 
-        romUploadProgressEl.style.display = 'block';
+        romUploadCardEl.style.display = 'block';
 
-        function uploadNext() {
-            if (index >= fileArr.length) {
-                romUploadProgressEl.style.display = 'none';
-                showToast('Upload Complete', `Successfully uploaded ${fileArr.length} file(s).`);
-                fetchRomInventory();
-                return;
+        let totalBytesAllFiles = fileArr.reduce((sum, f) => sum + f.size, 0);
+        let uploadedBytesOverall = 0;
+        let overallStartTime = performance.now();
+
+        for (let fileIdx = 0; fileIdx < fileArr.length; fileIdx++) {
+            if (isUploadCancelled) {
+                showToast('Upload Cancelled', 'File upload was aborted.');
+                break;
             }
 
-            const file = fileArr[index];
-            const targetSys = detectSystemForFile(file.name);
-            const uploadUrl = `/api/roms/upload?system=${encodeURIComponent(targetSys)}&filename=${encodeURIComponent(file.name)}`;
+            const file = fileArr[fileIdx];
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
+            const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-            romProgressTextEl.textContent = `Uploading ${file.name} (${index + 1}/${fileArr.length})...`;
-            romProgressFillEl.style.width = '0%';
+            romUploadCardTitleEl.textContent = `Uploading ${file.name} (${fileIdx + 1} of ${fileArr.length})...`;
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', uploadUrl, true);
-            xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+            for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+                if (isUploadCancelled) break;
 
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const pct = Math.round((e.loaded / e.total) * 100);
-                    romProgressFillEl.style.width = `${pct}%`;
-                    romProgressTextEl.textContent = `Uploading ${file.name} (${pct}%)...`;
+                const start = chunkIdx * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunkBlob = file.slice(start, end);
+                const chunkSize = end - start;
+
+                const chunkStartTime = performance.now();
+
+                try {
+                    const uploadUrl = `/api/roms/upload_chunk?upload_id=${encodeURIComponent(uploadId)}&filename=${encodeURIComponent(file.name)}&target_path=${encodeURIComponent(currentBrowsePath)}&chunk_index=${chunkIdx}&total_chunks=${totalChunks}&total_size=${file.size}`;
+
+                    await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('POST', uploadUrl, true);
+                        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+
+                        xhr.upload.onprogress = (e) => {
+                            if (e.lengthComputable) {
+                                const currentChunkLoaded = e.loaded;
+                                const currentTotalUploaded = uploadedBytesOverall + currentChunkLoaded;
+                                const pct = Math.min(100, Math.round((currentTotalUploaded / totalBytesAllFiles) * 100));
+
+                                const elapsedSec = (performance.now() - overallStartTime) / 1000;
+                                const speedBytesPerSec = elapsedSec > 0 ? (currentTotalUploaded / elapsedSec) : 0;
+                                const speedMBps = (speedBytesPerSec / (1024 * 1024)).toFixed(1);
+
+                                const remainingBytes = Math.max(0, totalBytesAllFiles - currentTotalUploaded);
+                                const etaSec = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
+                                const etaFormatted = formatSeconds(etaSec);
+
+                                romUploadCardBarEl.style.width = `${pct}%`;
+                                romUploadStatProgressEl.textContent = `${pct}% (${formatBytes(currentTotalUploaded)} / ${formatBytes(totalBytesAllFiles)})`;
+                                romUploadStatSpeedEl.textContent = `${speedMBps} MB/s`;
+                                romUploadStatEtaEl.textContent = `ETA: ${etaFormatted}`;
+                            }
+                        };
+
+                        xhr.onload = () => {
+                            if (xhr.status === 200) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Server returned HTTP ${xhr.status}`));
+                            }
+                        };
+
+                        xhr.onerror = () => reject(new Error('Network transport error'));
+                        xhr.send(chunkBlob);
+                    });
+
+                    uploadedBytesOverall += chunkSize;
+                } catch (err) {
+                    romUploadCardEl.style.display = 'none';
+                    showToast('Upload Error', `Failed on ${file.name}: ${err.message}`);
+                    loadDirectory(currentBrowsePath);
+                    return;
                 }
-            };
-
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    index++;
-                    uploadNext();
-                } else {
-                    romUploadProgressEl.style.display = 'none';
-                    showToast('Upload Failed', `Error uploading ${file.name} (HTTP ${xhr.status})`);
-                }
-            };
-
-            xhr.onerror = function() {
-                romUploadProgressEl.style.display = 'none';
-                showToast('Upload Failed', `Network error uploading ${file.name}`);
-            };
-
-            xhr.send(file);
+            }
         }
 
-        uploadNext();
+        romUploadCardEl.style.display = 'none';
+        if (!isUploadCancelled) {
+            showToast('Upload Finished', `Successfully saved ${fileArr.length} file(s) into ${currentBrowsePath || 'root'}.`);
+            loadDirectory(currentBrowsePath);
+        }
     }
 
+    function formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const dm = 1;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    function formatSeconds(secs) {
+        if (secs < 60) return `${secs}s`;
+        const mins = Math.floor(secs / 60);
+        const remSecs = secs % 60;
+        return `${mins}m ${remSecs}s`;
+    }
+
+    // Event Bindings
     if (btnRomManagerEl) btnRomManagerEl.addEventListener('click', openRomModal);
     if (btnRomModalCloseEl) btnRomModalCloseEl.addEventListener('click', closeRomModal);
-    if (btnBrowseRomEl) btnBrowseRomEl.addEventListener('click', () => romFileInputEl.click());
-    if (romFileInputEl) romFileInputEl.addEventListener('change', (e) => uploadFilesSequentially(e.target.files));
+    if (btnNewFolderEl) btnNewFolderEl.addEventListener('click', promptCreateFolder);
+    if (btnUploadFilesEl) btnUploadFilesEl.addEventListener('click', () => romFileInputEl.click());
+    if (romFileInputEl) romFileInputEl.addEventListener('change', (e) => uploadFilesChunked(e.target.files));
 
-    if (romUploadDropZoneEl) {
-        romUploadDropZoneEl.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            romUploadDropZoneEl.classList.add('dragover');
+    if (btnCancelUploadEl) {
+        btnCancelUploadEl.addEventListener('click', () => {
+            isUploadCancelled = true;
+            romUploadCardEl.style.display = 'none';
         });
-        romUploadDropZoneEl.addEventListener('dragleave', () => {
-            romUploadDropZoneEl.classList.remove('dragover');
+    }
+
+    if (romSearchInputEl) {
+        romSearchInputEl.addEventListener('input', () => {
+            renderDirectoryView();
         });
-        romUploadDropZoneEl.addEventListener('drop', (e) => {
+    }
+
+    if (romDropTargetEl) {
+        romDropTargetEl.addEventListener('dragover', (e) => {
             e.preventDefault();
-            romUploadDropZoneEl.classList.remove('dragover');
+            romDropTargetEl.classList.add('dragover');
+        });
+        romDropTargetEl.addEventListener('dragleave', () => {
+            romDropTargetEl.classList.remove('dragover');
+        });
+        romDropTargetEl.addEventListener('drop', (e) => {
+            e.preventDefault();
+            romDropTargetEl.classList.remove('dragover');
             if (e.dataTransfer && e.dataTransfer.files) {
-                uploadFilesSequentially(e.dataTransfer.files);
+                uploadFilesChunked(e.dataTransfer.files);
             }
         });
     }
