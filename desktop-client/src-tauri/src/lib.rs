@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -440,6 +441,296 @@ async fn launch_session(
     Ok(())
 }
 
+#[tauri::command]
+async fn rom_browse(
+    host: String,
+    port: u16,
+    path: String,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut query = vec![("path", path)];
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            query.push(("auth_user", u.clone()));
+            query.push(("auth_pass", p.clone()));
+        }
+    }
+
+    let https_url = format!("https://{}:{}/api/roms/browse", host, port);
+    let mut req = client.get(&https_url).query(&query);
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            req = req.basic_auth(u, Some(p));
+        }
+    }
+
+    match req.send().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                Err(format!("HTTP error {}", resp.status()))
+            }
+        }
+        Err(_) => {
+            let http_url = format!("http://{}:{}/api/roms/browse", host, port);
+            let mut req2 = client.get(&http_url).query(&query);
+            if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                if !u.is_empty() && !p.is_empty() {
+                    req2 = req2.basic_auth(u, Some(p));
+                }
+            }
+            let resp2 = req2.send().await.map_err(|e| e.to_string())?;
+            if resp2.status().is_success() {
+                resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                Err(format!("HTTP error {}", resp2.status()))
+            }
+        }
+    }
+}
+
+#[tauri::command]
+async fn rom_create_folder(
+    host: String,
+    port: u16,
+    path: String,
+    folder_name: String,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut query = Vec::new();
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            query.push(("auth_user", u.clone()));
+            query.push(("auth_pass", p.clone()));
+        }
+    }
+
+    let payload = serde_json::json!({
+        "path": path,
+        "folder_name": folder_name
+    });
+
+    let https_url = format!("https://{}:{}/api/roms/create_folder", host, port);
+    let mut req = client.post(&https_url).query(&query).json(&payload);
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            req = req.basic_auth(u, Some(p));
+        }
+    }
+
+    match req.send().await {
+        Ok(resp) => resp.json::<serde_json::Value>().await.map_err(|e| e.to_string()),
+        Err(_) => {
+            let http_url = format!("http://{}:{}/api/roms/create_folder", host, port);
+            let mut req2 = client.post(&http_url).query(&query).json(&payload);
+            if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                if !u.is_empty() && !p.is_empty() {
+                    req2 = req2.basic_auth(u, Some(p));
+                }
+            }
+            let resp2 = req2.send().await.map_err(|e| e.to_string())?;
+            resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+async fn rom_delete(
+    host: String,
+    port: u16,
+    path: String,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut query = Vec::new();
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            query.push(("auth_user", u.clone()));
+            query.push(("auth_pass", p.clone()));
+        }
+    }
+
+    let payload = serde_json::json!({ "path": path });
+
+    let https_url = format!("https://{}:{}/api/roms/delete", host, port);
+    let mut req = client.post(&https_url).query(&query).json(&payload);
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            req = req.basic_auth(u, Some(p));
+        }
+    }
+
+    match req.send().await {
+        Ok(resp) => resp.json::<serde_json::Value>().await.map_err(|e| e.to_string()),
+        Err(_) => {
+            let http_url = format!("http://{}:{}/api/roms/delete", host, port);
+            let mut req2 = client.post(&http_url).query(&query).json(&payload);
+            if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                if !u.is_empty() && !p.is_empty() {
+                    req2 = req2.basic_auth(u, Some(p));
+                }
+            }
+            let resp2 = req2.send().await.map_err(|e| e.to_string())?;
+            resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+async fn rom_upload_chunk(
+    host: String,
+    port: u16,
+    upload_id: String,
+    filename: String,
+    target_path: String,
+    chunk_index: u32,
+    total_chunks: u32,
+    total_size: u64,
+    chunk_base64: String,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let binary_data = BASE64_STANDARD
+        .decode(chunk_base64.trim())
+        .map_err(|e| format!("Base64 decode error: {}", e))?;
+
+    let mut query = vec![
+        ("upload_id", upload_id),
+        ("filename", filename),
+        ("target_path", target_path),
+        ("chunk_index", chunk_index.to_string()),
+        ("total_chunks", total_chunks.to_string()),
+        ("total_size", total_size.to_string()),
+    ];
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            query.push(("auth_user", u.clone()));
+            query.push(("auth_pass", p.clone()));
+        }
+    }
+
+    let https_url = format!("https://{}:{}/api/roms/upload_chunk", host, port);
+    let mut req = client
+        .post(&https_url)
+        .query(&query)
+        .header("Content-Type", "application/octet-stream")
+        .body(binary_data.clone());
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            req = req.basic_auth(u, Some(p));
+        }
+    }
+
+    match req.send().await {
+        Ok(resp) => resp.json::<serde_json::Value>().await.map_err(|e| e.to_string()),
+        Err(_) => {
+            let http_url = format!("http://{}:{}/api/roms/upload_chunk", host, port);
+            let mut req2 = client
+                .post(&http_url)
+                .query(&query)
+                .header("Content-Type", "application/octet-stream")
+                .body(binary_data);
+            if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                if !u.is_empty() && !p.is_empty() {
+                    req2 = req2.basic_auth(u, Some(p));
+                }
+            }
+            let resp2 = req2.send().await.map_err(|e| e.to_string())?;
+            resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+async fn rom_download_file(
+    host: String,
+    port: u16,
+    path: String,
+    filename: String,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let download_dir = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
+    let target_file_path = download_dir.join(&filename);
+
+    let mut query = vec![("path", path)];
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            query.push(("auth_user", u.clone()));
+            query.push(("auth_pass", p.clone()));
+        }
+    }
+
+    let https_url = format!("https://{}:{}/api/roms/download", host, port);
+    let mut req = client.get(&https_url).query(&query);
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            req = req.basic_auth(u, Some(p));
+        }
+    }
+
+    let bytes = match req.send().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.bytes().await.map_err(|e| e.to_string())?
+            } else {
+                return Err(format!("Download failed with HTTP {}", resp.status()));
+            }
+        }
+        Err(_) => {
+            let http_url = format!("http://{}:{}/api/roms/download", host, port);
+            let mut req2 = client.get(&http_url).query(&query);
+            if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                if !u.is_empty() && !p.is_empty() {
+                    req2 = req2.basic_auth(u, Some(p));
+                }
+            }
+            let resp2 = req2.send().await.map_err(|e| e.to_string())?;
+            if resp2.status().is_success() {
+                resp2.bytes().await.map_err(|e| e.to_string())?
+            } else {
+                return Err(format!("Download failed with HTTP {}", resp2.status()));
+            }
+        }
+    };
+
+    fs::write(&target_file_path, bytes).map_err(|e| e.to_string())?;
+    Ok(target_file_path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -448,7 +739,12 @@ pub fn run() {
             save_config,
             ping_server,
             scan_local_servers,
-            launch_session
+            launch_session,
+            rom_browse,
+            rom_create_folder,
+            rom_delete,
+            rom_upload_chunk,
+            rom_download_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

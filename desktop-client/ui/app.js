@@ -653,30 +653,27 @@
 
         currentDesktopBrowsePath = relPath !== undefined ? relPath : currentDesktopBrowsePath;
         const controlPort = 8081;
-        const authParams = (server.user && server.password)
-            ? `&auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
-            : '';
-
-        const urlHttps = `https://${server.host}:${controlPort}/api/roms/browse?path=${encodeURIComponent(currentDesktopBrowsePath)}${authParams}`;
-        const urlHttp = `http://${server.host}:${controlPort}/api/roms/browse?path=${encodeURIComponent(currentDesktopBrowsePath)}${authParams}`;
 
         try {
-            let res = await fetch(urlHttps, { method: 'GET' }).catch(() => null);
-            if (!res || !res.ok) {
-                res = await fetch(urlHttp, { method: 'GET' });
-            }
+            const data = await tauriInvoke('rom_browse', {
+                host: server.host,
+                port: controlPort,
+                path: currentDesktopBrowsePath,
+                authUser: server.user || null,
+                authPassword: server.password || null
+            });
 
-            if (res && res.ok) {
-                currentDesktopDirData = await res.json();
+            if (data && data.status === 'ok') {
+                currentDesktopDirData = data;
                 renderDesktopPresetPills();
                 renderDesktopDirectoryView();
             } else {
-                desktopRomCount.textContent = `Server responded with HTTP ${res ? res.status : 'error'}`;
+                desktopRomCount.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
             }
         } catch (err) {
             desktopRomCount.textContent = 'Could not connect to storage service on server.';
             desktopRomEmpty.style.display = 'block';
-            desktopRomEmpty.textContent = `Unable to connect to https://${server.host}:${controlPort}. Ensure the server is reachable.`;
+            desktopRomEmpty.textContent = `Unable to connect to ${server.host}:${controlPort}. Ensure the server is reachable and port ${controlPort} is open.`;
         }
     }
 
@@ -804,8 +801,6 @@
                     kindBadgeStyle = 'background:rgba(168,85,247,0.12);color:#d8b4fe;';
                 }
 
-                const downloadUrl = server ? `https://${server.host}:${controlPort}/api/roms/download?path=${encodeURIComponent(file.path)}${authParams}` : '#';
-
                 tr.innerHTML = `
                     <td class="rom-filename-cell" style="padding: 10px 18px;">
                         <span class="rom-item-icon">${iconSvg}</span>
@@ -816,13 +811,21 @@
                     <td style="padding: 10px 18px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${formatTimestamp(file.modified)}</td>
                     <td style="padding: 10px 18px; text-align: right;">
                         <div class="rom-row-actions">
-                            <a href="${downloadUrl}" class="rom-action-icon-btn" title="Download File" download target="_blank">
+                            <button class="rom-action-icon-btn rom-dl-btn" title="Download File">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                            </a>
+                            </button>
                             <button class="rom-del-btn" title="Delete File">Delete</button>
                         </div>
                     </td>
                 `;
+
+                const dlBtn = tr.querySelector('.rom-dl-btn');
+                if (dlBtn) {
+                    dlBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        downloadDesktopStorageFile(file.path, file.name);
+                    });
+                }
 
                 const delBtn = tr.querySelector('.rom-del-btn');
                 delBtn.addEventListener('click', (e) => {
@@ -835,6 +838,26 @@
         }
     }
 
+    async function downloadDesktopStorageFile(relPath, filename) {
+        const server = getSelectedRomServer();
+        if (!server) return;
+        const controlPort = 8081;
+        showToast(`Downloading "${filename}"...`);
+        try {
+            const dest = await tauriInvoke('rom_download_file', {
+                host: server.host,
+                port: controlPort,
+                path: relPath,
+                filename: filename,
+                authUser: server.user || null,
+                authPassword: server.password || null
+            });
+            showToast(`Saved to ${dest}`);
+        } catch (err) {
+            showToast(`Download failed: ${err}`);
+        }
+    }
+
     async function promptDesktopCreateFolder() {
         const folderName = window.prompt(`Create new folder inside "${currentDesktopBrowsePath || 'root'}":`);
         if (!folderName || !folderName.trim()) return;
@@ -842,28 +865,24 @@
         const server = getSelectedRomServer();
         if (!server) return;
         const controlPort = 8081;
-        const authParams = (server.user && server.password)
-            ? `?auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
-            : '';
 
         try {
-            const res = await fetch(`https://${server.host}:${controlPort}/api/roms/create_folder${authParams}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    path: currentDesktopBrowsePath,
-                    folder_name: folderName.trim()
-                })
+            const data = await tauriInvoke('rom_create_folder', {
+                host: server.host,
+                port: controlPort,
+                path: currentDesktopBrowsePath,
+                folderName: folderName.trim(),
+                authUser: server.user || null,
+                authPassword: server.password || null
             });
-            const data = await res.json();
-            if (res.ok && data.status === 'ok') {
+            if (data && data.status === 'ok') {
                 showToast(`Created folder "${data.folder_name}"`);
                 loadDesktopDirectory(data.created_path);
             } else {
-                showToast(data.error || 'Failed to create folder');
+                showToast((data && data.error) || 'Failed to create folder');
             }
         } catch (err) {
-            showToast('Network error while creating folder');
+            showToast(`Error creating folder: ${err}`);
         }
     }
 
@@ -875,29 +894,40 @@
         if (!confirm(`Are you sure you want to delete ${label}?`)) return;
 
         const controlPort = 8081;
-        const authParams = (server.user && server.password)
-            ? `?auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
-            : '';
 
         try {
-            const res = await fetch(`https://${server.host}:${controlPort}/api/roms/delete${authParams}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ path: relPath })
+            const data = await tauriInvoke('rom_delete', {
+                host: server.host,
+                port: controlPort,
+                path: relPath,
+                authUser: server.user || null,
+                authPassword: server.password || null
             });
-            const data = await res.json();
-            if (res.ok && data.status === 'ok') {
+            if (data && data.status === 'ok') {
                 showToast(`Deleted ${displayName}`);
                 loadDesktopDirectory(currentDesktopBrowsePath);
             } else {
-                showToast(data.error || 'Failed to delete item');
+                showToast((data && data.error) || 'Failed to delete item');
             }
         } catch (err) {
-            showToast('Network error during file deletion');
+            showToast(`Error deleting item: ${err}`);
         }
     }
 
-    const DESKTOP_CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
+    function readBlobAsBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const res = reader.result;
+                const commaIdx = res.indexOf(',');
+                resolve(commaIdx !== -1 ? res.substring(commaIdx + 1) : res);
+            };
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    const DESKTOP_CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB chunk size for smooth IPC transfer
 
     async function uploadDesktopFilesChunked(files) {
         const server = getSelectedRomServer();
@@ -912,9 +942,6 @@
         let overallStartTime = performance.now();
 
         const controlPort = 8081;
-        const authParams = (server.user && server.password)
-            ? `&auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
-            : '';
 
         for (let fileIdx = 0; fileIdx < fileArr.length; fileIdx++) {
             if (isDesktopUploadCancelled) {
@@ -937,45 +964,40 @@
                 const chunkSize = end - start;
 
                 try {
-                    const uploadUrl = `https://${server.host}:${controlPort}/api/roms/upload_chunk?upload_id=${encodeURIComponent(uploadId)}&filename=${encodeURIComponent(file.name)}&target_path=${encodeURIComponent(currentDesktopBrowsePath)}&chunk_index=${chunkIdx}&total_chunks=${totalChunks}&total_size=${file.size}${authParams}`;
-
-                    await new Promise((resolve, reject) => {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', uploadUrl, true);
-                        xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-
-                        xhr.upload.onprogress = (e) => {
-                            if (e.lengthComputable) {
-                                const currentTotalUploaded = uploadedBytes + e.loaded;
-                                const pct = Math.min(100, Math.round((currentTotalUploaded / totalBytes) * 100));
-
-                                const elapsedSec = (performance.now() - overallStartTime) / 1000;
-                                const speedBytesPerSec = elapsedSec > 0 ? (currentTotalUploaded / elapsedSec) : 0;
-                                const speedMBps = (speedBytesPerSec / (1024 * 1024)).toFixed(1);
-
-                                const remainingBytes = Math.max(0, totalBytes - currentTotalUploaded);
-                                const etaSec = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
-
-                                desktopRomUploadBar.style.width = `${pct}%`;
-                                desktopRomUploadStatProgress.textContent = `${pct}% (${formatBytes(currentTotalUploaded)} / ${formatBytes(totalBytes)})`;
-                                desktopRomUploadStatSpeed.textContent = `${speedMBps} MB/s`;
-                                desktopRomUploadStatEta.textContent = `ETA: ${formatSeconds(etaSec)}`;
-                            }
-                        };
-
-                        xhr.onload = () => {
-                            if (xhr.status === 200) resolve();
-                            else reject(new Error(`HTTP ${xhr.status}`));
-                        };
-
-                        xhr.onerror = () => reject(new Error('Network error'));
-                        xhr.send(chunkBlob);
+                    const chunkBase64 = await readBlobAsBase64(chunkBlob);
+                    const res = await tauriInvoke('rom_upload_chunk', {
+                        host: server.host,
+                        port: controlPort,
+                        uploadId: uploadId,
+                        filename: file.name,
+                        targetPath: currentDesktopBrowsePath,
+                        chunkIndex: chunkIdx,
+                        totalChunks: totalChunks,
+                        totalSize: file.size,
+                        chunkBase64: chunkBase64,
+                        authUser: server.user || null,
+                        authPassword: server.password || null
                     });
 
+                    if (res && res.status === 'error') {
+                        throw new Error(res.error || 'Server rejected chunk');
+                    }
+
                     uploadedBytes += chunkSize;
+                    const pct = Math.min(100, Math.round((uploadedBytes / totalBytes) * 100));
+                    const elapsedSec = (performance.now() - overallStartTime) / 1000;
+                    const speedBytesPerSec = elapsedSec > 0 ? (uploadedBytes / elapsedSec) : 0;
+                    const speedMBps = (speedBytesPerSec / (1024 * 1024)).toFixed(1);
+                    const remainingBytes = Math.max(0, totalBytes - uploadedBytes);
+                    const etaSec = speedBytesPerSec > 0 ? Math.round(remainingBytes / speedBytesPerSec) : 0;
+
+                    desktopRomUploadBar.style.width = `${pct}%`;
+                    desktopRomUploadStatProgress.textContent = `${pct}% (${formatBytes(uploadedBytes)} / ${formatBytes(totalBytes)})`;
+                    desktopRomUploadStatSpeed.textContent = `${speedMBps} MB/s`;
+                    desktopRomUploadStatEta.textContent = `ETA: ${formatSeconds(etaSec)}`;
                 } catch (err) {
                     desktopRomUploadCard.style.display = 'none';
-                    showToast(`Error uploading ${file.name}: ${err.message}`);
+                    showToast(`Error uploading ${file.name}: ${err.message || err}`);
                     loadDesktopDirectory(currentDesktopBrowsePath);
                     return;
                 }
