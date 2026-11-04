@@ -289,43 +289,62 @@
     }
 
     // Auto-connect assistance and native screen adaptation
-    window.addEventListener('DOMContentLoaded', () => {
-        // Ensure default server resolution matches client native display
-        if (!urlParams.get('res')) {
+    function initAutoConnectAndDisplay() {
+        const u = urlParams.get('auth_user') || 'gamer';
+        const p = urlParams.get('auth_pass') || 'kybergaming';
+        const host = window.location.hostname || '127.0.0.1';
+        const controlPort = 8081;
+
+        // Ensure default server resolution matches requested or client native display
+        const requestedRes = urlParams.get('res');
+        let targetW, targetH;
+        if (requestedRes && requestedRes.includes('x')) {
+            const parts = requestedRes.split('x');
+            targetW = parseInt(parts[0], 10);
+            targetH = parseInt(parts[1], 10);
+        } else {
             const dpr = window.devicePixelRatio || 1;
-            let w = Math.round(window.screen.width * dpr);
-            let h = Math.round(window.screen.height * dpr);
-            w = Math.floor(w / 2) * 2;
-            h = Math.floor(h / 2) * 2;
-            const host = window.location.hostname || '127.0.0.1';
-            const controlPort = 8081;
-            const u = urlParams.get('auth_user') || 'gamer';
-            const p = urlParams.get('auth_pass') || 'kybergaming';
-            console.log(`[kyber-hud] Adapting server display to client native screen: ${w}x${h}`);
-            fetch(`https://${host}:${controlPort}/api/resize?width=${w}&height=${h}&rate=60&auth_user=${u}&auth_pass=${p}`, {
+            targetW = Math.round(window.screen.width * dpr);
+            targetH = Math.round(window.screen.height * dpr);
+        }
+
+        if (targetW && targetH) {
+            targetW = Math.floor(targetW / 2) * 2;
+            targetH = Math.floor(targetH / 2) * 2;
+            console.log(`[kyber-hud] Adapting server display: ${targetW}x${targetH}`);
+            fetch(`https://${host}:${controlPort}/api/resize?width=${targetW}&height=${targetH}&rate=60&auth_user=${u}&auth_pass=${p}`, {
                 mode: 'cors',
                 cache: 'no-store'
             }).catch(() => {});
         }
 
         if (urlParams.get('auto_connect') === 'true') {
-            const connectBtn = document.getElementById('connect');
-            const authUser = urlParams.get('auth_user');
-            const authPass = urlParams.get('auth_pass');
+            let attempts = 0;
+            const tryAutoConnect = () => {
+                attempts++;
+                const hostInput = document.getElementById('host');
+                const userInput = document.getElementById('auth-user');
+                const passInput = document.getElementById('auth-pass');
+                const connectBtn = document.getElementById('connect');
 
-            // Pre-fill inputs if available
-            const userInput = document.getElementById('auth-user');
-            const passInput = document.getElementById('auth-pass');
-            if (userInput && authUser) userInput.value = authUser;
-            if (passInput && authPass) passInput.value = authPass;
+                if (userInput) userInput.value = u;
+                if (passInput) passInput.value = p;
 
-            // Trigger connection after short initialization delay
-            setTimeout(() => {
-                if (connectBtn && !connectBtn.disabled) {
+                if (hostInput && connectBtn && !connectBtn.disabled) {
                     console.log('[kyber-hud] Auto-connecting in-app streaming session...');
                     connectBtn.click();
+                } else if (attempts < 50) {
+                    setTimeout(tryAutoConnect, 100);
                 }
-            }, 600);
+            };
+
+            setTimeout(tryAutoConnect, 150);
         }
-    });
+    }
+
+    if (document.readyState === 'complete') {
+        initAutoConnectAndDisplay();
+    } else {
+        window.addEventListener('load', initAutoConnectAndDisplay);
+    }
 })();

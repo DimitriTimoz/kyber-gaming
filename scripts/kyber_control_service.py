@@ -69,7 +69,7 @@ ROM_SYSTEMS_DEF = [
     {"id": "switch", "name": "Nintendo Switch & NX2 (Eglantine)", "extensions": [".nsp", ".xci", ".nsz", ".zip"]},
 ]
 
-UPLOAD_TEMP_DIR = "/tmp/kyber_uploads"
+UPLOAD_TEMP_DIR = "/home/gamer/.kyber_uploads"
 os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
 
 def format_bytes(num_bytes):
@@ -207,7 +207,7 @@ def create_directory(rel_path, folder_name):
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
-def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data):
+def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data, chunk_offset=None):
     upload_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(upload_id))
     if not upload_id:
         return {"error": "Invalid upload ID", "status": "error"}
@@ -219,27 +219,38 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
 
     temp_session_dir = os.path.join(UPLOAD_TEMP_DIR, upload_id)
     os.makedirs(temp_session_dir, exist_ok=True)
-    chunk_file = os.path.join(temp_session_dir, f"part_{chunk_index:06d}")
 
-    with open(chunk_file, "wb") as f:
+    part_file = os.path.join(temp_session_dir, "data.part")
+
+    if chunk_offset is None or chunk_offset < 0:
+        chunk_offset = chunk_index * len(chunk_data)
+
+    mode = "r+b" if os.path.exists(part_file) else "w+b"
+    with open(part_file, mode) as f:
+        f.seek(chunk_offset)
         f.write(chunk_data)
 
-    existing_chunks = [f for f in os.listdir(temp_session_dir) if f.startswith("part_")]
-    if len(existing_chunks) >= total_chunks:
+    # Empty marker file to record completion of this chunk index
+    marker = os.path.join(temp_session_dir, f"idx_{chunk_index:06d}")
+    try:
+        with open(marker, "wb"):
+            pass
+    except Exception:
+        pass
+
+    markers = [f for f in os.listdir(temp_session_dir) if f.startswith("idx_")]
+    if len(markers) >= total_chunks:
         dest_dir, _ = resolve_safe_storage_path(target_path)
         if not dest_dir:
             dest_dir = os.path.join(ROMS_BASE_DIR, "eglantine/games")
         os.makedirs(dest_dir, exist_ok=True)
 
         final_dest = os.path.join(dest_dir, safe_name)
-        with open(final_dest, "wb") as outfile:
-            for idx in range(total_chunks):
-                p = os.path.join(temp_session_dir, f"part_{idx:06d}")
-                if os.path.exists(p):
-                    with open(p, "rb") as infile:
-                        shutil.copyfileobj(infile, outfile)
 
+        # Atomic move across the same filesystem (0 ms overhead)
+        shutil.move(part_file, final_dest)
         shutil.rmtree(temp_session_dir, ignore_errors=True)
+
         try:
             shutil.chown(final_dest, user="gamer", group="gamer")
         except Exception:
@@ -828,11 +839,13 @@ class ResizeHandler(BaseHTTPRequestHandler):
             filename = params.get("filename", [self.headers.get("X-Filename", "")])[0]
             target_path = params.get("target_path", [self.headers.get("X-Target-Path", "eglantine/games")])[0]
             chunk_index = int(params.get("chunk_index", [self.headers.get("X-Chunk-Index", 0)])[0])
+            chunk_offset_val = params.get("chunk_offset", [self.headers.get("X-Chunk-Offset", "")])[0]
+            chunk_offset = int(chunk_offset_val) if chunk_offset_val != "" else None
             total_chunks = int(params.get("total_chunks", [self.headers.get("X-Total-Chunks", 1)])[0])
             total_size = int(params.get("total_size", [self.headers.get("X-Total-Size", 0)])[0])
 
             chunk_data = self.rfile.read(content_length)
-            result = save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data)
+            result = save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data, chunk_offset)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/upload":
             content_length = int(self.headers.get("Content-Length", 0))

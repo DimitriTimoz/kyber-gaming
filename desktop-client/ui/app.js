@@ -935,7 +935,7 @@
         });
     }
 
-    const DESKTOP_CHUNK_SIZE = 512 * 1024; // 512 KB chunk size to ensure reliable WebKit IPC serialization
+    const DESKTOP_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunk size for high-throughput uploading
 
     async function uploadDesktopFilesChunked(files) {
         const server = getSelectedRomServer();
@@ -982,6 +982,7 @@
                         filename: file.name,
                         targetPath: currentDesktopBrowsePath,
                         chunkIndex: chunkIdx,
+                        chunkOffset: start,
                         totalChunks: totalChunks,
                         totalSize: file.size,
                         chunkBase64: chunkBase64,

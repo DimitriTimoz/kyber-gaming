@@ -2,8 +2,24 @@ use base64::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::time::Instant;
 use tauri::Manager;
+
+static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn get_http_client() -> &'static reqwest::Client {
+    HTTP_CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .tcp_nodelay(true)
+            .pool_max_idle_per_host(10)
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .expect("Failed to create shared HTTP client")
+    })
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerEntry {
@@ -123,11 +139,7 @@ fn save_config(config: AppConfig) -> Result<(), String> {
 
 #[tauri::command]
 async fn ping_server(host: String, port: u16) -> Result<PingResult, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_millis(2000))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let url = format!("https://{}:{}/capabilities", host, port);
     let start = Instant::now();
@@ -284,20 +296,14 @@ async fn launch_session(
         _ => ["1920", "1080"],
     };
 
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_millis(1500))
-        .build();
-
-    if let Ok(c) = client {
-        let u = server.auth_user.as_deref().unwrap_or("gamer");
-        let p = server.auth_password.as_deref().unwrap_or("kybergaming");
-        let resize_url = format!(
-            "https://{}:8081/api/resize?width={}&height={}&rate={}&auth_user={}&auth_pass={}",
-            server.host, w, h, settings.refresh_rate, u, p
-        );
-        let _ = c.get(&resize_url).send().await;
-    }
+    let client = get_http_client();
+    let u = server.auth_user.as_deref().unwrap_or("gamer");
+    let p = server.auth_password.as_deref().unwrap_or("kybergaming");
+    let resize_url = format!(
+        "https://{}:8081/api/resize?width={}&height={}&rate={}&auth_user={}&auth_pass={}",
+        server.host, w, h, settings.refresh_rate, u, p
+    );
+    let _ = client.get(&resize_url).send().await;
 
     // 2. Determine player mode: check if user requested in-app or if native kyclient is unavailable
     let mode = settings.player_mode.as_deref().unwrap_or("auto");
@@ -322,8 +328,8 @@ async fn launch_session(
         let p = server.auth_password.as_deref().unwrap_or("kybergaming");
         let hud = if settings.hud_overlay.unwrap_or(true) { "1" } else { "0" };
         let stream_url = format!(
-            "https://{}:{}/webclient?auto_connect=true&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&codec={}&hud={}",
-            server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
+            "https://{}:{}/webclient/?auto_connect=true&host={}&port={}&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&video_codec={}&hud={}",
+            server.host, server.port, server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
         );
 
         let parsed_url: tauri::Url = stream_url.parse().map_err(|e| format!("{}", e))?;
@@ -449,11 +455,7 @@ async fn rom_browse(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let mut query = vec![("path", path)];
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
@@ -506,11 +508,7 @@ async fn rom_create_folder(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let mut query = Vec::new();
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
@@ -571,11 +569,7 @@ async fn rom_delete(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let mut query = Vec::new();
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
@@ -633,17 +627,14 @@ async fn rom_upload_chunk(
     filename: String,
     target_path: String,
     chunk_index: u32,
+    chunk_offset: u64,
     total_chunks: u32,
     total_size: u64,
     chunk_base64: String,
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let binary_data = BASE64_STANDARD
         .decode(chunk_base64.trim())
@@ -654,6 +645,7 @@ async fn rom_upload_chunk(
         ("filename", filename),
         ("target_path", target_path),
         ("chunk_index", chunk_index.to_string()),
+        ("chunk_offset", chunk_offset.to_string()),
         ("total_chunks", total_chunks.to_string()),
         ("total_size", total_size.to_string()),
     ];
@@ -719,11 +711,7 @@ async fn rom_download_file(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(true)
-        .timeout(std::time::Duration::from_secs(300))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = get_http_client();
 
     let download_dir = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
     let target_file_path = download_dir.join(&filename);
