@@ -1,7 +1,7 @@
 /**
  * Client Auto-Resizer for Kyber Cloud Gaming Web Client
  * Automatically reports browser window / screen viewport dimensions to the
- * container resizer service (port 8081) to adjust the X11 resolution on the fly.
+ * container Kyber Control Plane service (port 8081) to adjust the X11 resolution on the fly.
  */
 (() => {
     let resizeTimer = null;
@@ -38,8 +38,8 @@
             lastSent = key;
         })
         .catch(err => {
-            // Non-blocking log if port 8081 is not reached
-            console.warn("[Kyber AutoResize] Could not contact resizer service:", err.message);
+            // Non-blocking log if control plane port 8081 is not reached
+            console.warn("[Kyber AutoResize] Could not contact Kyber control service:", err.message);
         });
     }
 

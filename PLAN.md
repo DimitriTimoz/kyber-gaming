@@ -33,7 +33,7 @@ flowchart TD
             Xorg["Headless Xorg (AllowEmptyInitialConfiguration / Dummy)"]
             Openbox["Lightweight Window Manager (Openbox)"]
             Pipewire["PipeWire + Virtual Audio Sink"]
-            Resizer["Dynamic Resizer & ROM Service (Port 8081)"]
+            ControlPlane["Kyber Control Plane & ROM Service (Port 8081)"]
         end
 
         subgraph StreamingEngine["Streaming Engine"]
@@ -64,8 +64,8 @@ flowchart TD
     Core --> StreamingEngine
     StreamingEngine <-->|Port 8080 UDP/TCP (QUIC + HTTPS)| WebClient
     StreamingEngine <-->|Port 8080 UDP/TCP (QUIC + HTTPS)| DesktopApp
-    Resizer <-->|Port 8081 TCP (REST API + Upload)| WebClient
-    Resizer <-->|Port 8081 TCP (REST API + Upload)| DesktopApp
+    ControlPlane <-->|Port 8081 TCP (REST API + Upload)| WebClient
+    ControlPlane <-->|Port 8081 TCP (REST API + Upload)| DesktopApp
     Controller --> WebClient
     Controller --> DesktopApp
 ```
@@ -91,7 +91,7 @@ On a server without a monitor, the GPU driver often refuses to initialize render
    - Dummy Profile (AMD / Software Fallback):
      - `xserver-xorg-video-dummy` driver with high-refresh Modelines.
 3. Dynamic Resizing:
-   - Utilize `xrandr` via `resizer_service.py` to adapt resolution on-the-fly to the client viewport.
+   - Utilize `xrandr` via `kyber_control_service.py` to adapt resolution on-the-fly to the client viewport.
 
 ### 3.2. Headless Audio Engine
 - PipeWire replaces legacy PulseAudio:
@@ -131,7 +131,7 @@ On a server without a monitor, the GPU driver often refuses to initialize render
   - Large Switch game files (10GB–25GB) are sliced client-side into 10 MB chunks.
   - Prevents HTTP gateway timeouts and memory pressure.
   - Real-time telemetry: transfer rate in MB/s, ETA calculation, and progress tracking.
-- REST endpoints in `resizer_service.py` (Port 8081):
+- REST endpoints in `kyber_control_service.py` (Port 8081):
   - `GET /api/roms/browse?path=<rel_path>`: Recursive directory listing with breadcrumbs, subfolders, files, and statistics.
   - `GET /api/roms/download?path=<rel_path>`: File streaming download.
   - `POST /api/roms/create_folder`: Directory creation with safe name sanitization.
@@ -184,7 +184,7 @@ kyber-gaming/
     ├── init_display.sh         # Headless display preparation and EDID injection
     ├── make_edid.py            # EDID 1080p/1440p/4K @ 60/120/144Hz generator
     ├── run_kycontroller.sh     # Kyber controller startup wrapper
-    ├── resizer_service.py      # Dynamic resolution resize and ROM manager REST API
+    ├── kyber_control_service.py # Kyber Control Plane: display resizer, launchers & ROM REST API
     ├── switch_launcher.sh      # Session switcher between Hub, Steam, and emulators
     ├── kyber_console_hub.sh    # Console OS kiosk process manager
     └── launch_game_session.sh  # Session supervisor loop

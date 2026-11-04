@@ -10,6 +10,7 @@
     const state = {
         host: window.location.hostname || '127.0.0.1',
         port: window.location.port || '8080',
+        controlPort: 8081,
         resizerPort: 8081,
         systemInfo: null,
         selectedLauncher: 'menu',

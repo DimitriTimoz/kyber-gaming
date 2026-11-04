@@ -223,7 +223,8 @@ COPY scripts/switch_launcher.sh /usr/local/bin/switch_launcher.sh
 COPY scripts/kyber_console_hub.sh /usr/local/bin/kyber_console_hub.sh
 COPY scripts/kyber_launcher_menu.py /usr/local/bin/kyber_launcher_menu.py
 COPY scripts/launch_game_session.sh /usr/local/bin/launch_game_session.sh
-COPY scripts/resizer_service.py /usr/local/bin/resizer_service.py
+COPY scripts/kyber_control_service.py /usr/local/bin/kyber_control_service.py
+RUN ln -sf /usr/local/bin/kyber_control_service.py /usr/local/bin/resizer_service.py
 COPY scripts/install_nvidia_xorg.sh /usr/local/bin/install_nvidia_xorg.sh
 COPY scripts/client_autoresize.js /opt/kyber/webclient/autoresize.js
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -236,10 +237,10 @@ RUN echo "/opt/kyber/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/kyber.conf && \
 RUN chmod +x /usr/local/bin/*.sh /usr/local/bin/*.py /home/gamer/.config/openbox/autostart && \
     chown -R gamer:gamer /home/gamer /etc/kyber /opt/kyber
 
-# Expose Kyber unified port (HTTP/TCP & QUIC/UDP) and dynamic resizer port
+# Expose Kyber unified streaming port (HTTP/TCP & QUIC/UDP) and Kyber Control Plane port (8081)
 EXPOSE 8080/tcp 8080/udp 8081/tcp
 
-# Healthcheck to verify Xorg, Resizer, and Web services
+# Healthcheck to verify Xorg, Kyber Control Plane, and Web services
 HEALTHCHECK --interval=15s --timeout=5s --start-period=25s --retries=3 \
     CMD curl -k -f https://127.0.0.1:8081/api/launchers >/dev/null 2>&1 || exit 1
 

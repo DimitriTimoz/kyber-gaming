@@ -16,7 +16,7 @@
         Referrer-Policy "no-referrer-when-downgrade"
     }
 
-    # Reverse proxy dynamic display resizer & ROM manager API
+    # Reverse proxy Kyber Control Plane (API, display resizer & ROM manager)
     handle_path /api/* {
         reverse_proxy 127.0.0.1:8081
     }

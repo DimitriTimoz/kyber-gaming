@@ -27,7 +27,7 @@ A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, 
 - Controller & Peripheral Support: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
 - Virtual Audio: PipeWire audio routing to Kyber Opus/AAC stream without a physical sound card.
 - Dynamic Display Resizing: Automatically adapts to the client browser or desktop window dimensions via REST API (`port 8081`).
-- Secure Authentication: Password-protected streaming controller and resizer API.
+- Secure Authentication: Password-protected streaming controller and Kyber Control Plane API.
 
 ---
 

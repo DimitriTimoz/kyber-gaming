@@ -127,7 +127,7 @@ async fn ping_server(host: String, port: u16) -> Result<PingResult, String> {
             })
         }
         _ => {
-            // Fallback check on resizer port 8081
+            // Fallback check on Kyber control port 8081
             let fallback_url = format!("https://{}:8081/api/system", host);
             let start2 = Instant::now();
             match client.get(&fallback_url).send().await {
@@ -223,7 +223,7 @@ async fn launch_session(
     window: tauri::Window,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    // 1. Send resolution update to host resizer API
+    // 1. Send resolution update to host Kyber control plane API
     let [w, h]: [&str; 2] = match settings.resolution.split('x').collect::<Vec<&str>>().as_slice() {
         [w, h] => [*w, *h],
         _ => ["1920", "1080"],

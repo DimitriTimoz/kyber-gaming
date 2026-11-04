@@ -597,13 +597,13 @@
         }
 
         currentDesktopBrowsePath = relPath !== undefined ? relPath : currentDesktopBrowsePath;
-        const resizerPort = 8081;
+        const controlPort = 8081;
         const authParams = (server.user && server.password)
             ? `&auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
             : '';
 
-        const urlHttps = `https://${server.host}:${resizerPort}/api/roms/browse?path=${encodeURIComponent(currentDesktopBrowsePath)}${authParams}`;
-        const urlHttp = `http://${server.host}:${resizerPort}/api/roms/browse?path=${encodeURIComponent(currentDesktopBrowsePath)}${authParams}`;
+        const urlHttps = `https://${server.host}:${controlPort}/api/roms/browse?path=${encodeURIComponent(currentDesktopBrowsePath)}${authParams}`;
+        const urlHttp = `http://${server.host}:${controlPort}/api/roms/browse?path=${encodeURIComponent(currentDesktopBrowsePath)}${authParams}`;
 
         try {
             let res = await fetch(urlHttps, { method: 'GET' }).catch(() => null);
@@ -621,7 +621,7 @@
         } catch (err) {
             desktopRomCount.textContent = 'Could not connect to storage service on server.';
             desktopRomEmpty.style.display = 'block';
-            desktopRomEmpty.textContent = `Unable to connect to https://${server.host}:${resizerPort}. Ensure the server is reachable.`;
+            desktopRomEmpty.textContent = `Unable to connect to https://${server.host}:${controlPort}. Ensure the server is reachable.`;
         }
     }
 
@@ -724,7 +724,7 @@
 
             // Render files
             const server = getSelectedRomServer();
-            const resizerPort = 8081;
+            const controlPort = 8081;
             const authParams = (server && server.user && server.password)
                 ? `&auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
                 : '';
@@ -749,7 +749,7 @@
                     kindBadgeStyle = 'background:rgba(168,85,247,0.12);color:#d8b4fe;';
                 }
 
-                const downloadUrl = server ? `https://${server.host}:${resizerPort}/api/roms/download?path=${encodeURIComponent(file.path)}${authParams}` : '#';
+                const downloadUrl = server ? `https://${server.host}:${controlPort}/api/roms/download?path=${encodeURIComponent(file.path)}${authParams}` : '#';
 
                 tr.innerHTML = `
                     <td class="rom-filename-cell" style="padding: 10px 18px;">
@@ -786,13 +786,13 @@
 
         const server = getSelectedRomServer();
         if (!server) return;
-        const resizerPort = 8081;
+        const controlPort = 8081;
         const authParams = (server.user && server.password)
             ? `?auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
             : '';
 
         try {
-            const res = await fetch(`https://${server.host}:${resizerPort}/api/roms/create_folder${authParams}`, {
+            const res = await fetch(`https://${server.host}:${controlPort}/api/roms/create_folder${authParams}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -819,13 +819,13 @@
         const label = isFolder ? `folder "${displayName}" and all its contents` : `file "${displayName}"`;
         if (!confirm(`Are you sure you want to delete ${label}?`)) return;
 
-        const resizerPort = 8081;
+        const controlPort = 8081;
         const authParams = (server.user && server.password)
             ? `?auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
             : '';
 
         try {
-            const res = await fetch(`https://${server.host}:${resizerPort}/api/roms/delete${authParams}`, {
+            const res = await fetch(`https://${server.host}:${controlPort}/api/roms/delete${authParams}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: relPath })
@@ -856,7 +856,7 @@
         let uploadedBytes = 0;
         let overallStartTime = performance.now();
 
-        const resizerPort = 8081;
+        const controlPort = 8081;
         const authParams = (server.user && server.password)
             ? `&auth_user=${encodeURIComponent(server.user)}&auth_pass=${encodeURIComponent(server.password)}`
             : '';
@@ -882,7 +882,7 @@
                 const chunkSize = end - start;
 
                 try {
-                    const uploadUrl = `https://${server.host}:${resizerPort}/api/roms/upload_chunk?upload_id=${encodeURIComponent(uploadId)}&filename=${encodeURIComponent(file.name)}&target_path=${encodeURIComponent(currentDesktopBrowsePath)}&chunk_index=${chunkIdx}&total_chunks=${totalChunks}&total_size=${file.size}${authParams}`;
+                    const uploadUrl = `https://${server.host}:${controlPort}/api/roms/upload_chunk?upload_id=${encodeURIComponent(uploadId)}&filename=${encodeURIComponent(file.name)}&target_path=${encodeURIComponent(currentDesktopBrowsePath)}&chunk_index=${chunkIdx}&total_chunks=${totalChunks}&total_size=${file.size}${authParams}`;
 
                     await new Promise((resolve, reject) => {
                         const xhr = new XMLHttpRequest();

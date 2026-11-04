@@ -15,7 +15,7 @@ mkdir -p /tmp/kyber-hub-profile/Default
 # Suppress Google Translate and first-run prompts
 echo '{"translate":{"enabled":false},"translate_blocked_hosts":["127.0.0.1","localhost"]}' > /tmp/kyber-hub-profile/Default/Preferences 2>/dev/null || true
 
-# Determine URL to load (local resizer server or file:///)
+# Determine URL to load (local Kyber Control Plane server or file:///)
 HUB_URL="https://127.0.0.1:8081/hub/"
 # Fallback to local file if HTTP server isn't up
 if ! curl -k -s --connect-timeout 1 "$HUB_URL" >/dev/null 2>&1; then
