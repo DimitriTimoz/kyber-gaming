@@ -1,0 +1,615 @@
+/* ==============================================================================
+   Kyber Console OS - High-Performance Gaming Dashboard Stylesheet
+   Designed for TV screens, PC monitors, and 100% controller navigation.
+   ============================================================================== */
+
+:root {
+    --bg-base: #06080d;
+    --bg-surface: #0f131d;
+    --bg-card: #151a27;
+    --bg-card-hover: #1e2538;
+
+    --color-steam: #00d2ff;
+    --color-steam-glow: rgba(0, 210, 255, 0.45);
+
+    --color-bigpicture: #a855f7;
+    --color-bigpicture-glow: rgba(168, 85, 247, 0.45);
+
+    --color-heroic: #10b981;
+    --color-heroic-glow: rgba(16, 185, 129, 0.45);
+
+    --color-desktop: #94a3b8;
+    --color-desktop-glow: rgba(148, 163, 184, 0.35);
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    --active-accent: var(--color-steam);
+    --active-glow: var(--color-steam-glow);
+}
+
+/* Theme variations */
+body.theme-steam {
+    --active-accent: var(--color-steam);
+    --active-glow: var(--color-steam-glow);
+}
+
+body.theme-bigpicture {
+    --active-accent: var(--color-bigpicture);
+    --active-glow: var(--color-bigpicture-glow);
+}
+
+body.theme-heroic {
+    --active-accent: var(--color-heroic);
+    --active-glow: var(--color-heroic-glow);
+}
+
+body.theme-desktop {
+    --active-accent: var(--color-desktop);
+    --active-glow: var(--color-desktop-glow);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+}
+
+/* Background Ambient Lighting */
+.ambient-glow {
+    position: fixed;
+    top: -20vh;
+    left: 10vw;
+    width: 80vw;
+    height: 90vh;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--active-glow) 0%, rgba(6, 8, 13, 0) 70%);
+    opacity: 0.55;
+    filter: blur(120px);
+    transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.ambient-particles {
+    position: fixed;
+    inset: 0;
+    background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 40px 40px, 80px 80px;
+    background-position: 0 0, 20px 20px;
+    opacity: 0.3;
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* Console Viewport Layout */
+.console-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 3.5vh 5vw;
+    z-index: 10;
+}
+
+/* ==============================================================================
+   Top Navigation & Status Bar
+   ============================================================================== */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 6vh;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.brand-badge {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--active-accent);
+    box-shadow: 0 0 16px var(--active-accent);
+    transition: all 0.3s ease;
+}
+
+.brand-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #ffffff;
+}
+
+.brand-sub {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.system-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 19, 29, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 10px #22c55e;
+}
+
+.controller-status.disconnected .status-dot {
+    background: #64748b;
+    box-shadow: none;
+}
+
+.clock-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 60px;
+    justify-content: center;
+}
+
+/* ==============================================================================
+   Main Carousel Stage
+   ============================================================================== */
+.stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 72vh;
+}
+
+.stage-header {
+    margin-bottom: 2.5vh;
+    animation: fadeIn 0.4s ease-out;
+    text-align: center;
+}
+
+.header-pretitle {
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--active-accent);
+    text-transform: uppercase;
+    transition: color 0.3s ease;
+    margin-bottom: 6px;
+}
+
+.header-title {
+    font-size: 3.2rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+    line-height: 1.1;
+    margin-bottom: 8px;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.header-desc {
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* ==============================================================================
+   Cards Carousel Track
+   ============================================================================== */
+.carousel-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    padding: 15px 0 25px 0;
+}
+
+.carousel-track {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    justify-content: center;
+    max-width: 1460px;
+    width: 100%;
+}
+
+.card {
+    position: relative;
+    flex: 1 1 0;
+    max-width: 330px;
+    height: 380px;
+    border-radius: 20px;
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.3s ease,
+                opacity 0.3s ease;
+    transform: scale(0.96);
+    opacity: 0.65;
+}
+
+.card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-card);
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.card-cover {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+.card-tag {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    width: fit-content;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.card-icon {
+    align-self: center;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5));
+    transition: transform 0.3s ease;
+}
+
+.card-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.card-meta {
+    margin-top: 14px;
+}
+
+.meta-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+
+.meta-sub {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.card-badge {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 6px;
+}
+
+.badge-key, .badge-pad {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-muted);
+}
+
+/* Card Cover Themes */
+.cover-steam {
+    background: linear-gradient(145deg, #0f2027, #203a43, #2c5364);
+}
+
+.cover-bigpicture {
+    background: linear-gradient(145deg, #1f1235, #3b1d60, #672288);
+}
+
+.cover-heroic {
+    background: linear-gradient(145deg, #0a2618, #0f4427, #13693d);
+}
+
+.cover-desktop {
+    background: linear-gradient(145deg, #18202c, #273444, #394b61);
+}
+
+/* Active Focused Card State */
+.card.active {
+    transform: scale(1.06);
+    opacity: 1;
+    z-index: 5;
+}
+
+.card.active .card-inner {
+    border-color: var(--active-accent);
+    box-shadow: 0 16px 45px var(--active-glow),
+                inset 0 0 20px rgba(255, 255, 255, 0.06);
+}
+
+.card.active .card-icon {
+    transform: scale(1.12);
+}
+
+.card.active .badge-key,
+.card.active .badge-pad {
+    background: var(--active-accent);
+    color: #000000;
+    border-color: var(--active-accent);
+    box-shadow: 0 0 10px var(--active-accent);
+}
+
+/* ==============================================================================
+   Bottom Control & Navigation Bar
+   ============================================================================== */
+.bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 6vh;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 15px;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(30, 41, 59, 0.7);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action:hover, .btn-action:focus {
+    background: rgba(244, 63, 94, 0.2);
+    border-color: #f43f5e;
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+}
+
+.btn-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-hints {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.hint-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Gamepad Controller Buttons */
+.pad-btn, .pad-dpad {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.pad-a {
+    background: #22c55e;
+    color: #052e16;
+}
+
+.pad-b {
+    background: #ef4444;
+    color: #450a0a;
+}
+
+.pad-dpad {
+    border-radius: 8px;
+    background: #334155;
+    color: #ffffff;
+    width: 34px;
+}
+
+.pad-bumper {
+    border-radius: 6px;
+    background: #334155;
+    color: #cbd5e1;
+    width: 52px;
+    font-size: 0.75rem;
+}
+
+.key-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ==============================================================================
+   Fullscreen Launching Splash Overlay
+   ============================================================================== */
+.launch-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 8, 13, 0.95);
+    backdrop-filter: blur(25px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.launch-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.launch-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 500px;
+}
+
+.launch-spinner {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.spinner-ring {
+    position: absolute;
+    inset: 0;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--active-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    box-shadow: 0 0 20px var(--active-accent);
+}
+
+.spinner-logo {
+    font-size: 2.2rem;
+}
+
+.launch-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+.launch-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+.launch-progress {
+    width: 280px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    width: 0%;
+    height: 100%;
+    background: var(--active-accent);
+    border-radius: 3px;
+    box-shadow: 0 0 10px var(--active-accent);
+    animation: progressFill 1.8s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes progressFill {
+    0% { width: 0%; margin-left: 0; }
+    50% { width: 70%; margin-left: 15%; }
+    100% { width: 100%; margin-left: 0; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}

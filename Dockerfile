@@ -176,6 +176,9 @@ RUN wget -q -O /tmp/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicG
     apt-get update && \
     apt-get install -y --no-install-recommends /tmp/heroic.deb && \
     rm -f /tmp/heroic.deb && \
+    wget -q -O /tmp/chrome.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" && \
+    apt-get install -y --no-install-recommends /tmp/chrome.deb && \
+    rm -f /tmp/chrome.deb && \
     rm -rf /var/lib/apt/lists/*
 
 # 7. Create gamer user with sudo & device privileges (Ubuntu 24.04 has default 'ubuntu' user with UID 1000)
@@ -190,6 +193,7 @@ RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || tr
 # 8. Copy Kyber from builder stage
 COPY --from=kyber-builder /opt/kyber /opt/kyber
 COPY webclient /opt/kyber/webclient
+COPY hub /opt/kyber/hub
 
 RUN echo -e "/opt/kyber/lib\n/opt/kyber/lib/x86_64-linux-gnu\n/opt/kyber/lib64" > /etc/ld.so.conf.d/kyber.conf && ldconfig
 
@@ -211,6 +215,7 @@ COPY scripts/make_edid.py /usr/local/bin/make_edid.py
 COPY scripts/init_display.sh /usr/local/bin/init_display.sh
 COPY scripts/run_kycontroller.sh /usr/local/bin/run_kycontroller.sh
 COPY scripts/switch_launcher.sh /usr/local/bin/switch_launcher.sh
+COPY scripts/kyber_console_hub.sh /usr/local/bin/kyber_console_hub.sh
 COPY scripts/kyber_launcher_menu.py /usr/local/bin/kyber_launcher_menu.py
 COPY scripts/launch_game_session.sh /usr/local/bin/launch_game_session.sh
 COPY scripts/resizer_service.py /usr/local/bin/resizer_service.py

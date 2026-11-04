@@ -3,27 +3,23 @@ set -e
 
 export PATH="/usr/games:/usr/local/games:/opt/Heroic:/opt/kyber/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 export DISPLAY="${DISPLAY_NUM:-:0}"
-LAUNCHER_MODE="${LAUNCHER:-menu}"
+export HOME="/home/gamer"
 
-echo "[launcher] Selected initial launcher: $LAUNCHER_MODE"
-echo "[launcher] Current PATH: $PATH"
+echo "[session] Starting Kyber game session manager on DISPLAY $DISPLAY"
 
-# Wait for X server and Window Manager to be ready
+# Wait for X server
 while ! xdpyinfo >/dev/null 2>&1; do
-    echo "[launcher] Waiting for X server on $DISPLAY..."
-    sleep 1
+    echo "[session] Waiting for X server on $DISPLAY..."
+    sleep 0.5
 done
 
-# Clean up any stale Chromium singleton lock files
-STEAMDIR="$HOME/.steam/debian-installation"
-rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
-
 # Set desktop background canvas
-xsetroot -solid "#1a1b26" 2>/dev/null || true
+xsetroot -solid "#0c0f17" 2>/dev/null || true
 
-# Pre-bootstrap Steam if not yet initialized, avoiding Zenity GUI prompts
+# Pre-bootstrap Steam if not yet initialized
+STEAMDIR="$HOME/.steam/debian-installation"
 if [ ! -f "$STEAMDIR/steam.sh" ]; then
-    echo "[launcher] Steam bootstrap not detected. Initializing headless bootstrap..."
+    echo "[session] Steam bootstrap not detected. Initializing headless bootstrap..."
     mkdir -p "$STEAMDIR/deb-installer"
     version="1.0.0.79"
     url="https://repo.steampowered.com/steam/archive/beta/steam_${version}.tar.gz"
@@ -32,22 +28,126 @@ if [ ! -f "$STEAMDIR/steam.sh" ]; then
         if [ -f "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz" ]; then
             tar -C "$STEAMDIR" -xf "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz"
             echo "$version" > "$STEAMDIR/deb-installer/version"
-            echo "[launcher] Steam bootstrap installed successfully."
+            echo "[session] Steam bootstrap installed successfully."
         fi
     fi
 fi
 
-# Launch the initial requested launcher
-/usr/local/bin/switch_launcher.sh "$LAUNCHER_MODE"
+# Default to menu so users always see the Hub on connect
+CURRENT_ACTION="${LAUNCHER:-menu}"
 
-# Continuous supervisor loop:
-# Whenever no game launcher (steam or heroic) is active, automatically show the Launcher Menu!
 while true; do
-    if ! pgrep -u gamer -f "ubuntu12_32/steam|heroic" >/dev/null 2>&1; then
-        if ! pgrep -u gamer -f "kyber_launcher_menu.py" >/dev/null 2>&1; then
-            echo "[launcher-supervisor] No active game launcher. Presenting Launcher Menu..."
-            python3 /usr/local/bin/kyber_launcher_menu.py || true
-        fi
-    fi
-    sleep 2
+    echo "[session] Current State: $CURRENT_ACTION"
+
+    case "$CURRENT_ACTION" in
+        steam)
+            echo "[session] Starting Steam..."
+            rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
+            steam -no-cef-sandbox >/dev/null 2>&1 &
+            # Wait for steam to actually launch
+            sleep 3
+            # Monitor until Steam exits
+            while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
+                if [ -f /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action)
+                    rm -f /tmp/kyber_next_action
+                    if [ "$NEXT" != "steam" ]; then
+                        echo "[session] Action requested while Steam is running: $NEXT"
+                        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+                sleep 1
+            done
+            if [ "$CURRENT_ACTION" = "steam" ]; then
+                echo "[session] Steam has closed. Returning to Launcher Hub..."
+                CURRENT_ACTION="menu"
+            fi
+            ;;
+
+        steam-bigpicture)
+            echo "[session] Starting Steam Big Picture..."
+            rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
+            steam -bigpicture -no-cef-sandbox >/dev/null 2>&1 &
+            sleep 3
+            while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
+                if [ -f /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action)
+                    rm -f /tmp/kyber_next_action
+                    if [ "$NEXT" != "steam-bigpicture" ]; then
+                        echo "[session] Action requested: $NEXT"
+                        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+                sleep 1
+            done
+            if [ "$CURRENT_ACTION" = "steam-bigpicture" ]; then
+                echo "[session] Steam Big Picture closed. Returning to Launcher Hub..."
+                CURRENT_ACTION="menu"
+            fi
+            ;;
+
+        heroic)
+            echo "[session] Starting Heroic Games Launcher..."
+            HEROIC_BIN="/opt/Heroic/heroic"
+            [ -x "$HEROIC_BIN" ] || HEROIC_BIN="$(command -v heroic || echo /usr/bin/heroic)"
+            "$HEROIC_BIN" --no-sandbox >/dev/null 2>&1 &
+            sleep 3
+            while pgrep -u gamer -f "heroic" >/dev/null 2>&1; do
+                if [ -f /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action)
+                    rm -f /tmp/kyber_next_action
+                    if [ "$NEXT" != "heroic" ]; then
+                        echo "[session] Action requested: $NEXT"
+                        pkill -u gamer -f "heroic" 2>/dev/null || true
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+                sleep 1
+            done
+            if [ "$CURRENT_ACTION" = "heroic" ]; then
+                echo "[session] Heroic has closed. Returning to Launcher Hub..."
+                CURRENT_ACTION="menu"
+            fi
+            ;;
+
+        restart-steam)
+            echo "[session] Restarting Steam cleanly..."
+            pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+            sleep 2
+            rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
+            CURRENT_ACTION="steam"
+            ;;
+
+        desktop)
+            echo "[session] Desktop mode active. Waiting for user interaction..."
+            while [ ! -f /tmp/kyber_next_action ]; do
+                sleep 1
+            done
+            CURRENT_ACTION="$(cat /tmp/kyber_next_action)"
+            rm -f /tmp/kyber_next_action
+            ;;
+
+        menu|*)
+            echo "[session] Presenting Fullscreen Console Kiosk Hub..."
+            # Clean any stale hub processes
+            pkill -u gamer -f "kyber-hub-profile|kyber_console_hub|kyber_launcher_menu" 2>/dev/null || true
+            RAW_CHOICE=$(bash /usr/local/bin/kyber_console_hub.sh || echo "menu")
+            CHOICE=$(echo "$RAW_CHOICE" | tail -n 1 | tr -d '[:space:]')
+            echo "[session] Console Hub selection: '$CHOICE'"
+            case "$CHOICE" in
+                steam|steam-bigpicture|heroic|restart-steam|desktop)
+                    CURRENT_ACTION="$CHOICE"
+                    ;;
+                *)
+                    CURRENT_ACTION="menu"
+                    ;;
+            esac
+            ;;
+    esac
+    sleep 0.5
 done

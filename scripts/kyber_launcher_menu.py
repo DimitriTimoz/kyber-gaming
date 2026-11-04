@@ -1,232 +1,258 @@
 #!/usr/bin/env python3
 """
-Kyber Cloud Gaming - Interactive Launcher Selector Menu
-Provides an on-screen graphical launcher dashboard in Tkinter.
-Supports keyboard shortcuts (1, 2, 3, 4, Esc) and mouse clicks.
+Kyber Cloud Gaming - Modern Fullscreen Launcher Hub
+Provides an immersive, console-grade dashboard for selecting game launchers.
+Supports mouse clicks, arrow key navigation + Enter, and hotkeys (1, 2, 3, 4, Esc).
 """
 
 import sys
 import os
 import subprocess
 import tkinter as tk
-from tkinter import font
 
-BG_COLOR = "#16161e"
-CARD_BG = "#1f2335"
-CARD_HOVER = "#292e42"
-ACCENT_BLUE = "#7aa2f7"
-ACCENT_PURPLE = "#bb9af7"
-ACCENT_GREEN = "#73daca"
-TEXT_COLOR = "#c0caf5"
-TEXT_MUTED = "#787c99"
-BORDER_COLOR = "#3b4261"
+BG_COLOR = "#0c0f17"
+PANEL_BG = "#151926"
+CARD_BG = "#1c2236"
+CARD_HOVER = "#27304c"
+TEXT_PRIMARY = "#f1f5f9"
+TEXT_SECONDARY = "#94a3b8"
+TEXT_MUTED = "#64748b"
 
-class LauncherMenu:
+COLOR_STEAM = "#38bdf8"
+COLOR_BIGPICTURE = "#a855f7"
+COLOR_HEROIC = "#22c55e"
+COLOR_DESKTOP = "#cbd5e1"
+COLOR_RELOAD = "#f43f5e"
+
+ITEMS = [
+    {
+        "id": "steam",
+        "key": "1",
+        "badge": "[ TOUCHE 1 ]",
+        "title": "STEAM (MODE BUREAU)",
+        "desc": "Bibliothèque de jeux Steam, Magasin, Amis et Téléchargements",
+        "color": COLOR_STEAM,
+    },
+    {
+        "id": "steam-bigpicture",
+        "key": "2",
+        "badge": "[ TOUCHE 2 ]",
+        "title": "STEAM BIG PICTURE",
+        "desc": "Interface console plein écran conçue pour manette et TV",
+        "color": COLOR_BIGPICTURE,
+    },
+    {
+        "id": "heroic",
+        "key": "3",
+        "badge": "[ TOUCHE 3 ]",
+        "title": "HEROIC GAMES LAUNCHER",
+        "desc": "Vos jeux Epic Games Store et GOG",
+        "color": COLOR_HEROIC,
+    },
+    {
+        "id": "desktop",
+        "key": "4",
+        "badge": "[ TOUCHE 4 ]",
+        "title": "BUREAU LINUX (ÉCHAP)",
+        "desc": "Accéder directement au bureau libre et au gestionnaire de fenêtres",
+        "color": COLOR_DESKTOP,
+    },
+]
+
+class ModernLauncherHub:
     def __init__(self, root, wait_mode=False):
         self.root = root
         self.wait_mode = wait_mode
-        self.selected = None
+        self.current_idx = 0
+        self.cards = []
 
-        self.root.title("Kyber Cloud Gaming")
+        self.root.title("Kyber Cloud Gaming Hub")
         self.root.configure(bg=BG_COLOR)
-        self.root.attributes("-type", "dialog")
-        
-        # Center window (720x580)
-        w, h = 740, 600
+
+        # Fullscreen borderless
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        x = max(0, (sw - w) // 2)
-        y = max(0, (sh - h) // 2)
-        self.root.geometry(f"{w}x{h}+{x}+{y}")
-        self.root.resizable(False, False)
-
-        # Bring to front
-        self.root.lift()
-        self.root.attributes("-topmost", True)
-        self.root.after_idle(self.root.attributes, "-topmost", False)
+        self.root.geometry(f"{sw}x{sh}+0+0")
+        self.root.overrideredirect(True)
 
         self._build_ui()
         self._bind_keys()
+        self._select_index(0)
 
     def _build_ui(self):
-        # Header frame
-        header = tk.Frame(self.root, bg=BG_COLOR, pady=18)
-        header.pack(fill="x")
+        # Outer center container
+        outer = tk.Frame(self.root, bg=BG_COLOR)
+        outer.place(relx=0.5, rely=0.5, anchor="center")
 
-        title = tk.Label(
+        # Header
+        header = tk.Frame(outer, bg=BG_COLOR)
+        header.pack(fill="x", pady=(0, 28))
+
+        lbl_logo = tk.Label(
             header,
             text="KYBER CLOUD GAMING",
-            font=("DejaVu Sans", 20, "bold"),
-            fg=ACCENT_BLUE,
+            font=("DejaVu Sans", 28, "bold"),
+            fg=COLOR_STEAM,
             bg=BG_COLOR
         )
-        title.pack()
+        lbl_logo.pack()
 
-        subtitle = tk.Label(
+        lbl_sub = tk.Label(
             header,
-            text="Sélectionnez un launcher pour lancer votre session de jeu",
-            font=("DejaVu Sans", 11),
-            fg=TEXT_MUTED,
+            text="Sélectionnez un launcher pour démarrer votre session",
+            font=("DejaVu Sans", 13),
+            fg=TEXT_SECONDARY,
             bg=BG_COLOR
         )
-        subtitle.pack(pady=(4, 0))
+        lbl_sub.pack(pady=(6, 0))
 
-        # Cards container
-        container = tk.Frame(self.root, bg=BG_COLOR, padx=30)
-        container.pack(fill="both", expand=True)
+        # Cards frame
+        cards_frame = tk.Frame(outer, bg=BG_COLOR)
+        cards_frame.pack()
 
-        self._create_card(
-            container,
-            icon="🚀",
-            title="Steam (Mode Bureau)",
-            desc="Interface standard Steam — Bibliothèque, Magasin & Communauté",
-            badge="[ Touche 1 ]",
-            color=ACCENT_BLUE,
-            command=lambda: self.launch("steam")
-        )
+        for idx, item in enumerate(ITEMS):
+            card = self._create_card(cards_frame, idx, item)
+            self.cards.append(card)
 
-        self._create_card(
-            container,
-            icon="🎮",
-            title="Steam Big Picture",
-            desc="Interface TV plein écran conçue pour la manette",
-            badge="[ Touche 2 ]",
-            color=ACCENT_PURPLE,
-            command=lambda: self.launch("steam-bigpicture")
-        )
+        # Footer
+        footer = tk.Frame(outer, bg=BG_COLOR, pady=24)
+        footer.pack(fill="x")
 
-        self._create_card(
-            container,
-            icon="🦸",
-            title="Heroic Games Launcher",
-            desc="Vos jeux Epic Games Store et GOG",
-            badge="[ Touche 3 ]",
-            color=ACCENT_GREEN,
-            command=lambda: self.launch("heroic")
-        )
-
-        # Footer actions
-        footer = tk.Frame(self.root, bg=BG_COLOR, padx=30, pady=15)
-        footer.pack(fill="x", side="bottom")
-
-        btn_desktop = tk.Button(
+        btn_reload = tk.Button(
             footer,
-            text="🖥️ Mode Bureau (Échap)",
-            font=("DejaVu Sans", 10, "bold"),
-            fg=TEXT_COLOR,
-            bg=CARD_BG,
-            activebackground=CARD_HOVER,
-            activeforeground=TEXT_COLOR,
+            text="🔄 Recharger Steam (sans mot de passe)",
+            font=("DejaVu Sans", 11),
+            fg="#fda4af",
+            bg="#2c171e",
+            activebackground="#4c1d27",
+            activeforeground="#fff",
             relief="flat",
             bd=0,
-            padx=14,
-            pady=8,
-            cursor="hand2",
-            command=lambda: self.launch("desktop")
-        )
-        btn_desktop.pack(side="left")
-
-        btn_refresh_steam = tk.Button(
-            footer,
-            text="🔄 Recharger Steam",
-            font=("DejaVu Sans", 10),
-            fg=TEXT_COLOR,
-            bg=CARD_BG,
-            activebackground=CARD_HOVER,
-            activeforeground=TEXT_COLOR,
-            relief="flat",
-            bd=0,
-            padx=14,
+            padx=16,
             pady=8,
             cursor="hand2",
             command=lambda: self.launch("restart-steam")
         )
-        btn_refresh_steam.pack(side="left", padx=10)
+        btn_reload.pack(side="left")
 
-        hint = tk.Label(
+        lbl_hint = tk.Label(
             footer,
-            text="💡 Clic-droit sur le bureau ou [Alt+Espace] pour rouvrir ce menu",
-            font=("DejaVu Sans", 9),
+            text="💡 Navigation : Flèches haut/bas + Entrée  |  Touches 1 à 4  |  Clic souris",
+            font=("DejaVu Sans", 11),
             fg=TEXT_MUTED,
             bg=BG_COLOR
         )
-        hint.pack(side="right")
+        lbl_hint.pack(side="right", padx=(20, 0))
 
-    def _create_card(self, parent, icon, title, desc, badge, color, command):
+    def _create_card(self, parent, idx, item):
         card = tk.Frame(
             parent,
             bg=CARD_BG,
-            highlightbackground=BORDER_COLOR,
-            highlightthickness=1,
-            padx=16,
-            pady=12,
-            cursor="hand2"
+            highlightthickness=2,
+            highlightbackground="#2d3748",
+            padx=28,
+            pady=16,
+            cursor="hand2",
+            width=860
         )
-        card.pack(fill="x", pady=6)
+        card.pack(fill="x", pady=8)
 
-        # Icon
-        lbl_icon = tk.Label(
+        # Left: Number / Key box
+        num_box = tk.Label(
             card,
-            text=icon,
-            font=("DejaVu Sans", 22),
-            bg=CARD_BG,
-            fg=color
+            text=f" {item['key']} ",
+            font=("DejaVu Sans", 18, "bold"),
+            fg=item["color"],
+            bg=PANEL_BG,
+            padx=10,
+            pady=4
         )
-        lbl_icon.pack(side="left", padx=(0, 14))
+        num_box.pack(side="left", padx=(0, 20))
 
-        # Text column
-        text_col = tk.Frame(card, bg=CARD_BG)
-        text_col.pack(side="left", fill="both", expand=True)
+        # Middle: Text
+        text_frame = tk.Frame(card, bg=CARD_BG)
+        text_frame.pack(side="left", fill="both", expand=True)
 
         lbl_title = tk.Label(
-            text_col,
-            text=title,
-            font=("DejaVu Sans", 12, "bold"),
-            fg=TEXT_COLOR,
+            text_frame,
+            text=item["title"],
+            font=("DejaVu Sans", 14, "bold"),
+            fg=TEXT_PRIMARY,
             bg=CARD_BG,
             anchor="w"
         )
         lbl_title.pack(fill="x")
 
         lbl_desc = tk.Label(
-            text_col,
-            text=desc,
-            font=("DejaVu Sans", 9),
-            fg=TEXT_MUTED,
+            text_frame,
+            text=item["desc"],
+            font=("DejaVu Sans", 10),
+            fg=TEXT_SECONDARY,
             bg=CARD_BG,
             anchor="w"
         )
-        lbl_desc.pack(fill="x", pady=(2, 0))
+        lbl_desc.pack(fill="x", pady=(3, 0))
 
-        # Badge
+        # Right: Badge
         lbl_badge = tk.Label(
             card,
-            text=badge,
-            font=("DejaVu Sans", 9, "bold"),
-            fg=color,
+            text=item["badge"],
+            font=("DejaVu Sans", 10, "bold"),
+            fg=item["color"],
             bg=CARD_BG
         )
         lbl_badge.pack(side="right")
 
-        # Hover and click bindings across all child widgets
-        widgets = [card, lbl_icon, text_col, lbl_title, lbl_desc, lbl_badge]
-        def on_enter(e):
-            card.configure(bg=CARD_HOVER, highlightbackground=color)
-            for w in [lbl_icon, text_col, lbl_title, lbl_desc, lbl_badge]:
-                w.configure(bg=CARD_HOVER)
-        def on_leave(e):
-            card.configure(bg=CARD_BG, highlightbackground=BORDER_COLOR)
-            for w in [lbl_icon, text_col, lbl_title, lbl_desc, lbl_badge]:
-                w.configure(bg=CARD_BG)
-        def on_click(e):
-            command()
+        # Store widgets for styling
+        card_data = {
+            "card": card,
+            "num_box": num_box,
+            "text_frame": text_frame,
+            "lbl_title": lbl_title,
+            "lbl_desc": lbl_desc,
+            "lbl_badge": lbl_badge,
+            "item": item,
+            "idx": idx,
+        }
 
-        for w in widgets:
+        # Event bindings
+        def on_enter(e):
+            self._select_index(idx)
+
+        def on_click(e):
+            self.launch(item["id"])
+
+        for w in [card, num_box, text_frame, lbl_title, lbl_desc, lbl_badge]:
             w.bind("<Enter>", on_enter)
-            w.bind("<Leave>", on_leave)
             w.bind("<Button-1>", on_click)
 
+        return card_data
+
+    def _select_index(self, idx):
+        self.current_idx = idx % len(ITEMS)
+        for i, c in enumerate(self.cards):
+            item = c["item"]
+            if i == self.current_idx:
+                c["card"].configure(bg=CARD_HOVER, highlightbackground=item["color"])
+                c["text_frame"].configure(bg=CARD_HOVER)
+                c["lbl_title"].configure(bg=CARD_HOVER, fg="#ffffff")
+                c["lbl_desc"].configure(bg=CARD_HOVER, fg="#e2e8f0")
+                c["lbl_badge"].configure(bg=CARD_HOVER)
+                c["num_box"].configure(bg="#111827")
+            else:
+                c["card"].configure(bg=CARD_BG, highlightbackground="#2d3748")
+                c["text_frame"].configure(bg=CARD_BG)
+                c["lbl_title"].configure(bg=CARD_BG, fg=TEXT_PRIMARY)
+                c["lbl_desc"].configure(bg=CARD_BG, fg=TEXT_SECONDARY)
+                c["lbl_badge"].configure(bg=CARD_BG)
+                c["num_box"].configure(bg=PANEL_BG)
+
     def _bind_keys(self):
+        self.root.bind("<Up>", lambda e: self._select_index(self.current_idx - 1))
+        self.root.bind("<Down>", lambda e: self._select_index(self.current_idx + 1))
+        self.root.bind("<Return>", lambda e: self.launch(ITEMS[self.current_idx]["id"]))
+        self.root.bind("<space>", lambda e: self.launch(ITEMS[self.current_idx]["id"]))
+
         self.root.bind("<Key-1>", lambda e: self.launch("steam"))
         self.root.bind("<Key-2>", lambda e: self.launch("steam-bigpicture"))
         self.root.bind("<Key-3>", lambda e: self.launch("heroic"))
@@ -234,23 +260,21 @@ class LauncherMenu:
         self.root.bind("<Escape>", lambda e: self.launch("desktop"))
 
     def launch(self, target):
-        self.selected = target
         if self.wait_mode:
             print(target, flush=True)
             self.root.destroy()
         else:
-            # Execute switch_launcher.sh in background
             cmd = ["/usr/local/bin/switch_launcher.sh", target]
             try:
                 subprocess.Popen(cmd)
             except Exception as e:
-                print(f"[launcher-menu] Error launching {target}: {e}", file=sys.stderr)
+                print(f"[launcher-hub] Error launching {target}: {e}", file=sys.stderr)
             self.root.destroy()
 
 def main():
     wait_mode = "--wait" in sys.argv
     root = tk.Tk()
-    app = LauncherMenu(root, wait_mode=wait_mode)
+    app = ModernLauncherHub(root, wait_mode=wait_mode)
     root.mainloop()
 
 if __name__ == "__main__":

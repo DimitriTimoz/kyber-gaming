@@ -21,7 +21,7 @@ services:
       - PGID=1000
       - RESOLUTION=1920x1080    # 1920x1080, 2560x1440, 3840x2160
       - REFRESH_RATE=60        # 60, 120, 144
-      - LAUNCHER=steam          # Options: steam, heroic, desktop
+      - LAUNCHER=menu           # Options: menu (default), steam, steam-bigpicture, heroic, desktop
       
       # NVIDIA Container Toolkit flags
       - NVIDIA_VISIBLE_DEVICES=all

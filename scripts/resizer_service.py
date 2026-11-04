@@ -155,12 +155,42 @@ class ResizeHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/launcher/status":
             steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
             heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
-            menu_running = subprocess.run("pgrep -u gamer -f 'kyber_launcher_menu' >/dev/null 2>&1", shell=True).returncode == 0
+            menu_running = subprocess.run("pgrep -u gamer -f 'kyber-hub-profile|kyber_console_hub' >/dev/null 2>&1", shell=True).returncode == 0
             self._send_json_response({
                 "steam": steam_running,
                 "heroic": heroic_running,
                 "menu": menu_running
             })
+        elif parsed.path == "/" or parsed.path == "/hub" or parsed.path.startswith("/hub/"):
+            hub_dir = "/opt/kyber/hub"
+            rel_path = parsed.path[len("/hub"):].lstrip("/") if parsed.path.startswith("/hub") else ""
+            if not rel_path or rel_path.endswith("/"):
+                rel_path = "index.html"
+            file_path = os.path.normpath(os.path.join(hub_dir, rel_path))
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                ext = os.path.splitext(file_path)[1].lower()
+                mime_types = {
+                    ".html": "text/html; charset=utf-8",
+                    ".css": "text/css; charset=utf-8",
+                    ".js": "application/javascript; charset=utf-8",
+                    ".png": "image/png",
+                    ".svg": "image/svg+xml",
+                    ".jpg": "image/jpeg",
+                    ".woff2": "font/woff2",
+                }
+                content_type = mime_types.get(ext, "application/octet-stream")
+                with open(file_path, "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self._send_cors_headers()
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_response(404)
+                self._send_cors_headers()
+                self.end_headers()
         else:
             self.send_response(404)
             self._send_cors_headers()
