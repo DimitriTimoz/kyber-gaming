@@ -655,6 +655,7 @@
         const controlPort = 8081;
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
+        desktopRomEmpty.style.display = 'none';
 
         try {
             const data = await tauriInvoke('rom_browse', {
@@ -670,9 +671,13 @@
                 renderDesktopPresetPills();
                 renderDesktopDirectoryView();
             } else {
+                desktopRomTableBody.innerHTML = '';
                 desktopRomCount.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
+                desktopRomEmpty.style.display = 'block';
+                desktopRomEmpty.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
             }
         } catch (err) {
+            desktopRomTableBody.innerHTML = '';
             desktopRomCount.textContent = 'Could not connect to storage service on server.';
             desktopRomEmpty.style.display = 'block';
             desktopRomEmpty.textContent = `Unable to connect to ${server.host}:${controlPort}. Ensure the server is reachable and port ${controlPort} is open.`;
@@ -739,6 +744,9 @@
 
         if (folders.length === 0 && files.length === 0) {
             desktopRomEmpty.style.display = 'block';
+            desktopRomEmpty.textContent = query
+                ? `No files or folders matching "${query}".`
+                : 'This folder is empty. Drag and drop ROMs, keys, or updates here to upload.';
         } else {
             desktopRomEmpty.style.display = 'none';
 
