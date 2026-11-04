@@ -31,28 +31,6 @@ A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, 
 
 ---
 
-## Architecture & CI/CD Packaging
-
-Kyber Gaming includes automated continuous integration and packaging pipelines:
-
-1. Docker Container Packaging (`.github/workflows/docker.yml`):
-   - Multi-stage image build for `linux/amd64` using Docker Buildx and GitHub Actions cache.
-   - Automatically publishes tagged and latest images to GitHub Container Registry:
-     `ghcr.io/<owner>/kyber-gaming:latest`
-2. Desktop Client Continuous Packaging (`.github/workflows/desktop.yml`):
-   - Cross-platform build with Rust toolchain and pre-built Tauri CLI.
-   - Compiles native bundles for:
-     - macOS: Universal binary DMG (`universal-apple-darwin` for Apple Silicon & Intel)
-     - Linux: Debian package (`.deb`), Red Hat / Fedora (`.rpm`), and standalone `.AppImage`
-     - Windows: Microsoft Installer (`.msi`) and standalone NSIS setup (`-setup.exe`)
-   - Automatically publishes or updates rolling releases (`continuous`) under GitHub Releases on every `main` push.
-3. Official Release Automation (`.github/workflows/release.yml`):
-   - Triggered on Git tags (`v*.*.*`).
-   - Builds both the release container image and all desktop installers.
-   - Computes SHA-256 checksums (`SHA256SUMS.txt`) and publishes an official GitHub Release with assets attached.
-
----
-
 ## Quick Start
 
 ### Option 1: Docker Compose (Prebuilt or Local Build)
