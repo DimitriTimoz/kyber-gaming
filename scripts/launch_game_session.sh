@@ -15,8 +15,42 @@ while ! xdpyinfo >/dev/null 2>&1; do
     sleep 0.5
 done
 
+# Ensure canonical Openbox and theme configs are synced into persistent volume
+if [ -d /etc/kyber/openbox ]; then
+    mkdir -p "$HOME/.config/openbox"
+    cp -f /etc/kyber/openbox/* "$HOME/.config/openbox/" 2>/dev/null || true
+fi
+if [ -d /usr/share/themes/KyberDark ]; then
+    mkdir -p "$HOME/.themes"
+    cp -rf /usr/share/themes/KyberDark "$HOME/.themes/" 2>/dev/null || true
+fi
+
+# Ensure Openbox loads latest rc.xml rules and mousebindings
+openbox --reconfigure 2>/dev/null || true
+
 # Set desktop background canvas
 xsetroot -solid "#0c0f17" 2>/dev/null || true
+
+get_screen_dims() {
+    SCREEN_RES=$(xrandr --current 2>/dev/null | awk '/\*/ {print $1; exit}')
+    SCREEN_W=$(echo "${SCREEN_RES:-1920x1080}" | cut -d'x' -f1)
+    SCREEN_H=$(echo "${SCREEN_RES:-1920x1080}" | cut -d'x' -f2)
+}
+
+dismiss_loading_screen() {
+    pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
+}
+
+enforce_window_maximized() {
+    local wid="$1"
+    [ -n "$wid" ] || return 0
+    get_screen_dims
+    wmctrl -ir "$wid" -b remove,fullscreen 2>/dev/null || true
+    wmctrl -ir "$wid" -e "0,0,0,${SCREEN_W},${SCREEN_H}" 2>/dev/null || true
+    wmctrl -ir "$wid" -b add,maximized_vert,maximized_horz 2>/dev/null || true
+    wmctrl -ia "$wid" 2>/dev/null || true
+    xdotool windowactivate "$wid" 2>/dev/null || true
+}
 
 # Pre-bootstrap Steam if not yet initialized
 STEAMDIR="$HOME/.steam/debian-installation"
@@ -46,24 +80,97 @@ while true; do
             echo "[session] Starting Steam..."
             rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
             steam -no-cef-sandbox >/dev/null 2>&1 &
-            # Wait for steam to actually launch
-            sleep 3
-            # Monitor until Steam exits
+
+            STEAM_WIN_SEEN=0
+            STEAM_LOGIN_SEEN=0
+            LOADING_DISMISSED=0
+            NO_WIN_TICKS=0
+            WAIT_TICKS=0
+
+            # Monitor until Steam exits or its window is closed via [X]
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
                 if [ -s /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
                     rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
                     if [ -n "$NEXT" ] && [ "$NEXT" != "steam" ]; then
                         echo "[session] Action requested while Steam is running: $NEXT"
-                        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                        pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                        sleep 0.3
+                        pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                         CURRENT_ACTION="$NEXT"
                         break
                     fi
                 fi
-                sleep 1
+
+                # Inspect current Steam windows
+                LOGIN_WID=$(wmctrl -l 2>/dev/null | grep -iE "Sign in to Steam|Se connecter|Steam Login" | awk '{print $1}' | head -n 1 || true)
+                if [ -n "$LOGIN_WID" ]; then
+                    STEAM_LOGIN_SEEN=1
+                    STEAM_WIN_SEEN=1
+                    # Ensure dummy background Steam window (USER_TIME=0) never covers the Sign-In dialog
+                    for wid in $(wmctrl -lx 2>/dev/null | grep -i "steamwebhelper" | awk '{print $1}'); do
+                        if [ "$wid" != "$LOGIN_WID" ]; then
+                            UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
+                            if [ "$UTIME" = "0" ]; then
+                                xdotool windowunmap "$wid" 2>/dev/null || true
+                            fi
+                        fi
+                    done
+                    if [ "$LOADING_DISMISSED" -eq 0 ]; then
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
+                    fi
+                    wmctrl -ia "$LOGIN_WID" 2>/dev/null || true
+                fi
+
+                # Count viewable Steam windows (excluding unmapped dummy windows with USER_TIME=0)
+                VIEWABLE_STEAM=0
+                MAIN_STEAM_WID=""
+                for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam\.steam" | awk '{print $1}'); do
+                    if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                        UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
+                        if [ "$UTIME" != "0" ] || [ "$wid" = "$LOGIN_WID" ]; then
+                            VIEWABLE_STEAM=$((VIEWABLE_STEAM + 1))
+                            STEAM_WIN_SEEN=1
+                            if [ "$wid" != "$LOGIN_WID" ]; then
+                                MAIN_STEAM_WID="$wid"
+                            fi
+                        fi
+                    fi
+                done
+
+                if [ -n "$MAIN_STEAM_WID" ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                    enforce_window_maximized "$MAIN_STEAM_WID"
+                    dismiss_loading_screen
+                    LOADING_DISMISSED=1
+                elif [ "$STEAM_WIN_SEEN" -eq 0 ] && [ "$WAIT_TICKS" -ge 60 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                    dismiss_loading_screen
+                    LOADING_DISMISSED=1
+                fi
+
+                # If a Steam window was open and user clicked [X] (closing all visible Steam windows while no game is running)
+                if [ "$STEAM_WIN_SEEN" -eq 1 ]; then
+                    if [ "$VIEWABLE_STEAM" -eq 0 ] && ! pgrep -u gamer -f "reaper|pressure-vessel" >/dev/null 2>&1; then
+                        NO_WIN_TICKS=$((NO_WIN_TICKS + 1))
+                        if [ "$NO_WIN_TICKS" -ge 2 ]; then
+                            echo "[session] Steam window closed by user [X]. Shutting down background Steam..."
+                            pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                            sleep 0.3
+                            pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                            break
+                        fi
+                    else
+                        NO_WIN_TICKS=0
+                    fi
+                    sleep 1
+                else
+                    WAIT_TICKS=$((WAIT_TICKS + 1))
+                    sleep 0.25
+                fi
             done
             if [ "$CURRENT_ACTION" = "steam" ]; then
                 echo "[session] Steam has closed. Returning to Launcher Hub..."
+                dismiss_loading_screen
                 CURRENT_ACTION="menu"
             fi
             ;;
@@ -72,61 +179,167 @@ while true; do
             echo "[session] Starting Steam Big Picture..."
             rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
             steam -bigpicture -no-cef-sandbox >/dev/null 2>&1 &
-            sleep 3
+            STEAM_BP_SEEN=0
+            LOADING_DISMISSED=0
+            NO_WIN_TICKS=0
+            WAIT_TICKS=0
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
                 if [ -s /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
                     rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
                     if [ -n "$NEXT" ] && [ "$NEXT" != "steam-bigpicture" ]; then
                         echo "[session] Action requested: $NEXT"
-                        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                        pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                        sleep 0.3
+                        pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                         CURRENT_ACTION="$NEXT"
                         break
                     fi
                 fi
-                sleep 1
+
+                VIEWABLE_BP=0
+                BP_WID=""
+                for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam" | awk '{print $1}'); do
+                    if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                        UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
+                        if [ "$UTIME" != "0" ]; then
+                            VIEWABLE_BP=$((VIEWABLE_BP + 1))
+                            STEAM_BP_SEEN=1
+                            BP_WID="$wid"
+                        fi
+                    fi
+                done
+
+                if [ -n "$BP_WID" ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                    enforce_window_maximized "$BP_WID"
+                    dismiss_loading_screen
+                    LOADING_DISMISSED=1
+                elif [ "$STEAM_BP_SEEN" -eq 0 ] && [ "$WAIT_TICKS" -ge 60 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                    dismiss_loading_screen
+                    LOADING_DISMISSED=1
+                fi
+
+                if [ "$STEAM_BP_SEEN" -eq 1 ]; then
+                    if [ "$VIEWABLE_BP" -eq 0 ] && ! pgrep -u gamer -f "reaper|pressure-vessel" >/dev/null 2>&1; then
+                        NO_WIN_TICKS=$((NO_WIN_TICKS + 1))
+                        if [ "$NO_WIN_TICKS" -ge 2 ]; then
+                            echo "[session] Steam Big Picture window closed via [X]. Returning to Hub..."
+                            pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                            sleep 0.3
+                            pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+                            break
+                        fi
+                    else
+                        NO_WIN_TICKS=0
+                    fi
+                    sleep 1
+                else
+                    WAIT_TICKS=$((WAIT_TICKS + 1))
+                    sleep 0.25
+                fi
             done
             if [ "$CURRENT_ACTION" = "steam-bigpicture" ]; then
                 echo "[session] Steam Big Picture closed. Returning to Launcher Hub..."
+                dismiss_loading_screen
                 CURRENT_ACTION="menu"
             fi
             ;;
 
         heroic)
             echo "[session] Starting Heroic Games Launcher..."
+            get_screen_dims
+            # Configure Heroic to open at full display dimensions and disable exitToTray so [X] closes it cleanly
+            SCREEN_W="$SCREEN_W" SCREEN_H="$SCREEN_H" python3 -c '
+import json, os
+p = "/home/gamer/.config/heroic/config.json"
+w = int(os.environ.get("SCREEN_W", "1920"))
+h = int(os.environ.get("SCREEN_H", "1080"))
+os.makedirs(os.path.dirname(p), exist_ok=True)
+data = {}
+if os.path.exists(p):
+    try: data = json.load(open(p))
+    except Exception: pass
+data.setdefault("defaultSettings", {})["exitToTray"] = False
+data.setdefault("defaultSettings", {})["startInTray"] = False
+data["exitToTray"] = False
+data["windowBounds"] = {"x": 0, "y": 0, "width": w, "height": h, "maximized": True}
+try: json.dump(data, open(p, "w"))
+except Exception: pass
+' 2>/dev/null || true
+
             HEROIC_BIN="/opt/Heroic/heroic"
             [ -x "$HEROIC_BIN" ] || HEROIC_BIN="$(command -v heroic || echo /usr/bin/heroic)"
             "$HEROIC_BIN" --no-sandbox >/dev/null 2>&1 &
-            sleep 3
+            HEROIC_WIN_SEEN=0
+            LOADING_DISMISSED=0
+            WAIT_TICKS=0
             while pgrep -u gamer -f "heroic" >/dev/null 2>&1; do
                 if [ -s /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
                     rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
                     if [ -n "$NEXT" ] && [ "$NEXT" != "heroic" ]; then
                         echo "[session] Action requested: $NEXT"
-                        pkill -u gamer -f "heroic" 2>/dev/null || true
+                        pkill -TERM -u gamer -f "heroic" 2>/dev/null || true
+                        sleep 0.2
+                        pkill -9 -u gamer -f "heroic" 2>/dev/null || true
                         CURRENT_ACTION="$NEXT"
                         break
                     fi
                 fi
-                sleep 1
+
+                HEROIC_WID=""
+                for wid in $(wmctrl -lx 2>/dev/null | grep -i "heroic" | awk '{print $1}'); do
+                    if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                        HEROIC_WID="$wid"
+                        break
+                    fi
+                done
+
+                if [ -n "$HEROIC_WID" ]; then
+                    if [ "$HEROIC_WIN_SEEN" -eq 0 ]; then
+                        HEROIC_WIN_SEEN=1
+                        enforce_window_maximized "$HEROIC_WID"
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
+                        sleep 0.3
+                        enforce_window_maximized "$HEROIC_WID"
+                    fi
+                    sleep 1
+                elif [ "$HEROIC_WIN_SEEN" -eq 1 ]; then
+                    echo "[session] Heroic window closed via [X]. Terminating background helpers..."
+                    pkill -TERM -u gamer -f "heroic" 2>/dev/null || true
+                    sleep 0.2
+                    pkill -9 -u gamer -f "heroic" 2>/dev/null || true
+                    break
+                else
+                    WAIT_TICKS=$((WAIT_TICKS + 1))
+                    if [ "$WAIT_TICKS" -ge 60 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
+                    fi
+                    sleep 0.25
+                fi
             done
             if [ "$CURRENT_ACTION" = "heroic" ]; then
                 echo "[session] Heroic has closed. Returning to Launcher Hub..."
+                dismiss_loading_screen
                 CURRENT_ACTION="menu"
             fi
             ;;
 
         restart-steam)
             echo "[session] Restarting Steam cleanly..."
-            pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
-            sleep 2
+            pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+            sleep 0.5
+            pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
+            sleep 1
             rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
             CURRENT_ACTION="steam"
             ;;
 
         browser|chrome|google-chrome)
             echo "[session] Starting Web Browser (Google Chrome)..."
+            get_screen_dims
             # Ensure Chrome uses native system titlebar with functional close button
             python3 -c '
 import json, os
@@ -141,9 +354,6 @@ try: json.dump(data, open(p, "w"))
 except Exception: pass
 ' 2>/dev/null || true
 
-            # Launch tint2 quick bar for persistent console navigation
-            pgrep -u gamer -x "tint2" >/dev/null 2>&1 || (tint2 >/dev/null 2>&1 &)
-
             google-chrome \
                 --no-sandbox \
                 --no-first-run \
@@ -152,10 +362,32 @@ except Exception: pass
                 --test-type \
                 --disable-infobars \
                 --start-maximized \
+                --window-position=0,0 \
+                --window-size="${SCREEN_W},${SCREEN_H}" \
                 --disable-features=Translate \
-                --lang=fr-FR >/dev/null 2>&1 &
-            sleep 2
+                --lang=en-US >/dev/null 2>&1 &
+
+            BROWSER_WIN_SEEN=0
+            LOADING_DISMISSED=0
+            WAIT_TICKS=0
             while true; do
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "browser" ] && [ "$NEXT" != "chrome" ] && [ "$NEXT" != "google-chrome" ]; then
+                        echo "[session] Action requested while browser running: $NEXT"
+                        for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
+                            if [ -r "/proc/$p/cmdline" ]; then
+                                if tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -v "kyber-hub-profile" | grep -q "chrome"; then
+                                    kill -9 "$p" 2>/dev/null || true
+                                fi
+                            fi
+                        done
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+
                 # Check if non-hub Chrome is running
                 BROWSER_RUNNING=0
                 for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
@@ -167,34 +399,36 @@ except Exception: pass
                     fi
                 done
 
-                if [ "$BROWSER_RUNNING" -eq 0 ]; then
+                if [ "$BROWSER_RUNNING" -eq 0 ] && [ "$WAIT_TICKS" -ge 8 ]; then
                     echo "[session] Browser closed. Returning to Console Hub..."
+                    dismiss_loading_screen
                     CURRENT_ACTION="menu"
                     break
                 fi
 
-                if [ -s /tmp/kyber_next_action ]; then
-                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
-                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
-                    if [ -n "$NEXT" ] && [ "$NEXT" != "browser" ] && [ "$NEXT" != "chrome" ] && [ "$NEXT" != "google-chrome" ]; then
-                        echo "[session] Action requested while browser running: $NEXT"
-                        for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
-                            if [ -r "/proc/$p/cmdline" ]; then
-                                if tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -v "kyber-hub-profile" | grep -q "chrome"; then
-                                    kill "$p" 2>/dev/null || true
-                                fi
-                            fi
-                        done
-                        CURRENT_ACTION="$NEXT"
-                        break
+                BROWSER_WID=$(wmctrl -lx 2>/dev/null | grep -i "google-chrome" | grep -vi "kyberhub" | awk '{print $1}' | head -n 1 || true)
+                if [ -n "$BROWSER_WID" ]; then
+                    if [ "$BROWSER_WIN_SEEN" -eq 0 ]; then
+                        BROWSER_WIN_SEEN=1
+                        enforce_window_maximized "$BROWSER_WID"
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
                     fi
+                    sleep 1
+                else
+                    WAIT_TICKS=$((WAIT_TICKS + 1))
+                    if [ "$WAIT_TICKS" -ge 30 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
+                    fi
+                    sleep 0.25
                 fi
-                sleep 1
             done
             ;;
 
         desktop)
             echo "[session] Entering Libre Desktop Mode (tint2 + pcmanfm)..."
+            dismiss_loading_screen
             xsetroot -solid "#0b0f19" 2>/dev/null || true
             pgrep -u gamer -x "tint2" >/dev/null 2>&1 || (tint2 >/dev/null 2>&1 &)
             pgrep -u gamer -f "pcmanfm --desktop" >/dev/null 2>&1 || (pcmanfm --desktop >/dev/null 2>&1 &)
@@ -217,9 +451,8 @@ except Exception: pass
 
         menu)
             echo "[session] Presenting Fullscreen Console Kiosk Hub..."
-            # Clean any stale hub processes or panels during fullscreen kiosk
+            # Clean any desktop panels during fullscreen kiosk
             pkill -u gamer -x "tint2" 2>/dev/null || true
-            pkill -u gamer -f "kyber-hub-profile|kyber_console_hub|kyber_launcher_menu" 2>/dev/null || true
             RAW_CHOICE=$(bash /usr/local/bin/kyber_console_hub.sh || echo "menu")
             CHOICE=$(echo "$RAW_CHOICE" | tail -n 1 | tr -d '[:space:]')
             echo "[session] Console Hub selection: '$CHOICE'"
@@ -231,7 +464,8 @@ except Exception: pass
             ;;
 
         *)
-            echo "[session] Executing target launcher or emulator: $CURRENT_ACTION..."
+            LAUNCHED_ACTION="$CURRENT_ACTION"
+            echo "[session] Executing target launcher or emulator: $LAUNCHED_ACTION..."
             EXEC_CMD=""
             if command -v "$CURRENT_ACTION" >/dev/null 2>&1; then
                 EXEC_CMD="$CURRENT_ACTION"
@@ -245,11 +479,28 @@ except Exception: pass
                 echo "[session] Launching '$EXEC_CMD'..."
                 setsid $EXEC_CMD >/dev/null 2>&1 &
                 APP_PID=$!
-                sleep 2
+                APP_WIN_SEEN=0
+                LOADING_DISMISSED=0
+                WAIT_TICKS=0
 
-                # Watchdog loop: monitors process and any spawned child threads
+                # Watchdog loop: monitors process and window state
                 while true; do
-                    # Check if main process or any process matching the target is alive
+                    # Handle user requested switch (including Cancel during loading)
+                    if [ -s /tmp/kyber_next_action ]; then
+                        NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                        rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                        if [ -n "$NEXT" ] && [ "$NEXT" != "$CURRENT_ACTION" ]; then
+                            echo "[session] Action switch requested: $NEXT"
+                            kill -TERM "$APP_PID" 2>/dev/null || true
+                            pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            sleep 0.3
+                            kill -9 "$APP_PID" 2>/dev/null || true
+                            pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            CURRENT_ACTION="$NEXT"
+                            break
+                        fi
+                    fi
+
                     IS_ALIVE=0
                     if kill -0 "$APP_PID" 2>/dev/null; then
                         IS_ALIVE=1
@@ -257,37 +508,60 @@ except Exception: pass
                         IS_ALIVE=1
                     fi
 
-                    if [ "$IS_ALIVE" -eq 0 ]; then
+                    if [ "$IS_ALIVE" -eq 0 ] && [ "$WAIT_TICKS" -ge 4 ]; then
                         echo "[session] Process $CURRENT_ACTION has exited or terminated. Cleaning up..."
                         break
                     fi
 
-                    # Handle user requested switch
-                    if [ -s /tmp/kyber_next_action ]; then
-                        NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
-                        rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
-                        if [ -n "$NEXT" ] && [ "$NEXT" != "$CURRENT_ACTION" ]; then
-                            echo "[session] Action switch requested: $NEXT"
-                            kill -TERM "$APP_PID" 2>/dev/null || true
-                            pkill -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
-                            CURRENT_ACTION="$NEXT"
+                    APP_WID=""
+                    for wid in $(wmctrl -lx 2>/dev/null | grep -i "$CURRENT_ACTION" | awk '{print $1}'); do
+                        if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                            APP_WID="$wid"
                             break
                         fi
+                    done
+
+                    if [ -n "$APP_WID" ]; then
+                        if [ "$APP_WIN_SEEN" -eq 0 ]; then
+                            APP_WIN_SEEN=1
+                            enforce_window_maximized "$APP_WID"
+                            dismiss_loading_screen
+                            LOADING_DISMISSED=1
+                            sleep 0.25
+                            enforce_window_maximized "$APP_WID"
+                        fi
+                        sleep 1
+                    elif [ "$APP_WIN_SEEN" -eq 1 ]; then
+                        echo "[session] Window for $CURRENT_ACTION closed via [X]. Cleaning up process..."
+                        kill -TERM "$APP_PID" 2>/dev/null || true
+                        pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                        sleep 0.3
+                        kill -9 "$APP_PID" 2>/dev/null || true
+                        pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                        break
+                    else
+                        WAIT_TICKS=$((WAIT_TICKS + 1))
+                        if [ "$WAIT_TICKS" -ge 48 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                            dismiss_loading_screen
+                            LOADING_DISMISSED=1
+                        fi
+                        sleep 0.25
                     fi
-                    sleep 1
                 done
 
                 # Ensure any zombie child processes are cleaned up
-                pkill -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
                 xsetroot -solid "#0c0f17" 2>/dev/null || true
 
-                if [ "$CURRENT_ACTION" = "$CURRENT_ACTION" ]; then
+                if [ "$CURRENT_ACTION" = "$LAUNCHED_ACTION" ]; then
                     echo "[session] Returning cleanly to Console Hub..."
+                    dismiss_loading_screen
                     CURRENT_ACTION="menu"
                 fi
             else
                 echo "[session] Target '$CURRENT_ACTION' is not installed or not executable in PATH."
-                sleep 1.5
+                dismiss_loading_screen
+                sleep 1
                 CURRENT_ACTION="menu"
             fi
             ;;

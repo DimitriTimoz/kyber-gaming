@@ -32,40 +32,58 @@ SCREEN_RES=$(xrandr --current 2>/dev/null | awk '/\*/ {print $1; exit}')
 SCREEN_W=$(echo "${SCREEN_RES:-1920x1080}" | cut -d'x' -f1)
 SCREEN_H=$(echo "${SCREEN_RES:-1920x1080}" | cut -d'x' -f2)
 
-# Launch Google Chrome in true fullscreen console kiosk mode
-/opt/google/chrome/chrome \
-    --class=KyberHub \
-    --no-sandbox \
-    --kiosk \
-    --start-fullscreen \
-    --start-maximized \
-    --window-position=0,0 \
-    --window-size="${SCREEN_W},${SCREEN_H}" \
-    --no-first-run \
-    --no-default-browser-check \
-    --disable-infobars \
-    --disable-session-crashed-bubble \
-    --disable-features=Translate,OptimizationHints \
-    --disable-translate \
-    --lang=en-US \
-    --noerrdialogs \
-    --disable-popup-blocking \
-    --autoplay-policy=no-user-gesture-required \
-    --disable-pinch \
-    --overscroll-history-navigation=0 \
-    --enable-gpu-rasterization \
-    --enable-zero-copy \
-    --ignore-certificate-errors \
-    --allow-file-access-from-files \
-    --user-data-dir=/tmp/kyber-hub-profile \
-    "$HUB_URL" >/dev/null 2>&1 &
+if pgrep -u gamer -f "kyber-hub-profile" >/dev/null 2>&1; then
+    echo "[hub-launcher] Reusing active Console Hub instance on $DISPLAY..." >&2
+else
+    # Launch Google Chrome in true fullscreen console kiosk mode
+    /opt/google/chrome/chrome \
+        --class=KyberHub \
+        --no-sandbox \
+        --kiosk \
+        --start-fullscreen \
+        --start-maximized \
+        --window-position=0,0 \
+        --window-size="${SCREEN_W},${SCREEN_H}" \
+        --no-first-run \
+        --no-default-browser-check \
+        --disable-infobars \
+        --disable-session-crashed-bubble \
+        --disable-features=Translate,OptimizationHints \
+        --disable-translate \
+        --lang=en-US \
+        --noerrdialogs \
+        --disable-popup-blocking \
+        --autoplay-policy=no-user-gesture-required \
+        --disable-pinch \
+        --overscroll-history-navigation=0 \
+        --enable-gpu-rasterization \
+        --enable-zero-copy \
+        --ignore-certificate-errors \
+        --allow-file-access-from-files \
+        --user-data-dir=/tmp/kyber-hub-profile \
+        "$HUB_URL" >/dev/null 2>&1 &
+fi
 
-CHROME_PID=$!
-sleep 1
+# Wait up to 4s for the Hub window to map, then enforce fullscreen, 0,0 geometry, and active focus
+HUB_WID=""
+for _ in $(seq 1 20); do
+    HUB_WID=$(wmctrl -lx 2>/dev/null | grep -iE "kyberhub|Kyber Console OS" | awk '{print $1}' | head -n 1 || true)
+    if [ -n "$HUB_WID" ]; then
+        break
+    fi
+    sleep 0.2
+done
 
-# Enforce X11 fullscreen and 0,0 geometry via wmctrl
-wmctrl -r "Kyber Console OS" -e "0,0,0,${SCREEN_W},${SCREEN_H}" 2>/dev/null || true
-wmctrl -r "Kyber Console OS" -b add,fullscreen,maximized_vert,maximized_horz 2>/dev/null || true
+if [ -n "$HUB_WID" ]; then
+    wmctrl -ir "$HUB_WID" -e "0,0,0,${SCREEN_W},${SCREEN_H}" 2>/dev/null || true
+    wmctrl -ir "$HUB_WID" -b add,fullscreen,maximized_vert,maximized_horz 2>/dev/null || true
+    wmctrl -ia "$HUB_WID" 2>/dev/null || true
+    xdotool windowactivate "$HUB_WID" 2>/dev/null || true
+else
+    wmctrl -r "Kyber Console OS" -e "0,0,0,${SCREEN_W},${SCREEN_H}" 2>/dev/null || true
+    wmctrl -r "Kyber Console OS" -b add,fullscreen,maximized_vert,maximized_horz 2>/dev/null || true
+    wmctrl -a "Kyber Console OS" 2>/dev/null || true
+fi
 
 # Wait for a selection event (/tmp/kyber_next_action written with non-empty command)
 # or until Chrome is closed
@@ -86,10 +104,6 @@ if [ -s /tmp/kyber_next_action ]; then
     echo "[hub-launcher] Selection registered: $CHOICE" >&2
 fi
 
-# Clean up Chrome processes
-kill "$CHROME_PID" 2>/dev/null || true
-pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
-
 # If the user closed the Hub on purpose, drop to the desktop instead of relaunching the Hub forever
 if [ -z "$CHOICE" ]; then
     if [ "${EXTERNAL_CLOSE:-0}" = "1" ]; then
@@ -97,6 +111,12 @@ if [ -z "$CHOICE" ]; then
     else
         CHOICE="menu"
     fi
+fi
+
+# Only close the Hub immediately when dropping to desktop; for game launchers, keep the Hub
+# alive so its fullscreen loading screen (#launchOverlay) remains visible until the target window maps.
+if [ "$CHOICE" = "desktop" ]; then
+    pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
 fi
 
 echo "$CHOICE"

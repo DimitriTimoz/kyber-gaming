@@ -677,10 +677,10 @@ def get_system_info():
 def get_launchers_config():
     """Read dynamic launchers & emulators registry and check availability."""
     paths = [
-        "/etc/kyber/launchers.json",
         "/opt/kyber/hub/launchers.json",
-        "config/launchers.json",
-        "hub/launchers.json"
+        "/etc/kyber/launchers.json",
+        "hub/launchers.json",
+        "config/launchers.json"
     ]
     config = None
     for p in paths:

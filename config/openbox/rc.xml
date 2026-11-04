@@ -163,10 +163,13 @@
       <mousebind button="Left" action="Press">
         <action name="Focus"/>
         <action name="Raise"/>
-        <action name="Close"/>
+        <action name="Unshade"/>
       </mousebind>
       <mousebind button="Left" action="Click">
         <action name="Close"/>
+        <action name="Execute">
+          <command>/usr/local/bin/switch_launcher.sh close-active</command>
+        </action>
       </mousebind>
     </context>
 
@@ -275,6 +278,28 @@
       <decor>yes</decor>
       <maximized>no</maximized>
       <fullscreen>no</fullscreen>
+    </application>
+
+    <!-- Heroic Games Launcher & Eglantine Emulator: Always maximized with titlebar and close button -->
+    <application class="*heroic*">
+      <decor>yes</decor>
+      <maximized>yes</maximized>
+      <focus>yes</focus>
+    </application>
+    <application class="*eglantine*">
+      <decor>yes</decor>
+      <maximized>yes</maximized>
+      <focus>yes</focus>
+    </application>
+
+    <!-- Steam windows: Do not force-maximize hidden helper or login dialogs -->
+    <application class="*steam*">
+      <decor>yes</decor>
+      <maximized>no</maximized>
+    </application>
+    <application class="*steamwebhelper*">
+      <decor>yes</decor>
+      <maximized>no</maximized>
     </application>
 
     <!-- Steam Big Picture Mode -->

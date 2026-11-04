@@ -294,6 +294,10 @@
         carouselTrackEl.classList.remove('entering');
         void carouselTrackEl.offsetWidth;
         carouselTrackEl.classList.add('entering');
+        clearTimeout(carouselTrackEl._enterTimer);
+        carouselTrackEl._enterTimer = setTimeout(() => {
+            carouselTrackEl.classList.remove('entering');
+        }, 700);
 
         filteredItems.forEach((item, idx) => {
             const card = document.createElement('div');
@@ -394,7 +398,7 @@
             } else if (ad <= 3) {
                 const tx = d * spread + Math.sign(d) * (cardW * 0.14);
                 const ty = ad * 10;
-                const tz = -ad * 75;
+                const tz = Math.max(4, 38 - ad * 11);
                 const ry = -Math.sign(d) * Math.min(28, 16 + ad * 4);
                 const sc = Math.max(0.75, 1 - ad * 0.08);
                 card.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty}px, ${tz}px) rotateY(${ry}deg) scale(${sc})`;
@@ -402,7 +406,7 @@
                 card.style.filter = `brightness(${Math.max(0.55, 0.9 - ad * 0.12)})`;
             } else {
                 const tx = Math.sign(d) * spread * 3.6;
-                card.style.transform = `translate3d(${tx.toFixed(1)}px, 30px, -280px) rotateY(${-Math.sign(d) * 32}deg) scale(0.7)`;
+                card.style.transform = `translate3d(${tx.toFixed(1)}px, 30px, 0px) rotateY(${-Math.sign(d) * 32}deg) scale(0.7)`;
                 card.style.opacity = '0';
             }
             card.style.pointerEvents = ad <= 3 ? 'auto' : 'none';
@@ -500,6 +504,28 @@
         }, 4000);
     }
 
+    let launchStepTimer = null;
+    let launchSafetyTimer = null;
+
+    function cancelActiveLaunch() {
+        clearInterval(launchStepTimer);
+        clearTimeout(launchSafetyTimer);
+        isLaunching = false;
+        launchOverlayEl.classList.remove('active');
+        const activeCard = carouselTrackEl.querySelector('.card.launching');
+        if (activeCard) activeCard.classList.remove('launching');
+        fetch('/api/launcher?app=kill-apps').catch(() => {});
+    }
+
+    const btnCancelLaunchEl = document.getElementById('btnCancelLaunch');
+    if (btnCancelLaunchEl) {
+        btnCancelLaunchEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            initAudio();
+            cancelActiveLaunch();
+        });
+    }
+
     function handleItemAction(item) {
         if (isLaunching) return;
 
@@ -533,38 +559,60 @@
         launchSubEl.textContent = item.desc || 'Initializing high-performance gaming session...';
         launchLogoEl.innerHTML = ICONS[item.icon] || ICONS.gamepad;
 
-        setTimeout(() => {
-            if (isLaunching) launchOverlayEl.classList.add('active');
-        }, 160);
+        const stepEl = document.getElementById('launchStepStatus');
+        const steps = [
+            'Starting application process...',
+            'Initializing Vulkan & X11 graphics context...',
+            'Maximizing fullscreen viewport...',
+            'Waiting for application window focus...'
+        ];
+        let stepIdx = 0;
+        if (stepEl) stepEl.textContent = steps[0];
+        clearInterval(launchStepTimer);
+        launchStepTimer = setInterval(() => {
+            stepIdx = Math.min(steps.length - 1, stepIdx + 1);
+            if (stepEl) stepEl.textContent = steps[stepIdx];
+        }, 1600);
+
+        // Show fullscreen loading overlay immediately so there is zero blank gap
+        launchOverlayEl.classList.add('active');
 
         const targetUrl = `/api/launcher?app=${encodeURIComponent(item.id)}`;
         console.log(`[hub] Launching session: ${item.id} via ${targetUrl}`);
 
         // Safety timer to auto-dismiss overlay if launch is delayed or fails
-        const safetyTimer = setTimeout(() => {
+        clearTimeout(launchSafetyTimer);
+        launchSafetyTimer = setTimeout(() => {
+            clearInterval(launchStepTimer);
             isLaunching = false;
             launchOverlayEl.classList.remove('active');
             if (activeCard) activeCard.classList.remove('launching');
-        }, 8000);
+        }, 18000);
 
-        fetch(targetUrl, { method: 'GET' })
-            .then(res => {
-                if (!res.ok) {
-                    clearTimeout(safetyTimer);
+        // Allow 250ms for the browser to paint the loading overlay before signaling session manager
+        setTimeout(() => {
+            if (!isLaunching) return;
+            fetch(targetUrl, { method: 'GET' })
+                .then(res => {
+                    if (!res.ok) {
+                        clearInterval(launchStepTimer);
+                        clearTimeout(launchSafetyTimer);
+                        isLaunching = false;
+                        launchOverlayEl.classList.remove('active');
+                        if (activeCard) activeCard.classList.remove('launching');
+                        showToast('Launch Error', `Unable to launch ${item.name} (HTTP ${res.status}).`);
+                    }
+                })
+                .catch(err => {
+                    console.warn('[hub] Fetch error, continuing fallback:', err);
+                    clearInterval(launchStepTimer);
+                    clearTimeout(launchSafetyTimer);
                     isLaunching = false;
                     launchOverlayEl.classList.remove('active');
                     if (activeCard) activeCard.classList.remove('launching');
-                    showToast('Launch Error', `Unable to launch ${item.name} (HTTP ${res.status}).`);
-                }
-            })
-            .catch(err => {
-                console.warn('[hub] Fetch error, continuing fallback:', err);
-                clearTimeout(safetyTimer);
-                isLaunching = false;
-                launchOverlayEl.classList.remove('active');
-                if (activeCard) activeCard.classList.remove('launching');
-                showToast('Service Offline', 'The Kyber control service did not respond.');
-            });
+                    showToast('Service Offline', 'The Kyber control service did not respond.');
+                });
+        }, 250);
     }
 
     // ==========================================================================
@@ -881,8 +929,9 @@
             }
             case 'closeapp':
                 closeControlCenter();
-                fetch('/api/launcher?app=menu').catch(() => {});
+                fetch('/api/launcher?app=kill-apps').catch(() => {});
                 showToast('Closing Application', 'The active application has been stopped.');
+                setTimeout(pollLauncherStatus, 600);
                 break;
             case 'desktop': {
                 closeControlCenter();
@@ -1059,8 +1108,7 @@
         if (isLaunching) {
             if (e.key === 'Escape') {
                 e.preventDefault();
-                isLaunching = false;
-                launchOverlayEl.classList.remove('active');
+                cancelActiveLaunch();
             }
             return;
         }
@@ -1389,7 +1437,7 @@
     }
 
     async function extractStorageArchive(relPath, filename) {
-        showRomToast(`Extraction: ${filename}...`);
+        showToast('Extracting Archive', `Extracting ${filename}...`);
         try {
             const res = await fetch('/api/roms/extract', {
                 method: 'POST',
@@ -1398,13 +1446,13 @@
             });
             const data = await res.json();
             if (data && data.status === 'ok') {
-                showRomToast(`Extraction terminee: ${filename}`);
+                showToast('Extraction Complete', `Successfully extracted ${filename}`);
                 loadDirectory(currentBrowsePath);
             } else {
-                showRomToast(`Echec d'extraction: ${(data && data.error) || 'Erreur'}`);
+                showToast('Extraction Failed', `${(data && data.error) || 'Archive error'}`);
             }
         } catch (err) {
-            showRomToast(`Erreur d'extraction: ${err}`);
+            showToast('Extraction Error', `${err}`);
         }
     }
 
@@ -1698,9 +1746,9 @@
         btnKillRunningAppEl.addEventListener('click', async (e) => {
             e.stopPropagation();
             try {
-                await fetch('/api/launcher?app=menu');
+                await fetch('/api/launcher?app=kill-apps');
                 showToast('Closing Application', 'The active application has been stopped.');
-                setTimeout(pollLauncherStatus, 800);
+                setTimeout(pollLauncherStatus, 600);
             } catch (err) {}
         });
     }

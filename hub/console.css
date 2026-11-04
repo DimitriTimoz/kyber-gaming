@@ -322,6 +322,7 @@ button, .card, .cc-item, .tab-btn, .btn-action, .cta-primary-btn, .cta-secondary
     justify-content: space-between;
     position: relative;
     margin-top: 0;
+    pointer-events: none;
 }
 
 .stage-header {
@@ -330,6 +331,7 @@ button, .card, .cc-item, .tab-btn, .btn-action, .cta-primary-btn, .cta-secondary
     max-width: 66vw;
     position: relative;
     z-index: 8;
+    pointer-events: auto;
     translate: calc(var(--mx) * 10px) calc(var(--my) * 6px);
 }
 
@@ -535,6 +537,7 @@ button, .card, .cc-item, .tab-btn, .btn-action, .cta-primary-btn, .cta-secondary
     padding: 0;
     overflow: visible;
     display: block;
+    z-index: 15;
     pointer-events: none;
     perspective: 1500px;
 }
@@ -1008,7 +1011,39 @@ body.amb-minimal .stage-floor-glow {
 }
 
 .launch-overlay.active .launch-content {
-    animation: launchPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation: launchPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.launch-step-status {
+    margin-top: 16px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--active-accent);
+    opacity: 0.9;
+}
+
+.launch-cancel-btn {
+    margin-top: 22px;
+    padding: 9px 20px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #cbd5e1;
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.launch-cancel-btn:hover {
+    background: rgba(244, 63, 94, 0.22);
+    border-color: #f43f5e;
+    color: #ffffff;
 }
 
 @keyframes launchPop {

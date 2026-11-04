@@ -218,7 +218,7 @@ COPY hub /opt/kyber/hub
 RUN echo -e "/opt/kyber/lib\n/opt/kyber/lib/x86_64-linux-gnu\n/opt/kyber/lib64" > /etc/ld.so.conf.d/kyber.conf && ldconfig
 
 # 10. Setup directories and copy project configurations & scripts
-RUN mkdir -p /etc/kyber/tls /etc/X11 /var/log/supervisor /run/user/1000 \
+RUN mkdir -p /etc/kyber/tls /etc/kyber/openbox /etc/kyber/tint2 /etc/X11 /var/log/supervisor /run/user/1000 \
     /home/gamer/.config/openbox /home/gamer/.config/tint2 /home/gamer/.config/pipewire/pipewire.conf.d \
     /home/gamer/.themes /usr/share/themes /usr/share/applications \
     /home/gamer/.local/share/Steam
@@ -229,6 +229,10 @@ COPY config/xorg/xorg.modesetting.conf /etc/kyber/xorg.modesetting.conf
 COPY config/kyber/kyber_config.toml /etc/kyber/kyber_config.toml
 COPY config/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY config/launchers.json /etc/kyber/launchers.json
+COPY config/openbox/rc.xml /etc/kyber/openbox/rc.xml
+COPY config/openbox/menu.xml /etc/kyber/openbox/menu.xml
+COPY config/openbox/autostart /etc/kyber/openbox/autostart
+COPY config/tint2/tint2rc /etc/kyber/tint2/tint2rc
 COPY config/openbox/rc.xml /home/gamer/.config/openbox/rc.xml
 COPY config/openbox/menu.xml /home/gamer/.config/openbox/menu.xml
 COPY config/openbox/autostart /home/gamer/.config/openbox/autostart
