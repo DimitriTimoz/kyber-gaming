@@ -1,0 +1,369 @@
+/* ==============================================================================
+   Kyber Cloud Gaming - Console Web Hub & Pre-Flight Lobby
+   ============================================================================== */
+
+:root {
+    --kh-bg-gradient: radial-gradient(circle at 50% 20%, #151b2e 0%, #080a10 80%);
+    --kh-card-bg: rgba(22, 28, 45, 0.75);
+    --kh-card-border: rgba(255, 255, 255, 0.1);
+    --kh-card-hover: rgba(33, 42, 69, 0.85);
+    --kh-accent-cyan: #00d2ff;
+    --kh-accent-cyan-glow: rgba(0, 210, 255, 0.4);
+    --kh-accent-purple: #a855f7;
+    --kh-accent-green: #22c55e;
+    --kh-text-main: #f8fafc;
+    --kh-text-sub: #94a3b8;
+    --kh-text-muted: #64748b;
+}
+
+#kyber-lobby {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--kh-bg-gradient);
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2.5rem 3.5rem;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Plus Jakarta Sans", sans-serif;
+    color: var(--kh-text-main);
+    overflow-y: auto;
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+}
+
+#kyber-lobby.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: scale(0.97);
+}
+
+/* Header */
+.lobby-header {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--kh-card-border);
+    padding-bottom: 1.25rem;
+}
+
+.lobby-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.lobby-logo {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--kh-accent-cyan), var(--kh-accent-purple));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 4px 20px var(--kh-accent-cyan-glow);
+}
+
+.lobby-title-wrap h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    margin: 0;
+    text-transform: uppercase;
+    background: linear-gradient(90deg, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.lobby-title-wrap p {
+    font-size: 0.82rem;
+    color: var(--kh-text-sub);
+    margin: 0;
+}
+
+.lobby-host-status {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: var(--kh-accent-green);
+}
+
+.status-badge.offline {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 10px currentColor;
+}
+
+.host-specs-pill {
+    font-size: 0.8rem;
+    color: var(--kh-text-sub);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid var(--kh-card-border);
+}
+
+/* Main Hub Content Grid */
+.lobby-grid {
+    width: 100%;
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.lobby-card {
+    background: var(--kh-card-bg);
+    border: 1px solid var(--kh-card-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    transition: all 0.25s ease;
+}
+
+.lobby-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.card-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #fff;
+    margin: 0;
+}
+
+/* Launcher Picker */
+.launcher-options {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+}
+
+.launcher-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--kh-card-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--kh-text-main);
+}
+
+.launcher-btn:hover {
+    background: var(--kh-card-hover);
+    border-color: var(--kh-accent-cyan);
+}
+
+.launcher-btn.active {
+    background: rgba(0, 210, 255, 0.12);
+    border-color: var(--kh-accent-cyan);
+    box-shadow: 0 0 15px var(--kh-accent-cyan-glow);
+}
+
+.launcher-btn-left {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-weight: 600;
+}
+
+.launcher-tag {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--kh-text-sub);
+}
+
+/* Settings Form Controls */
+.setting-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.setting-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--kh-text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.setting-select {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    background: #0d121c;
+    border: 1px solid var(--kh-card-border);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.setting-select:focus {
+    border-color: var(--kh-accent-cyan);
+}
+
+/* Gamepad Box */
+.gamepad-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--kh-card-border);
+    border-radius: 10px;
+}
+
+.gamepad-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.gamepad-vibrate-btn {
+    align-self: flex-start;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.78rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--kh-card-border);
+    color: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.gamepad-vibrate-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Footer / CTA Launch Bar */
+.lobby-footer {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--kh-card-border);
+    padding-top: 1.5rem;
+}
+
+.lobby-hints {
+    font-size: 0.82rem;
+    color: var(--kh-text-muted);
+}
+
+.btn-play-stream {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2.5rem;
+    background: linear-gradient(135deg, #00d2ff, #0077ff);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 25px rgba(0, 210, 255, 0.45);
+    transition: all 0.25s ease;
+}
+
+.btn-play-stream:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 35px rgba(0, 210, 255, 0.6);
+}
+
+.btn-play-stream:active {
+    transform: translateY(0);
+}
+
+/* In-Game Floating Quick Bar */
+#in-game-bar {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1500;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.4rem 1rem;
+    background: rgba(11, 14, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+    backdrop-filter: blur(12px);
+    color: var(--kh-text-sub);
+    font-size: 0.8rem;
+    font-family: inherit;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    opacity: 0.15;
+    transition: opacity 0.3s ease;
+}
+
+#in-game-bar:hover {
+    opacity: 1;
+}
+
+.in-game-btn {
+    background: transparent;
+    border: none;
+    color: var(--kh-text-main);
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.in-game-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--kh-accent-cyan);
+}

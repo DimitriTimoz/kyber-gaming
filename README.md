@@ -59,25 +59,31 @@ docker compose logs -f
 
 ## 🌐 Connecting to the Stream
 
-### Option A : Application Native Client (macOS) ⚡ *(Recommandé)*
-Une application native macOS **Kyber Gaming.app** est disponible dans `client-launcher/`.
-Elle offre un tableau de bord complet avec :
-- **Sélection des serveurs** (LAN direct, Tailscale, homelab) avec test de latence en temps réel (<1 ms).
-- **Réglages avancés** : Résolution (1080p, 1440p, 4K), Taux de rafraîchissement (60, 120, 144 FPS), Débit réseau (20 à 80 Mbps), Codecs (H.264, HEVC, AV1), transport Kymux ultra-faible latence (`gopstream`, `unreliable_fec`), buffer audio et émulation de manette Xbox 360.
-- **Lancement en 1 clic** : lance `kyclient` optimisé et redimensionne automatiquement l'affichage distant.
-
-Pour compiler et installer l'application sur votre Mac :
-```bash
-./client-launcher/build.sh
-open "/Applications/Kyber Gaming.app"
-```
-
-### Option B : Navigateur Web (Zero Install)
-Ouvrez simplement votre navigateur (Google Chrome, Microsoft Edge ou Brave) :
+### Option A : Console Web Hub intégré ⚡ *(Zero Install - Recommandé)*
+Le conteneur Docker intègre nativement un **Lobby Console & Web Hub** avant le stream. Il fonctionne instantanément sur n'importe quel appareil (**Windows, macOS, Linux, Steam Deck, iPad, Android**) sans rien installer :
 
 👉 **`https://<SERVER_IP>:8080/webclient`**
 
-> **Note regarding the TLS certificate**: On first boot, a self-signed TLS certificate is generated in `./kyber_tls`. Your browser will display a security warning that you can bypass to access the interface.
+- **Console Lobby Pré-Stream** : Détection des specs GPU (modèle, température, VRAM) et latence en temps réel.
+- **Réglages en 1 clic** : Résolution virtuelle (1080p, 1440p, 4K), Framerate (60, 120, 144 FPS), Débit (30, 50, 80 Mbps), Codecs (H.264, HEVC).
+- **Détecteur de Manettes** : Reconnaissance automatique via l'API Web Gamepad (Xbox, PlayStation DualSense, Switch) avec test de vibration.
+- **Sélecteur de Launcher** : Switch en direct entre le **Console OS Hub**, **Steam Big Picture** ou **Heroic Games**.
+- **Barre rapide en jeu** : Accès instantané au plein écran, rechargement du flux ou retour au lobby via le menu flottant.
+
+### Option B : Client Desktop Cross-Platform (Rust + Tauri v2) 🚀
+Pour les utilisateurs avancés recherchant les performances natives de `kyclient` :
+Une application de bureau multiplateforme (**Windows**, **Linux**, **macOS**) est disponible dans [`desktop-client/`](./desktop-client/) :
+- Gestionnaire multi-serveurs avec ping asynchrone ultrarapide (<1 ms).
+- Persistance standardisée (`~/.config/kyber` sur Linux, `%APPDATA%\kyber` sur Windows, `~/Library/Application Support/kyber` sur macOS).
+- Redimensionnement dynamique de l'hôte (`/api/resize`) et supervision du cycle de vie du streaming.
+- Pipeline GitHub Actions inclus pour compiler automatiquement les binaires Windows (`.exe`), Linux (`.AppImage` / `.deb`) et macOS (`.dmg`).
+
+Pour lancer en développement :
+```bash
+cd desktop-client
+cargo tauri dev
+```
+
 
 
 ---
