@@ -50,7 +50,7 @@ while true; do
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
                 if [ -f /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action
+                    rm -f /tmp/kyber_next_action 2>/dev/null || true
                     if [ "$NEXT" != "steam" ]; then
                         echo "[session] Action requested while Steam is running: $NEXT"
                         pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
@@ -74,7 +74,7 @@ while true; do
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
                 if [ -f /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action
+                    rm -f /tmp/kyber_next_action 2>/dev/null || true
                     if [ "$NEXT" != "steam-bigpicture" ]; then
                         echo "[session] Action requested: $NEXT"
                         pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
@@ -99,7 +99,7 @@ while true; do
             while pgrep -u gamer -f "heroic" >/dev/null 2>&1; do
                 if [ -f /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action
+                    rm -f /tmp/kyber_next_action 2>/dev/null || true
                     if [ "$NEXT" != "heroic" ]; then
                         echo "[session] Action requested: $NEXT"
                         pkill -u gamer -f "heroic" 2>/dev/null || true
@@ -156,7 +156,7 @@ while true; do
 
                 if [ -f /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action
+                    rm -f /tmp/kyber_next_action 2>/dev/null || true
                     if [ "$NEXT" != "browser" ] && [ "$NEXT" != "chrome" ] && [ "$NEXT" != "google-chrome" ]; then
                         echo "[session] Action requested while browser running: $NEXT"
                         for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
@@ -180,7 +180,7 @@ while true; do
                 sleep 1
             done
             CURRENT_ACTION="$(cat /tmp/kyber_next_action)"
-            rm -f /tmp/kyber_next_action
+            rm -f /tmp/kyber_next_action 2>/dev/null || true
             ;;
 
         menu)
@@ -216,7 +216,7 @@ while true; do
                 while kill -0 "$APP_PID" 2>/dev/null; do
                     if [ -f /tmp/kyber_next_action ]; then
                         NEXT=$(cat /tmp/kyber_next_action)
-                        rm -f /tmp/kyber_next_action
+                        rm -f /tmp/kyber_next_action 2>/dev/null || true
                         if [ "$NEXT" != "$CURRENT_ACTION" ]; then
                             echo "[session] Action requested: $NEXT"
                             kill -TERM "$APP_PID" 2>/dev/null || kill -9 "$APP_PID" 2>/dev/null || true

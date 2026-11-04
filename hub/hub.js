@@ -353,8 +353,28 @@
         const targetUrl = `/api/launcher?app=${encodeURIComponent(item.id)}`;
         console.log(`[hub] Launching session: ${item.id} via ${targetUrl}`);
 
+        // Safety timer to auto-dismiss overlay if launch is delayed or fails
+        const safetyTimer = setTimeout(() => {
+            isLaunching = false;
+            launchOverlayEl.classList.remove('active');
+        }, 8000);
+
         fetch(targetUrl, { method: 'GET' })
-            .catch(err => console.warn('[hub] Fetch error, continuing fallback:', err));
+            .then(res => {
+                if (!res.ok) {
+                    clearTimeout(safetyTimer);
+                    isLaunching = false;
+                    launchOverlayEl.classList.remove('active');
+                    showToast('Erreur de lancement', `Impossible de lancer ${item.name} (Code HTTP ${res.status}).`);
+                }
+            })
+            .catch(err => {
+                console.warn('[hub] Fetch error, continuing fallback:', err);
+                clearTimeout(safetyTimer);
+                isLaunching = false;
+                launchOverlayEl.classList.remove('active');
+                showToast('Erreur reseau', 'Le service resizer/launcher ne repond pas.');
+            });
     }
 
     // ==========================================================================
@@ -454,8 +474,22 @@
     // Keyboard Navigation
     // ==========================================================================
     window.addEventListener('keydown', (e) => {
+        // Prevent accidental closing of the Hub kiosk tab
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'w' || e.key === 'W')) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
         initAudio();
-        if (isLaunching) return;
+        if (isLaunching) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                isLaunching = false;
+                launchOverlayEl.classList.remove('active');
+            }
+            return;
+        }
 
         switch (e.key) {
             case 'ArrowRight':

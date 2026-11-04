@@ -22,7 +22,12 @@ DISPLAY = os.environ.get("DISPLAY", ":0")
 AUTH_USER = os.environ.get("AUTH_USER", "gamer")
 AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "kybergaming")
 
-def is_authenticated(headers, params):
+def is_authenticated(client_address, headers, params):
+    # Local requests originating from container/host localhost (e.g. Console Hub kiosk) are trusted
+    client_ip = client_address[0] if client_address else ""
+    if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
+        return True
+
     auth_header = headers.get("Authorization", "")
     if auth_header.startswith("Basic "):
         try:
@@ -240,7 +245,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
 
         # Authentication endpoint
         if parsed.path == "/api/auth/verify":
-            if is_authenticated(self.headers, params):
+            if is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"authenticated": True, "user": AUTH_USER})
             else:
                 self._send_json_response({"authenticated": False, "error": "Identifiants invalides"}, code=401)
@@ -248,7 +253,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
 
         # Protect sensitive execution endpoints
         if parsed.path in ["/api/resize", "/api/launcher"]:
-            if not is_authenticated(self.headers, params):
+            if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
 
@@ -320,6 +325,13 @@ class ResizeHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        if parsed.path in ["/api/resize", "/api/launcher"]:
+            if not is_authenticated(self.client_address, self.headers, params):
+                self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
+                return
+
         if parsed.path == "/api/resize":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length)

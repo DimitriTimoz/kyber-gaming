@@ -7,7 +7,7 @@ export HOME="/home/gamer"
 echo "[hub-launcher] Launching Kyber Gaming Console OS Kiosk on $DISPLAY..." >&2
 
 # Clean any existing profile lock or stale action
-rm -f /tmp/kyber_next_action
+rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
 rm -f /tmp/kyber-hub-profile/Singleton* 2>/dev/null || true
 mkdir -p /tmp/kyber-hub-profile/Default
 
@@ -62,7 +62,7 @@ done
 CHOICE=""
 if [ -f /tmp/kyber_next_action ]; then
     CHOICE=$(cat /tmp/kyber_next_action)
-    rm -f /tmp/kyber_next_action
+    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
     echo "[hub-launcher] Selection registered: $CHOICE" >&2
 fi
 
@@ -70,9 +70,9 @@ fi
 kill "$CHROME_PID" 2>/dev/null || true
 pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
 
-# If no choice (e.g. user closed Chrome), default to desktop
+# If no choice (e.g. user closed Chrome or tab was killed), default back to menu to avoid black screen
 if [ -z "$CHOICE" ]; then
-    CHOICE="desktop"
+    CHOICE="menu"
 fi
 
 echo "$CHOICE"
