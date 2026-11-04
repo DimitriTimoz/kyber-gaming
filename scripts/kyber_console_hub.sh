@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -e
+EXTERNAL_CLOSE=0
 
 export DISPLAY="${DISPLAY:-:0}"
 export HOME="/home/gamer"
+export XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
+export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
 
 echo "[hub-launcher] Launching Kyber Gaming Console OS Kiosk on $DISPLAY..." >&2
 
@@ -53,7 +56,8 @@ sleep 1
 # or until Chrome is closed
 while [ ! -s /tmp/kyber_next_action ]; do
     if ! pgrep -u gamer -f "kyber-hub-profile" >/dev/null 2>&1; then
-        echo "[hub-launcher] Chrome was closed externally." >&2
+        echo "[hub-launcher] Hub closed by user (Alt+F4 / window close): leaving OS mode." >&2
+        EXTERNAL_CLOSE=1
         break
     fi
     sleep 0.2
@@ -71,9 +75,13 @@ fi
 kill "$CHROME_PID" 2>/dev/null || true
 pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
 
-# If no choice (e.g. user closed Chrome or tab was killed), default back to menu to avoid black screen
+# If the user closed the Hub on purpose, drop to the desktop instead of relaunching the Hub forever
 if [ -z "$CHOICE" ]; then
-    CHOICE="menu"
+    if [ "${EXTERNAL_CLOSE:-0}" = "1" ]; then
+        CHOICE="desktop"
+    else
+        CHOICE="menu"
+    fi
 fi
 
 echo "$CHOICE"

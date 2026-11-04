@@ -5,6 +5,13 @@ xset s off
 xset s noblank
 xset -dpms
 
+# Consistent cursor size for every application (prevents oversized cursors on 4K)
+export XCURSOR_SIZE=24
+echo "Xcursor.size: 24" | xrdb -merge 2>/dev/null || true
+xsetroot -cursor_name left_ptr 2>/dev/null || true
+mkdir -p "$HOME/.config/gtk-3.0"
+printf '[Settings]\ngtk-cursor-theme-size=24\ngtk-application-prefer-dark-theme=1\n' > "$HOME/.config/gtk-3.0/settings.ini"
+
 # Dark background
 xsetroot -solid "#101216"
 

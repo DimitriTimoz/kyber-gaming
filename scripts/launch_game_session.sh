@@ -4,6 +4,8 @@ set -e
 export PATH="/usr/games:/usr/local/games:/opt/Heroic:/opt/kyber/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 export DISPLAY="${DISPLAY_NUM:-:0}"
 export HOME="/home/gamer"
+export XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
+export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
 
 echo "[session] Starting Kyber game session manager on DISPLAY $DISPLAY"
 

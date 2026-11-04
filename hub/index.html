@@ -9,112 +9,92 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="console.css">
 </head>
 <body class="console-body">
-    <div class="ambient-backdrop" id="ambientBackdrop"></div>
-    <div class="grid-overlay"></div>
+    <!-- Reactive aurora: colors follow the focused item -->
+    <div class="aurora" id="ambientBackdrop" aria-hidden="true">
+        <i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i>
+    </div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="hero-icon" id="heroIcon" aria-hidden="true"></div>
 
     <div class="console-viewport">
-        <!-- Top Status Bar & Categories -->
         <header class="top-bar">
             <div class="brand">
                 <span class="brand-badge"></span>
                 <span class="brand-title">KYBER</span>
-                <span class="brand-sub">CONSOLE OS</span>
+                <span class="brand-sub">ORBIT</span>
             </div>
 
-            <!-- Category Switcher Tabs -->
-            <nav class="category-tabs" id="categoryTabs">
-                <!-- Dynamically generated categories -->
-            </nav>
+            <nav class="category-tabs" id="categoryTabs"></nav>
 
             <div class="system-status">
-                <div class="status-pill running-app-pill" id="runningAppPill" style="display:none;" title="Cliquer pour reprendre la session active">
+                <div class="status-pill running-app-pill" id="runningAppPill" style="display:none;" title="Reprendre la session active">
                     <span class="pulse-dot"></span>
                     <span id="runningAppText">En cours</span>
-                    <button class="pill-kill-btn" id="btnKillRunningApp" title="Arrêter l'application">&#x2715;</button>
+                    <button class="pill-kill-btn" id="btnKillRunningApp" title="Arreter l'application">&#x2715;</button>
                 </div>
                 <div class="status-pill controller-status" id="controllerPill">
                     <span class="status-dot"></span>
                     <span id="controllerText">Controller</span>
                 </div>
-                <div class="status-pill gpu-status" id="gpuPill">
-                    <span id="gpuText">Detecting GPU...</span>
-                </div>
-                <div class="status-pill display-status" id="displayRes">
-                    <span>1080p 60Hz</span>
-                </div>
-                <div class="status-pill clock-status" id="clock">
-                    --:--
-                </div>
+                <div class="status-pill gpu-status" id="gpuPill"><span id="gpuText">GPU</span></div>
+                <div class="status-pill display-status" id="displayRes"><span>1080p 60Hz</span></div>
+                <div class="status-pill clock-status" id="clock">--:--</div>
+                <button class="power-btn" id="btnControlCenter" title="Centre de controle (Echap)">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+                </button>
             </div>
         </header>
 
-        <!-- Main Carousel Stage -->
         <main class="stage">
             <div class="stage-header">
                 <div class="header-topline">
                     <span class="header-pretitle" id="headerTag">LOADING...</span>
                     <span class="header-status-badge" id="headerStatus">AVAILABLE</span>
                 </div>
-                <h1 class="header-title" id="headerTitle">KYBER GAMING</h1>
-                <p class="header-desc" id="headerDesc">Select a game, launcher, or emulator to start your session.</p>
+                <h1 class="header-title" id="headerTitle">KYBER</h1>
+                <p class="header-desc" id="headerDesc">Selectionnez une application.</p>
+                <div class="hero-cta">
+                    <span class="cta-key">ENTREE</span><span class="cta-label">Lancer</span>
+                    <span class="cta-sep"></span>
+                    <span class="cta-key">ECHAP</span><span class="cta-label">Centre de controle</span>
+                </div>
             </div>
 
-            <!-- Cards Carousel Track with Edge Fades -->
             <div class="carousel-container">
-                <div class="carousel-fade carousel-fade-left"></div>
-                <div class="carousel-track" id="carouselTrack">
-                    <!-- Cards will be populated dynamically from launchers.json -->
-                </div>
-                <div class="carousel-fade carousel-fade-right"></div>
+                <div class="carousel-track" id="carouselTrack"></div>
             </div>
         </main>
 
-        <!-- Bottom Controller & Keyboard Navigation Bar -->
         <footer class="bottom-bar">
             <div class="quick-actions">
-                <button class="btn-action" id="btnRestartSteam">
-                    <span class="btn-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></span>
-                    <span>Reload Steam</span>
-                    <span class="btn-badge">R</span>
-                </button>
-                <button class="btn-action" id="btnRomManager">
-                    <span class="btn-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zm-7-2h2v-3h3V9h-3V6h-2v3h-3v2h3z"/></svg></span>
-                    <span>ROM & Game Manager</span>
-                    <span class="btn-badge">M</span>
-                </button>
-                <button class="btn-action" id="btnDesktopMode">
-                    <span class="btn-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z"/></svg></span>
-                    <span>Desktop Mode</span>
-                    <span class="btn-badge">D</span>
-                </button>
+                <button class="btn-action" id="btnRestartSteam"><span>Reload Steam</span><span class="btn-badge">R</span></button>
+                <button class="btn-action" id="btnRomManager"><span>ROM &amp; Game Manager</span><span class="btn-badge">M</span></button>
+                <button class="btn-action" id="btnDesktopMode"><span>Mode Bureau</span><span class="btn-badge">D</span></button>
             </div>
-
             <div class="nav-hints">
-                <div class="hint-item">
-                    <span class="pad-btn pad-a">A</span>
-                    <span class="key-hint">Enter</span>
-                    <span class="hint-label">Select</span>
-                </div>
-                <div class="hint-item">
-                    <span class="pad-btn pad-b">B</span>
-                    <span class="key-hint">Esc</span>
-                    <span class="hint-label">Desktop</span>
-                </div>
-                <div class="hint-item">
-                    <span class="pad-dpad">&#8249; &#8250;</span>
-                    <span class="key-hint">&#8592; &#8594;</span>
-                    <span class="hint-label">Navigate</span>
-                </div>
-                <div class="hint-item">
-                    <span class="pad-btn pad-bumper">LB / RB</span>
-                    <span class="key-hint">Q / E</span>
-                    <span class="hint-label">Categories</span>
-                </div>
+                <div class="hint-item"><span class="pad-btn pad-a">A</span><span class="key-hint">Entree</span><span class="hint-label">Lancer</span></div>
+                <div class="hint-item"><span class="pad-dpad">&#8249; &#8250;</span><span class="key-hint">&#8592; &#8594;</span><span class="hint-label">Tourner</span></div>
+                <div class="hint-item"><span class="pad-btn pad-bumper">LB / RB</span><span class="key-hint">Q / E</span><span class="hint-label">Categories</span></div>
+                <div class="hint-item"><span class="pad-btn pad-b">B</span><span class="key-hint">Echap</span><span class="hint-label">Controle</span></div>
             </div>
         </footer>
     </div>
+
+    <!-- Control Center: always-available exit & session management -->
+    <div class="cc-scrim" id="ccScrim"></div>
+    <aside class="control-center" id="controlCenter" aria-hidden="true">
+        <div class="cc-title">CENTRE DE CONTROLE</div>
+        <button class="cc-item" data-cc="resume"><span class="cc-ico">&#9654;</span><span class="cc-txt">Reprendre l'application<small id="ccResumeName"></small></span></button>
+        <button class="cc-item" data-cc="closeapp"><span class="cc-ico">&#10005;</span><span class="cc-txt">Fermer l'application en cours</span></button>
+        <button class="cc-item" data-cc="desktop"><span class="cc-ico">&#9707;</span><span class="cc-txt">Quitter le mode OS<small>Bureau avec barre des taches (F1 pour revenir)</small></span></button>
+        <button class="cc-item" data-cc="rom"><span class="cc-ico">&#9636;</span><span class="cc-txt">Gestionnaire ROM</span></button>
+        <button class="cc-item" data-cc="steam"><span class="cc-ico">&#8635;</span><span class="cc-txt">Recharger Steam</span></button>
+        <button class="cc-item" data-cc="reload"><span class="cc-ico">&#10227;</span><span class="cc-txt">Recharger le Hub</span></button>
+        <button class="cc-item" data-cc="close"><span class="cc-ico">&#8592;</span><span class="cc-txt">Retour</span></button>
+    </aside>
 
     <!-- Fullscreen Launching Splash Overlay -->
     <div class="launch-overlay" id="launchOverlay">
