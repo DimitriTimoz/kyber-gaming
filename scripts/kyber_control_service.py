@@ -774,6 +774,11 @@ def set_resolution(width, height, rate=60):
         # Fallback to simple -s if output-based switch failed
         run_cmd(f'xrandr -s {width}x{height} -r {rate}')
 
+    # Ensure Kyber Console Hub window immediately fills the new screen dimensions
+    run_cmd(f'wmctrl -r "Kyber Console OS" -b remove,fullscreen,maximized_vert,maximized_horz 2>/dev/null || true')
+    run_cmd(f'wmctrl -r "Kyber Console OS" -e 0,0,0,{width},{height} 2>/dev/null || true')
+    run_cmd(f'wmctrl -r "Kyber Console OS" -b add,fullscreen,maximized_vert,maximized_horz 2>/dev/null || true')
+
     return {"status": "ok", "width": width, "height": height, "rate": rate, "output": output, "mode": mode_name}
 
 class ResizeHandler(BaseHTTPRequestHandler):

@@ -27,16 +27,27 @@ fi
 
 echo "[hub-launcher] Opening Hub UI at $HUB_URL" >&2
 
-# Launch Google Chrome in full console kiosk mode
+# Detect active display resolution so the kiosk window always fills 100% of the screen
+SCREEN_RES=$(xrandr --current 2>/dev/null | awk '/\*/ {print $1; exit}')
+SCREEN_W=$(echo "${SCREEN_RES:-1920x1080}" | cut -d'x' -f1)
+SCREEN_H=$(echo "${SCREEN_RES:-1920x1080}" | cut -d'x' -f2)
+
+# Launch Google Chrome in true fullscreen console kiosk mode
 /opt/google/chrome/chrome \
+    --class=KyberHub \
+    --no-sandbox \
     --kiosk \
+    --start-fullscreen \
+    --start-maximized \
+    --window-position=0,0 \
+    --window-size="${SCREEN_W},${SCREEN_H}" \
     --no-first-run \
     --no-default-browser-check \
     --disable-infobars \
     --disable-session-crashed-bubble \
     --disable-features=Translate,OptimizationHints \
     --disable-translate \
-    --lang=fr-FR \
+    --lang=en-US \
     --noerrdialogs \
     --disable-popup-blocking \
     --autoplay-policy=no-user-gesture-required \
@@ -47,10 +58,14 @@ echo "[hub-launcher] Opening Hub UI at $HUB_URL" >&2
     --ignore-certificate-errors \
     --allow-file-access-from-files \
     --user-data-dir=/tmp/kyber-hub-profile \
-    --app="$HUB_URL" >/dev/null 2>&1 &
+    "$HUB_URL" >/dev/null 2>&1 &
 
 CHROME_PID=$!
 sleep 1
+
+# Enforce X11 fullscreen and 0,0 geometry via wmctrl
+wmctrl -r "Kyber Console OS" -e "0,0,0,${SCREEN_W},${SCREEN_H}" 2>/dev/null || true
+wmctrl -r "Kyber Console OS" -b add,fullscreen,maximized_vert,maximized_horz 2>/dev/null || true
 
 # Wait for a selection event (/tmp/kyber_next_action written with non-empty command)
 # or until Chrome is closed

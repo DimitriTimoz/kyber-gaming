@@ -264,28 +264,44 @@
   </mouse>
 
   <applications>
-    <!-- Kyber Console OS Hub Kiosk -->
-    <application title="*Kyber*">
-      <decor>no</decor>
+    <!-- Default for normal desktop applications: Decorated with titlebar, close button, and border -->
+    <application class="*">
+      <decor>yes</decor>
       <maximized>yes</maximized>
+    </application>
+
+    <!-- Dialogs and utility popups: Decorated and centered, not maximized -->
+    <application type="dialog">
+      <decor>yes</decor>
+      <maximized>no</maximized>
+      <fullscreen>no</fullscreen>
     </application>
 
     <!-- Steam Big Picture Mode -->
     <application class="*steamwebhelper*" title="*Big Picture*">
       <decor>no</decor>
       <maximized>yes</maximized>
+      <fullscreen>yes</fullscreen>
     </application>
 
-    <!-- Dialogs and utility popups: Always decorated with titlebar and close button -->
-    <application type="dialog">
-      <decor>yes</decor>
-      <maximized>no</maximized>
+    <!-- Kyber Console OS Hub Kiosk (evaluated last so it always wins) -->
+    <application title="*Kyber Console OS*">
+      <decor>no</decor>
+      <maximized>yes</maximized>
+      <fullscreen>yes</fullscreen>
+      <position force="yes">
+        <x>0</x>
+        <y>0</y>
+      </position>
     </application>
-
-    <!-- All applications default: Decorated with clean titlebar, close button, and border -->
-    <application class="*">
-      <decor>yes</decor>
-      <maximized>no</maximized>
+    <application class="*KyberHub*">
+      <decor>no</decor>
+      <maximized>yes</maximized>
+      <fullscreen>yes</fullscreen>
+      <position force="yes">
+        <x>0</x>
+        <y>0</y>
+      </position>
     </application>
   </applications>
 </openbox_config>

@@ -2,19 +2,19 @@
   "categories": [
     {
       "id": "all",
-      "name": "All"
+      "name": "All Experiences"
     },
     {
       "id": "launchers",
-      "name": "Launchers"
+      "name": "PC Platforms"
     },
     {
       "id": "emulators",
-      "name": "Emulators"
+      "name": "Emulators & ROMs"
     },
     {
       "id": "system",
-      "name": "System"
+      "name": "System & Desktop"
     }
   ],
   "items": [
@@ -22,12 +22,15 @@
       "id": "steam",
       "category": "launchers",
       "name": "Steam",
-      "tag": "DESKTOP & STORE",
-      "desc": "Full PC gaming platform, store, voice chat, and community.",
+      "watermark": "VALVE STEAM",
+      "tag": "PC PLATFORM & STORE",
+      "specs": ["VULKAN", "PROTON GE", "CLOUD SAVES"],
+      "desc": "Full PC gaming catalog, official store, friends list, voice chat, and high-performance Proton compatibility.",
       "command": "steam -no-cef-sandbox",
       "icon": "steam",
-      "color": "#66c0f4",
-      "color_glow": "rgba(102,192,244,0.45)",
+      "color": "#38bdf8",
+      "color_secondary": "#1d4ed8",
+      "color_glow": "rgba(56, 189, 248, 0.48)",
       "badge_key": "1",
       "badge_pad": "A"
     },
@@ -35,79 +38,97 @@
       "id": "steam-bigpicture",
       "category": "launchers",
       "name": "Big Picture",
-      "tag": "TV & DECK CONSOLE",
-      "desc": "Steam Deck console interface optimized for big screens and gamepads.",
+      "watermark": "STEAM DECK OS",
+      "tag": "LIVING ROOM CONSOLE UI",
+      "specs": ["100% CONTROLLER", "STEAM DECK UI", "60 FPS"],
+      "desc": "Official SteamOS console interface built for large displays and complete gamepad navigation.",
       "command": "steam -bigpicture -no-cef-sandbox",
       "icon": "bigpicture",
       "color": "#a855f7",
-      "color_glow": "rgba(168, 85, 247, 0.45)",
+      "color_secondary": "#4338ca",
+      "color_glow": "rgba(168, 85, 247, 0.48)",
       "badge_key": "2",
       "badge_pad": "Y"
     },
     {
       "id": "heroic",
       "category": "launchers",
-      "name": "Heroic",
-      "tag": "EPIC GAMES & GOG",
-      "desc": "Access Epic Games Store and GOG libraries with cloud save sync.",
+      "name": "Heroic Games",
+      "watermark": "EPIC & GOG",
+      "tag": "EPIC GAMES, GOG & AMAZON",
+      "specs": ["LEGENDARY", "WINE-GE", "ANTI-CHEAT"],
+      "desc": "Access your Epic Games Store, GOG, and Amazon Prime Gaming libraries with cloud save synchronization.",
       "command": "heroic --no-sandbox",
       "icon": "heroic",
       "color": "#10b981",
-      "color_glow": "rgba(16, 185, 129, 0.45)",
+      "color_secondary": "#047857",
+      "color_glow": "rgba(16, 185, 129, 0.48)",
       "badge_key": "3",
       "badge_pad": "X"
     },
     {
       "id": "eglantine",
       "category": "emulators",
-      "name": "Eglantine",
-      "tag": "SWITCH & NX2 EMULATOR",
-      "desc": "Experimental Nintendo Switch & Switch 2 (nx2) emulator with high-fidelity Vulkan rendering.",
+      "name": "Eglantine NX2",
+      "watermark": "NINTENDO NX2",
+      "tag": "SWITCH & SWITCH 2 EMULATOR",
+      "specs": ["VULKAN 1.3", "NVDEC GPU", "4K SCALING"],
+      "desc": "High-fidelity Nintendo Switch and Switch 2 (NX2) emulator with hardware Vulkan acceleration and multi-controller support.",
       "command": "eglantine",
       "icon": "switch",
-      "color": "#e11d48",
-      "color_glow": "rgba(225, 29, 72, 0.45)",
+      "color": "#f43f5e",
+      "color_secondary": "#9f1239",
+      "color_glow": "rgba(244, 63, 94, 0.52)",
       "badge_key": "5",
       "badge_pad": "RT"
     },
     {
       "id": "rom-manager",
       "category": "emulators",
-      "name": "ROM Manager",
-      "tag": "STORAGE & KEYS",
-      "desc": "Manage, upload, and organize Nintendo Switch ROMs (.nsp, .xci, .nsz) and firmware keys.",
+      "name": "ROM Library",
+      "watermark": "ROM STORAGE",
+      "tag": "GAME & KEY MANAGER",
+      "specs": ["NSP / XCI / ISO", "7Z EXTRACT", "FIRMWARE"],
+      "desc": "Upload, organize, and extract your game images (.nsp, .xci, .iso), title updates, DLC packs, and prod.keys.",
       "command": "rom-manager",
       "icon": "rom",
-      "color": "#a855f7",
-      "color_glow": "rgba(168, 85, 247, 0.45)",
+      "color": "#c084fc",
+      "color_secondary": "#6d28d9",
+      "color_glow": "rgba(192, 132, 252, 0.48)",
       "badge_key": "M",
       "badge_pad": "SEL"
     },
     {
       "id": "browser",
       "category": "system",
-      "name": "Web Browser",
-      "tag": "GOOGLE CHROME",
-      "desc": "Web browsing, game wikis, mod downloads, and Discord in fullscreen.",
+      "name": "Google Chrome",
+      "watermark": "WEB STREAM",
+      "tag": "MULTIMEDIA BROWSER",
+      "specs": ["GPU ACCELERATED", "4K STREAMING", "WEBGL 2"],
+      "desc": "High-speed web browsing, game wikis, mod downloads, YouTube, Twitch, and cloud gaming services.",
       "command": "google-chrome",
       "icon": "browser",
-      "color": "#4285f4",
-      "color_glow": "rgba(66,133,244,0.45)",
+      "color": "#3b82f6",
+      "color_secondary": "#1d4ed8",
+      "color_glow": "rgba(59, 130, 246, 0.48)",
       "badge_key": "4",
       "badge_pad": "LB"
     },
     {
       "id": "desktop",
       "category": "system",
-      "name": "Linux Desktop",
-      "tag": "DESKTOP MODE",
-      "desc": "Direct access to full desktop environment, window manager, and terminal.",
+      "name": "Desktop Mode",
+      "watermark": "LINUX DESKTOP",
+      "tag": "FULL DESKTOP ENVIRONMENT",
+      "specs": ["OPENBOX WM", "FILE MANAGER", "TERMINAL"],
+      "desc": "Switch to the full Linux desktop environment with taskbar, multi-window management, and file explorer.",
       "command": "desktop",
       "icon": "desktop",
       "color": "#94a3b8",
-      "color_glow": "rgba(148, 163, 184, 0.35)",
+      "color_secondary": "#334155",
+      "color_glow": "rgba(148, 163, 184, 0.4)",
       "badge_key": "0",
-      "badge_pad": "SEL"
+      "badge_pad": "START"
     }
   ]
 }

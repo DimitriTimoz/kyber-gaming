@@ -89,65 +89,95 @@
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    // Tactile silky console focus tick (Nintendo Switch / PS5 style)
+    // Tactile silky console focus tick + sub-bass pulse (PS5 / Switch 2 style)
     function playFocusSound() {
         try {
             initAudio();
             if (!audioCtx) return;
             const now = audioCtx.currentTime;
+            // High metallic click
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(860, now);
-            osc.frequency.exponentialRampToValueAtTime(420, now + 0.035);
-            gain.gain.setValueAtTime(0.06, now);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.038);
+            osc.frequency.setValueAtTime(920, now);
+            osc.frequency.exponentialRampToValueAtTime(410, now + 0.036);
+            gain.gain.setValueAtTime(0.055, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(now);
-            osc.stop(now + 0.04);
+            osc.stop(now + 0.042);
+
+            // Subtle physical sub-bass thump
+            const sub = audioCtx.createOscillator();
+            const subGain = audioCtx.createGain();
+            sub.type = 'triangle';
+            sub.frequency.setValueAtTime(105, now);
+            sub.frequency.exponentialRampToValueAtTime(48, now + 0.055);
+            subGain.gain.setValueAtTime(0.045, now);
+            subGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+            sub.connect(subGain);
+            subGain.connect(audioCtx.destination);
+            sub.start(now);
+            sub.stop(now + 0.065);
         } catch (e) {}
     }
 
-    // Upward sweep when switching category tabs
+    // Resonant filter swoosh when switching category tabs
     function playTabSound() {
         try {
             initAudio();
             if (!audioCtx) return;
             const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
+            const filter = audioCtx.createBiquadFilter();
             const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(380, now);
-            osc.frequency.exponentialRampToValueAtTime(680, now + 0.07);
-            gain.gain.setValueAtTime(0.09, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-            osc.connect(gain);
+            osc.type = 'triangle';
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(300, now);
+            filter.frequency.exponentialRampToValueAtTime(1400, now + 0.085);
+            osc.frequency.setValueAtTime(320, now);
+            osc.frequency.exponentialRampToValueAtTime(690, now + 0.085);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
+            osc.connect(filter);
+            filter.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(now);
-            osc.stop(now + 0.09);
+            osc.stop(now + 0.1);
         } catch (e) {}
     }
 
-    // Rich harmonic console triad chord (C-E-G) on launch
+    // Rich harmonic console chord + sub drop on launch
     function playLaunchSound() {
         try {
             initAudio();
             if (!audioCtx) return;
             const now = audioCtx.currentTime;
-            [523.25, 659.25, 783.99].forEach((freq, idx) => {
+            [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                const startTime = now + idx * 0.04;
+                osc.type = idx === 3 ? 'triangle' : 'sine';
+                const startTime = now + idx * 0.038;
                 osc.frequency.setValueAtTime(freq, startTime);
-                gain.gain.setValueAtTime(0.12, startTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+                gain.gain.setValueAtTime(0.1, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.52);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start(startTime);
-                osc.stop(startTime + 0.45);
+                osc.stop(startTime + 0.56);
             });
+            const sub = audioCtx.createOscillator();
+            const subGain = audioCtx.createGain();
+            sub.type = 'sine';
+            sub.frequency.setValueAtTime(130, now);
+            sub.frequency.exponentialRampToValueAtTime(42, now + 0.45);
+            subGain.gain.setValueAtTime(0.14, now);
+            subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+            sub.connect(subGain);
+            subGain.connect(audioCtx.destination);
+            sub.start(now);
+            sub.stop(now + 0.5);
         } catch (e) {}
     }
 
@@ -247,8 +277,10 @@
     }
 
     // ==========================================================================
-    // Cards Rendering & Dynamic Filtering
+    // Cards Rendering, 4-Layer 3D Parallax & Specular Sheen
     // ==========================================================================
+    let ambImpulseX = 0;
+
     function filterAndRenderCards(selectIdx = 0) {
         const activeCatId = categories[currentCategoryIndex]?.id || 'all';
 
@@ -259,6 +291,9 @@
         }
 
         carouselTrackEl.innerHTML = '';
+        carouselTrackEl.classList.remove('entering');
+        void carouselTrackEl.offsetWidth;
+        carouselTrackEl.classList.add('entering');
 
         filteredItems.forEach((item, idx) => {
             const card = document.createElement('div');
@@ -267,30 +302,59 @@
             card.dataset.index = idx;
             card.dataset.id = item.id;
             card.tabIndex = 0;
+            card.style.setProperty('--i', idx);
 
             const coverClass = `cover-${item.icon || 'steam'}`;
             const svgIcon = ICONS[item.icon] || ICONS.gamepad;
+            const subText = installed
+                ? (item.category === 'emulators' ? 'Emulator ready' : 'Ready to launch')
+                : 'Not installed';
 
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="card-cover ${coverClass}">
-                        <div class="card-tag">${item.tag || 'EXPÉRIENCE'}</div>
+                        <div class="card-sheen"></div>
+                        <div class="card-tag">${item.tag || 'EXPERIENCE'}</div>
                         <div class="card-bg-icon">${svgIcon}</div>
                         <div class="card-icon">${svgIcon}</div>
                     </div>
                     <div class="card-meta">
                         <div class="meta-title">${item.name}</div>
-                        <div class="meta-sub">${installed ? (item.category === 'emulators' ? 'Emulator' : 'Ready to launch') : 'Not installed'}</div>
+                        <div class="meta-sub">${subText}</div>
                     </div>
                     <div class="card-badge">
                         <span class="badge-key">${item.badge_key || (idx + 1)}</span>
                         <span class="badge-pad">${item.badge_pad || 'A'}</span>
                     </div>
                 </div>
+                <div class="card-reflection"></div>
             `;
+
+            // Real-time Apple TV / PS5 3D Tilt & Specular Sheen on pointer move
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const rx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+                const ry = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+                const tiltX = (-ry * 13).toFixed(2);
+                const tiltY = (rx * 15).toFixed(2);
+                const sheenX = ((0.5 - rx * 0.42) * 100).toFixed(1);
+                const sheenY = ((0.4 - ry * 0.42) * 100).toFixed(1);
+                card.style.setProperty('--tilt-x', `${tiltX}deg`);
+                card.style.setProperty('--tilt-y', `${tiltY}deg`);
+                card.style.setProperty('--sheen-x', `${sheenX}%`);
+                card.style.setProperty('--sheen-y', `${sheenY}%`);
+            });
+
+            card.addEventListener('mouseleave', () => {
+                card.style.setProperty('--tilt-x', '0deg');
+                card.style.setProperty('--tilt-y', '0deg');
+                card.style.setProperty('--sheen-x', '50%');
+                card.style.setProperty('--sheen-y', '30%');
+            });
 
             card.addEventListener('click', () => {
                 initAudio();
+                wakeDock();
                 if (idx !== currentItemIndex) {
                     setItemIndex(idx);
                 } else {
@@ -310,7 +374,9 @@
         if (!carouselTrackEl || filteredItems.length === 0) return;
         const cards = carouselTrackEl.querySelectorAll('.card');
         const n = cards.length;
-        const step = n > 7 ? 7 : 9; // degrees between cards on the wheel
+        const cardW = Math.min(320, Math.max(230, window.innerWidth * 0.175));
+        const spread = cardW * 0.92;
+
         cards.forEach((card, idx) => {
             let d = idx - currentItemIndex;
             if (n > 2) {
@@ -319,15 +385,24 @@
             }
             const ad = Math.abs(d);
             card.classList.toggle('active', d === 0);
-            card.style.zIndex = String(20 - ad);
+            card.style.zIndex = String(30 - ad);
+
             if (d === 0) {
-                card.style.transform = 'translateY(-4vh) scale(1.12)';
+                card.style.transform = 'translate3d(0px, -2.8vh, 65px) rotateY(0deg) scale(1.15)';
                 card.style.opacity = '1';
+                card.style.filter = 'none';
             } else if (ad <= 3) {
-                card.style.transform = `rotate(${d * step}deg) scale(${1 - ad * 0.05})`;
-                card.style.opacity = String(Math.max(0.35, 0.95 - ad * 0.17));
+                const tx = d * spread + Math.sign(d) * (cardW * 0.14);
+                const ty = ad * 10;
+                const tz = -ad * 75;
+                const ry = -Math.sign(d) * Math.min(28, 16 + ad * 4);
+                const sc = Math.max(0.75, 1 - ad * 0.08);
+                card.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty}px, ${tz}px) rotateY(${ry}deg) scale(${sc})`;
+                card.style.opacity = String(Math.max(0.32, 0.92 - ad * 0.2));
+                card.style.filter = `brightness(${Math.max(0.55, 0.9 - ad * 0.12)})`;
             } else {
-                card.style.transform = `rotate(${Math.sign(d) * (step * 4)}deg) scale(0.8)`;
+                const tx = Math.sign(d) * spread * 3.6;
+                card.style.transform = `translate3d(${tx.toFixed(1)}px, 30px, -280px) rotateY(${-Math.sign(d) * 32}deg) scale(0.7)`;
                 card.style.opacity = '0';
             }
             card.style.pointerEvents = ad <= 3 ? 'auto' : 'none';
@@ -337,34 +412,61 @@
     function setItemIndex(index, playSound = true) {
         if (isLaunching || filteredItems.length === 0) return;
 
+        const prevIndex = currentItemIndex;
         if (index < 0) index = filteredItems.length - 1;
         if (index >= filteredItems.length) index = 0;
+
+        // Apply particle impulse on navigation
+        if (playSound && index !== prevIndex) {
+            const dir = index > prevIndex ? -1 : 1;
+            ambImpulseX = dir * 4.2;
+        }
 
         currentItemIndex = index;
         const currentItem = filteredItems[currentItemIndex];
 
-        // Apply Dynamic Palette
-        const accentColor = currentItem.color || '#00d2ff';
-        const glowColor = currentItem.color_glow || 'rgba(0, 210, 255, 0.45)';
+        // Apply Dynamic Volumetric Palette
+        const accentColor = currentItem.color || '#38bdf8';
+        const secondaryColor = currentItem.color_secondary || '#1d4ed8';
+        const glowColor = currentItem.color_glow || 'rgba(56, 189, 248, 0.48)';
         document.documentElement.style.setProperty('--active-accent', accentColor);
+        document.documentElement.style.setProperty('--active-secondary', secondaryColor);
         document.documentElement.style.setProperty('--active-glow', glowColor);
 
-        // Update Header with fluid slide-fade animation
+        // Update Hero Stage Typography & Specs
         headerTagEl.textContent = currentItem.tag || currentItem.category.toUpperCase();
         headerTitleEl.textContent = currentItem.name.toUpperCase();
         headerDescEl.textContent = currentItem.desc;
 
-        [headerTagEl, headerTitleEl, headerDescEl].forEach(el => {
+        const specsEl = document.getElementById('headerSpecs');
+        if (specsEl) {
+            const specs = currentItem.specs || ['VULKAN', '60 FPS', 'LOW LATENCY'];
+            specsEl.innerHTML = specs.map(s => `<span class="spec-pill">${s}</span>`).join('');
+        }
+
+        [headerTagEl, headerTitleEl, headerDescEl].forEach((el) => {
             if (el) {
-                el.classList.remove('slide-enter');
+                const cls = el === headerTitleEl ? 'title-reveal' : 'slide-enter';
+                el.classList.remove('slide-enter', 'title-reveal');
                 void el.offsetWidth;
-                el.classList.add('slide-enter');
+                el.classList.add(cls);
             }
         });
 
         const isInstalled = currentItem.installed !== false;
-        headerStatusEl.textContent = isInstalled ? 'AVAILABLE' : 'NOT INSTALLED';
+        headerStatusEl.textContent = isInstalled ? 'READY TO PLAY' : 'NOT INSTALLED';
         headerStatusEl.className = `header-status-badge ${!isInstalled ? 'missing' : ''}`;
+
+        // Monumental Watermark Text & Emblem Swap
+        const watermarkEl = document.getElementById('heroWatermark');
+        if (watermarkEl) {
+            watermarkEl.classList.add('swap');
+            clearTimeout(watermarkEl._t);
+            watermarkEl._t = setTimeout(() => {
+                watermarkEl.textContent = (currentItem.watermark || currentItem.name).toUpperCase();
+                watermarkEl.classList.remove('swap');
+            }, 160);
+        }
 
         const heroIconEl = document.getElementById('heroIcon');
         if (heroIconEl) {
@@ -373,16 +475,17 @@
             heroIconEl._t = setTimeout(() => {
                 heroIconEl.innerHTML = ICONS[currentItem.icon] || ICONS.gamepad;
                 heroIconEl.classList.remove('swap');
-            }, 180);
+            }, 160);
         }
 
         updateTrackPosition();
+        setDroneNote(currentItemIndex);
 
         if (playSound) playFocusSound();
     }
 
     // ==========================================================================
-    // Launch Action & Missing Item Toast
+    // Launch Action, Warp Shockwave & Missing Item Toast
     // ==========================================================================
     let toastTimeout = null;
 
@@ -408,7 +511,7 @@
         if (item.installed === false) {
             showToast(
                 `${item.name} is not installed`,
-                `To enable it in your homelab, install the corresponding package or binary in the container.`
+                `Install the corresponding package or binary inside the container to enable this platform.`
             );
             return;
         }
@@ -416,10 +519,23 @@
         isLaunching = true;
         playLaunchSound();
 
+        // Trigger 3D Card Warp Zoom & Shockwave Ring
+        const activeCard = carouselTrackEl.querySelector('.card.active');
+        if (activeCard) activeCard.classList.add('launching');
+        const warpRing = document.getElementById('launchWarpRing');
+        if (warpRing) {
+            warpRing.classList.remove('active');
+            void warpRing.offsetWidth;
+            warpRing.classList.add('active');
+        }
+
         launchTitleEl.textContent = `LAUNCHING ${item.name.toUpperCase()}...`;
-        launchSubEl.textContent = item.desc;
+        launchSubEl.textContent = item.desc || 'Initializing high-performance gaming session...';
         launchLogoEl.innerHTML = ICONS[item.icon] || ICONS.gamepad;
-        launchOverlayEl.classList.add('active');
+
+        setTimeout(() => {
+            if (isLaunching) launchOverlayEl.classList.add('active');
+        }, 160);
 
         const targetUrl = `/api/launcher?app=${encodeURIComponent(item.id)}`;
         console.log(`[hub] Launching session: ${item.id} via ${targetUrl}`);
@@ -428,6 +544,7 @@
         const safetyTimer = setTimeout(() => {
             isLaunching = false;
             launchOverlayEl.classList.remove('active');
+            if (activeCard) activeCard.classList.remove('launching');
         }, 8000);
 
         fetch(targetUrl, { method: 'GET' })
@@ -436,7 +553,8 @@
                     clearTimeout(safetyTimer);
                     isLaunching = false;
                     launchOverlayEl.classList.remove('active');
-                    showToast('Launch Error', `Unable to launch ${item.name} (HTTP code ${res.status}).`);
+                    if (activeCard) activeCard.classList.remove('launching');
+                    showToast('Launch Error', `Unable to launch ${item.name} (HTTP ${res.status}).`);
                 }
             })
             .catch(err => {
@@ -444,9 +562,262 @@
                 clearTimeout(safetyTimer);
                 isLaunching = false;
                 launchOverlayEl.classList.remove('active');
-                showToast('Network Error', 'The launcher service did not respond.');
+                if (activeCard) activeCard.classList.remove('launching');
+                showToast('Service Offline', 'The Kyber control service did not respond.');
             });
     }
+
+    // ==========================================================================
+    // Ambiance Engine: Theater Dust, Rain, Neon Grid & Spatial Drone
+    // ==========================================================================
+    const AMBIANCES = [
+        { id: 'theater',   name: 'Theater' },
+        { id: 'particles', name: 'Cosmos' },
+        { id: 'grid',      name: 'Neon Grid' },
+        { id: 'rain',      name: 'Cyber Rain' },
+        { id: 'minimal',   name: 'Minimal' }
+    ];
+    let savedAmb = localStorage.getItem('kyber_ambiance');
+    let ambIndex = Math.max(0, AMBIANCES.findIndex(a => a.id === savedAmb));
+    let ambSoundOn = localStorage.getItem('kyber_amb_sound') === '1';
+    const ambCanvas = document.getElementById('ambientCanvas');
+    const ambCtx = ambCanvas ? ambCanvas.getContext('2d') : null;
+    const ambChipEl = document.getElementById('ambChip');
+    let ambParticles = [];
+    let ambColor = '56,189,248';
+    let ambColorStamp = 0;
+    let ambRaf = null;
+
+    function resizeAmbCanvas() {
+        if (!ambCanvas) return;
+        const scale = 0.55;
+        ambCanvas.width = Math.floor(window.innerWidth * scale);
+        ambCanvas.height = Math.floor(window.innerHeight * scale);
+        ambParticles = [];
+    }
+
+    function refreshAmbColor(now) {
+        if (now - ambColorStamp < 200) return;
+        ambColorStamp = now;
+        const c = getComputedStyle(document.documentElement).getPropertyValue('--active-accent').trim();
+        const m = c.match(/\d+(\.\d+)?/g);
+        if (m && m.length >= 3 && c.startsWith('rgb')) ambColor = `${m[0]},${m[1]},${m[2]}`;
+        else if (c.startsWith('#') && c.length === 7) {
+            ambColor = `${parseInt(c.slice(1, 3), 16)},${parseInt(c.slice(3, 5), 16)},${parseInt(c.slice(5, 7), 16)}`;
+        }
+    }
+
+    function ambFrame(now) {
+        const mode = AMBIANCES[ambIndex].id;
+        if (!ambCtx || (mode !== 'theater' && mode !== 'particles' && mode !== 'rain')) {
+            ambRaf = null;
+            return;
+        }
+        refreshAmbColor(now);
+        const w = ambCanvas.width, h = ambCanvas.height;
+        ambCtx.clearRect(0, 0, w, h);
+
+        ambImpulseX *= 0.91;
+        if (Math.abs(ambImpulseX) < 0.02) ambImpulseX = 0;
+
+        const target = mode === 'rain' ? 75 : (mode === 'theater' ? 48 : 65);
+        while (ambParticles.length < target) {
+            ambParticles.push({
+                x: Math.random() * w,
+                y: Math.random() * h,
+                v: mode === 'rain' ? 3.2 + Math.random() * 4.8 : 0.18 + Math.random() * 0.48,
+                r: mode === 'rain' ? 1 : 0.9 + Math.random() * 2.2,
+                l: mode === 'rain' ? 16 + Math.random() * 28 : 0,
+                a: 0.16 + Math.random() * 0.48,
+                ph: Math.random() * 6.28
+            });
+        }
+
+        for (const p of ambParticles) {
+            if (mode === 'rain') {
+                p.y += p.v;
+                p.x += ambImpulseX * 0.5;
+                if (p.y - p.l > h) { p.y = -10; p.x = Math.random() * w; }
+                if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w;
+                const g = ambCtx.createLinearGradient(p.x, p.y - p.l, p.x, p.y);
+                g.addColorStop(0, `rgba(${ambColor},0)`);
+                g.addColorStop(1, `rgba(${ambColor},${p.a})`);
+                ambCtx.fillStyle = g;
+                ambCtx.fillRect(p.x, p.y - p.l, p.r, p.l);
+            } else {
+                p.y -= p.v;
+                p.ph += 0.012;
+                p.x += Math.sin(p.ph) * 0.35 + ambImpulseX * (0.4 + p.r * 0.25);
+                if (p.y < -6) { p.y = h + 6; p.x = Math.random() * w; }
+                if (p.x < -6) p.x += w + 12; else if (p.x > w + 6) p.x -= w + 12;
+                ambCtx.beginPath();
+                const alpha = p.a * (0.55 + 0.45 * Math.sin(p.ph * 2.5));
+                ambCtx.fillStyle = `rgba(${ambColor},${alpha.toFixed(3)})`;
+                ambCtx.arc(p.x, p.y, p.r, 0, 6.283);
+                ambCtx.fill();
+            }
+        }
+
+        // Subtle autonomous 3D sheen drift on the focused card when idle
+        const activeCard = carouselTrackEl ? carouselTrackEl.querySelector('.card.active:not(:hover)') : null;
+        if (activeCard) {
+            const t = now * 0.0012;
+            const bx = (Math.sin(t) * 3.2).toFixed(2);
+            const by = (Math.cos(t * 0.8) * 4.0).toFixed(2);
+            const sx = (50 + Math.sin(t) * 18).toFixed(1);
+            const sy = (32 + Math.cos(t * 0.8) * 14).toFixed(1);
+            activeCard.style.setProperty('--tilt-x', `${bx}deg`);
+            activeCard.style.setProperty('--tilt-y', `${by}deg`);
+            activeCard.style.setProperty('--sheen-x', `${sx}%`);
+            activeCard.style.setProperty('--sheen-y', `${sy}%`);
+        }
+
+        ambRaf = requestAnimationFrame(ambFrame);
+    }
+
+    function applyAmbiance(showChip) {
+        const mode = AMBIANCES[ambIndex].id;
+        AMBIANCES.forEach(a => body.classList.toggle('amb-' + a.id, a.id === mode));
+        if (ambCtx) ambCtx.clearRect(0, 0, ambCanvas.width, ambCanvas.height);
+        ambParticles = [];
+        if (!ambRaf && (mode === 'theater' || mode === 'particles' || mode === 'rain')) {
+            ambRaf = requestAnimationFrame(ambFrame);
+        }
+        const nameEl = document.getElementById('ccAmbName');
+        if (nameEl) nameEl.textContent = AMBIANCES[ambIndex].name;
+        const hudAmbEl = document.getElementById('hudAmbLabel');
+        if (hudAmbEl) hudAmbEl.textContent = AMBIANCES[ambIndex].name;
+        localStorage.setItem('kyber_ambiance', mode);
+        if (showChip && ambChipEl) {
+            ambChipEl.textContent = 'ATMOSPHERE • ' + AMBIANCES[ambIndex].name.toUpperCase();
+            ambChipEl.classList.add('show');
+            clearTimeout(ambChipEl._t);
+            ambChipEl._t = setTimeout(() => ambChipEl.classList.remove('show'), 1600);
+        }
+    }
+
+    function cycleAmbiance() {
+        ambIndex = (ambIndex + 1) % AMBIANCES.length;
+        applyAmbiance(true);
+        playTabSound();
+    }
+
+    // Generative drone: three soft oscillators through a breathing low-pass filter
+    let drone = null;
+    const DRONE_NOTES = [110, 123.47, 146.83, 164.81, 196, 220, 246.94, 293.66];
+
+    function startDrone() {
+        initAudio();
+        if (!audioCtx || drone) return;
+        const t = audioCtx.currentTime;
+        const master = audioCtx.createGain();
+        master.gain.setValueAtTime(0, t);
+        master.gain.linearRampToValueAtTime(0.035, t + 3);
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 520;
+        const lfo = audioCtx.createOscillator();
+        const lfoGain = audioCtx.createGain();
+        lfo.frequency.value = 0.07;
+        lfoGain.gain.value = 260;
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+        const oscs = [1, 1.5, 2].map((mul, i) => {
+            const o = audioCtx.createOscillator();
+            o.type = i === 0 ? 'sine' : 'triangle';
+            o.frequency.value = DRONE_NOTES[0] * mul;
+            o.detune.value = (i - 1) * 6;
+            o.connect(filter);
+            o.start();
+            return { o, mul };
+        });
+        filter.connect(master);
+        master.connect(audioCtx.destination);
+        lfo.start();
+        drone = { master, oscs, lfo };
+        setDroneNote(currentItemIndex);
+    }
+
+    function stopDrone() {
+        if (!drone || !audioCtx) return;
+        const d = drone;
+        drone = null;
+        const t = audioCtx.currentTime;
+        d.master.gain.cancelScheduledValues(t);
+        d.master.gain.setValueAtTime(d.master.gain.value, t);
+        d.master.gain.linearRampToValueAtTime(0, t + 1);
+        setTimeout(() => { d.oscs.forEach(x => x.o.stop()); d.lfo.stop(); }, 1200);
+    }
+
+    function setDroneNote(idx) {
+        if (!drone || !audioCtx) return;
+        const f = DRONE_NOTES[((idx % DRONE_NOTES.length) + DRONE_NOTES.length) % DRONE_NOTES.length];
+        const t = audioCtx.currentTime;
+        drone.oscs.forEach(x => x.o.frequency.setTargetAtTime(f * x.mul, t, 0.9));
+    }
+
+    function applySound() {
+        const el = document.getElementById('ccSoundName');
+        if (el) el.textContent = ambSoundOn ? 'On' : 'Off';
+        localStorage.setItem('kyber_amb_sound', ambSoundOn ? '1' : '0');
+        if (ambSoundOn) startDrone(); else stopDrone();
+    }
+
+    function toggleSound() {
+        ambSoundOn = !ambSoundOn;
+        applySound();
+        playTabSound();
+    }
+
+    // Auto-fading bottom dock after 6 seconds of inactivity
+    const bottomDockEl = document.getElementById('bottomDock');
+    let dockIdleTimer = null;
+    function wakeDock() {
+        if (bottomDockEl) bottomDockEl.classList.remove('idle-dim');
+        clearTimeout(dockIdleTimer);
+        dockIdleTimer = setTimeout(() => {
+            if (bottomDockEl && !ccOpen && !isRomModalOpen) {
+                bottomDockEl.classList.add('idle-dim');
+            }
+        }, 6500);
+    }
+
+    // Mouse parallax & dock wake
+    window.addEventListener('mousemove', (e) => {
+        const mx = (e.clientX / window.innerWidth - 0.5) * 2;
+        const my = (e.clientY / window.innerHeight - 0.5) * 2;
+        document.documentElement.style.setProperty('--mx', mx.toFixed(3));
+        document.documentElement.style.setProperty('--my', my.toFixed(3));
+        wakeDock();
+    }, { passive: true });
+
+    // Wire Hero CTA & HUD Ambiance buttons
+    const btnHeroLaunchEl = document.getElementById('btnHeroLaunch');
+    if (btnHeroLaunchEl) {
+        btnHeroLaunchEl.addEventListener('click', () => {
+            initAudio();
+            if (filteredItems[currentItemIndex]) handleItemAction(filteredItems[currentItemIndex]);
+        });
+    }
+    const btnHeroOptionsEl = document.getElementById('btnHeroOptions');
+    if (btnHeroOptionsEl) {
+        btnHeroOptionsEl.addEventListener('click', () => {
+            initAudio();
+            openControlCenter();
+        });
+    }
+    const btnHudAmbianceEl = document.getElementById('btnHudAmbiance');
+    if (btnHudAmbianceEl) {
+        btnHudAmbianceEl.addEventListener('click', () => {
+            initAudio();
+            cycleAmbiance();
+        });
+    }
+
+    window.addEventListener('resize', resizeAmbCanvas);
+    resizeAmbCanvas();
+    applyAmbiance(false);
+    wakeDock();
 
     // ==========================================================================
     // Control Center (always-available exit & session management)
@@ -511,11 +882,11 @@
             case 'closeapp':
                 closeControlCenter();
                 fetch('/api/launcher?app=menu').catch(() => {});
-                showToast('Fermeture en cours', "L'application est arretee.");
+                showToast('Closing Application', 'The active application has been stopped.');
                 break;
             case 'desktop': {
                 closeControlCenter();
-                handleItemAction({ id: 'desktop', name: 'Mode Bureau', desc: 'Bureau, barre des taches et fenetres', icon: 'desktop' });
+                handleItemAction({ id: 'desktop', name: 'Desktop Mode', desc: 'Full Linux desktop, taskbar, and window manager', icon: 'desktop' });
                 break;
             }
             case 'rom':
@@ -524,7 +895,13 @@
                 break;
             case 'steam':
                 closeControlCenter();
-                handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Nettoyage du cache...' });
+                handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Clearing cache and restarting Steam...' });
+                break;
+            case 'ambiance':
+                cycleAmbiance();
+                break;
+            case 'sound':
+                toggleSound();
                 break;
             case 'reload':
                 location.reload();
@@ -630,11 +1007,35 @@
 
             // Button 0 (A / Cross): Launch active item
             if (btnJustPressed(0) && filteredItems[currentItemIndex]) {
+                wakeDock();
                 handleItemAction(filteredItems[currentItemIndex]);
+            }
+
+            // Button 3 (Y / Triangle): Cycle Ambiance
+            if (btnJustPressed(3)) {
+                wakeDock();
+                cycleAmbiance();
+            }
+
+            // Right stick (Axes 2 & 3): Manual 3D Card Tilt & Parallax
+            const rx = pad.axes[2] || 0;
+            const ry = pad.axes[3] || 0;
+            if (Math.abs(rx) > 0.1 || Math.abs(ry) > 0.1) {
+                wakeDock();
+                document.documentElement.style.setProperty('--mx', rx.toFixed(3));
+                document.documentElement.style.setProperty('--my', ry.toFixed(3));
+                const activeCard = carouselTrackEl ? carouselTrackEl.querySelector('.card.active') : null;
+                if (activeCard) {
+                    activeCard.style.setProperty('--tilt-x', `${(-ry * 14).toFixed(2)}deg`);
+                    activeCard.style.setProperty('--tilt-y', `${(rx * 16).toFixed(2)}deg`);
+                    activeCard.style.setProperty('--sheen-x', `${((0.5 - rx * 0.4) * 100).toFixed(1)}%`);
+                    activeCard.style.setProperty('--sheen-y', `${((0.4 - ry * 0.4) * 100).toFixed(1)}%`);
+                }
             }
 
             // B / Circle and Start / Menu: Control Center
             if (btnJustPressed(1) || btnJustPressed(9)) {
+                wakeDock();
                 openControlCenter();
             }
         }
@@ -654,6 +1055,7 @@
         }
 
         initAudio();
+        wakeDock();
         if (isLaunching) {
             if (e.key === 'Escape') {
                 e.preventDefault();
@@ -724,6 +1126,11 @@
                 }
                 openControlCenter();
                 break;
+            case 'v':
+            case 'V':
+                e.preventDefault();
+                cycleAmbiance();
+                break;
             case 'm':
             case 'M':
                 e.preventDefault();
@@ -733,7 +1140,7 @@
             case 'r':
             case 'R':
                 e.preventDefault();
-                handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Nettoyage du cache...' });
+                handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Clearing cache and restarting Steam...' });
                 break;
         }
     });
@@ -1216,14 +1623,14 @@
 
     btnRestartSteamEl.addEventListener('click', () => {
         initAudio();
-        handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Nettoyage du cache...' });
+        handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Clearing cache and restarting Steam...' });
     });
 
     const btnDesktopModeEl = document.getElementById('btnDesktopMode');
     if (btnDesktopModeEl) {
         btnDesktopModeEl.addEventListener('click', () => {
             initAudio();
-            handleItemAction({ id: 'desktop', name: 'Linux Desktop Mode', desc: 'Accès au bureau et gestionnaire de fenêtres' });
+            handleItemAction({ id: 'desktop', name: 'Linux Desktop Mode', desc: 'Full desktop and window manager access' });
         });
     }
 
@@ -1260,7 +1667,7 @@
                 if (!badge && cover) {
                     badge = document.createElement('div');
                     badge.className = 'running-badge';
-                    badge.innerHTML = '<span class="pulse-dot"></span> EN COURS';
+                    badge.innerHTML = '<span class="pulse-dot"></span> RUNNING';
                     cover.appendChild(badge);
                 }
             } else if (badge) {
@@ -1292,7 +1699,7 @@
             e.stopPropagation();
             try {
                 await fetch('/api/launcher?app=menu');
-                showToast('Fermeture en cours', "L'application a été arrêtée.");
+                showToast('Closing Application', 'The active application has been stopped.');
                 setTimeout(pollLauncherStatus, 800);
             } catch (err) {}
         });
@@ -1313,6 +1720,7 @@
 
     // Start
     loadData();
+    if (ambSoundOn) applySound();
     setInterval(pollLauncherStatus, 3000);
     pollLauncherStatus();
 
