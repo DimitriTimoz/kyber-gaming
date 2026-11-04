@@ -206,6 +206,7 @@ COPY config/xorg/xorg.nvidia.conf /etc/kyber/xorg.nvidia.conf
 COPY config/xorg/xorg.dummy.conf /etc/kyber/xorg.dummy.conf
 COPY config/kyber/kyber_config.toml /etc/kyber/kyber_config.toml
 COPY config/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY config/launchers.json /etc/kyber/launchers.json
 COPY config/openbox/rc.xml /home/gamer/.config/openbox/rc.xml
 COPY config/openbox/menu.xml /home/gamer/.config/openbox/menu.xml
 COPY config/openbox/autostart /home/gamer/.config/openbox/autostart

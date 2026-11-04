@@ -12,6 +12,7 @@ import json
 import subprocess
 import re
 import ssl
+import shutil
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -33,6 +34,83 @@ def run_cmd(cmd):
     except subprocess.CalledProcessError as e:
         print(f"[resizer] Command failed: {cmd}\nError: {e.stderr.strip()}", file=sys.stderr)
         return None
+
+def get_system_info():
+    """Dynamically query GPU and screen state without hardcoded values."""
+    gpu_name = "GPU Accéléré"
+    # 1. Try nvidia-smi
+    try:
+        res = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            capture_output=True, text=True, timeout=1
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            raw = res.stdout.splitlines()[0].strip()
+            # Clean "NVIDIA GeForce RTX 4060" -> "RTX 4060" or keep clean
+            gpu_name = re.sub(r"^NVIDIA\s+(GeForce\s+)?", "", raw)
+    except Exception:
+        pass
+
+    # 2. Fallback to lspci if nvidia-smi failed (e.g. AMD, Intel, or virtual GPU)
+    if gpu_name == "GPU Accéléré":
+        lspci = run_cmd("lspci | grep -iE 'vga|3d|display'") or ""
+        if lspci:
+            gpu_name = lspci.split(":")[-1].strip()[:24]
+
+    # Current screen resolution
+    xrandr_out = run_cmd("xrandr --current") or ""
+    current_res = "1080p 60Hz"
+    for line in xrandr_out.splitlines():
+        if "*" in line:
+            parts = line.split()
+            if len(parts) >= 2:
+                res = parts[0]
+                rate = parts[1].replace("*", "").replace("+", "")
+                try:
+                    current_res = f"{res} {round(float(rate))}Hz"
+                except Exception:
+                    current_res = f"{res}"
+            break
+
+    hostname = os.uname().nodename if hasattr(os, "uname") else "Kyber"
+
+    return {
+        "gpu": gpu_name,
+        "resolution": current_res,
+        "hostname": hostname
+    }
+
+def get_launchers_config():
+    """Read dynamic launchers & emulators registry and check availability."""
+    paths = [
+        "/etc/kyber/launchers.json",
+        "/opt/kyber/hub/launchers.json",
+        "config/launchers.json",
+        "hub/launchers.json"
+    ]
+    config = None
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    break
+            except Exception as e:
+                print(f"[resizer] Error reading {p}: {e}", file=sys.stderr)
+
+    if not config:
+        config = {"categories": [{"id": "all", "name": "Tous"}], "items": []}
+
+    # Annotate items with installed status based on container PATH
+    for item in config.get("items", []):
+        cmd = item.get("command", "")
+        cmd_bin = cmd.split()[0] if cmd else ""
+        if cmd_bin in ["desktop", "menu", "restart-steam"]:
+            item["installed"] = True
+        else:
+            item["installed"] = shutil.which(cmd_bin) is not None
+
+    return config
 
 def get_active_output():
     out = run_cmd("xrandr --current")
@@ -145,13 +223,18 @@ class ResizeHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/launcher":
             params = parse_qs(parsed.query)
             app = params.get("app", ["menu"])[0]
-            if app not in ["steam", "steam-bigpicture", "heroic", "menu", "desktop", "restart-steam"]:
+            app = re.sub(r"[^a-zA-Z0-9_\-]", "", app)
+            if not app:
                 app = "menu"
             subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
             self._send_json_response({"status": "ok", "app": app})
         elif parsed.path == "/api/status":
             current_xrandr = run_cmd("xrandr --current") or "Unavailable"
             self._send_text_response(current_xrandr)
+        elif parsed.path == "/api/system":
+            self._send_json_response(get_system_info())
+        elif parsed.path == "/api/launchers":
+            self._send_json_response(get_launchers_config())
         elif parsed.path == "/api/launcher/status":
             steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
             heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
@@ -219,7 +302,8 @@ class ResizeHandler(BaseHTTPRequestHandler):
             except Exception:
                 data = {}
             app = data.get("app", "menu")
-            if app not in ["steam", "steam-bigpicture", "heroic", "menu", "desktop", "restart-steam"]:
+            app = re.sub(r"[^a-zA-Z0-9_\-]", "", app)
+            if not app:
                 app = "menu"
             subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
             self._send_json_response({"status": "ok", "app": app})

@@ -1,53 +1,20 @@
 /* ==============================================================================
-   Kyber Console OS - High-Performance Gaming Dashboard Stylesheet
+   Kyber Console OS - Advanced Console Kiosk Stylesheet
    Designed for TV screens, PC monitors, and 100% controller navigation.
    ============================================================================== */
 
 :root {
     --bg-base: #06080d;
-    --bg-surface: #0f131d;
-    --bg-card: #151a27;
-    --bg-card-hover: #1e2538;
-
-    --color-steam: #00d2ff;
-    --color-steam-glow: rgba(0, 210, 255, 0.45);
-
-    --color-bigpicture: #a855f7;
-    --color-bigpicture-glow: rgba(168, 85, 247, 0.45);
-
-    --color-heroic: #10b981;
-    --color-heroic-glow: rgba(16, 185, 129, 0.45);
-
-    --color-desktop: #94a3b8;
-    --color-desktop-glow: rgba(148, 163, 184, 0.35);
+    --bg-surface: rgba(15, 19, 29, 0.85);
+    --bg-card: #131722;
+    --bg-card-inner: #161c2a;
 
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
 
-    --active-accent: var(--color-steam);
-    --active-glow: var(--color-steam-glow);
-}
-
-/* Theme variations */
-body.theme-steam {
-    --active-accent: var(--color-steam);
-    --active-glow: var(--color-steam-glow);
-}
-
-body.theme-bigpicture {
-    --active-accent: var(--color-bigpicture);
-    --active-glow: var(--color-bigpicture-glow);
-}
-
-body.theme-heroic {
-    --active-accent: var(--color-heroic);
-    --active-glow: var(--color-heroic-glow);
-}
-
-body.theme-desktop {
-    --active-accent: var(--color-desktop);
-    --active-glow: var(--color-desktop-glow);
+    --active-accent: #00d2ff;
+    --active-glow: rgba(0, 210, 255, 0.45);
 }
 
 * {
@@ -68,20 +35,28 @@ html, body {
     line-height: 1.5;
 }
 
-/* Background Ambient Lighting */
+/* Background Ambient Lighting & Noise */
 .ambient-glow {
     position: fixed;
-    top: -20vh;
-    left: 10vw;
-    width: 80vw;
-    height: 90vh;
+    top: -25vh;
+    left: 15vw;
+    width: 70vw;
+    height: 95vh;
     border-radius: 50%;
     background: radial-gradient(circle, var(--active-glow) 0%, rgba(6, 8, 13, 0) 70%);
-    opacity: 0.55;
-    filter: blur(120px);
-    transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
+    opacity: 0.5;
+    filter: blur(140px);
+    transition: background 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
     z-index: 1;
+}
+
+.ambient-mesh {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 100%, rgba(20, 25, 40, 0.6) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 2;
 }
 
 .ambient-particles {
@@ -89,10 +64,10 @@ html, body {
     inset: 0;
     background-image: 
         radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-        radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+        radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     background-size: 40px 40px, 80px 80px;
     background-position: 0 0, 20px 20px;
-    opacity: 0.3;
+    opacity: 0.25;
     pointer-events: none;
     z-index: 2;
 }
@@ -105,7 +80,7 @@ html, body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 3.5vh 5vw;
+    padding: 3vh 4vw;
     z-index: 10;
 }
 
@@ -117,17 +92,19 @@ html, body {
     justify-content: space-between;
     align-items: center;
     height: 6vh;
+    gap: 20px;
 }
 
 .brand {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
 }
 
 .brand-badge {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: var(--active-accent);
     box-shadow: 0 0 16px var(--active-accent);
@@ -135,39 +112,78 @@ html, body {
 }
 
 .brand-title {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
     font-weight: 800;
     letter-spacing: 2px;
     color: #ffffff;
 }
 
 .brand-sub {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 700;
-    letter-spacing: 3px;
+    letter-spacing: 2px;
     color: var(--text-muted);
     background: rgba(255, 255, 255, 0.06);
-    padding: 3px 10px;
+    padding: 3px 8px;
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Category Switcher Tabs */
+.category-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15, 19, 29, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px 6px;
+    border-radius: 24px;
+}
+
+.tab-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    padding: 6px 18px;
+    border-radius: 18px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.tab-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.tab-btn.active {
+    background: var(--active-accent);
+    color: #000000;
+    box-shadow: 0 0 14px var(--active-glow);
+}
+
+/* System Status Badges */
 .system-status {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 .status-pill {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(15, 19, 29, 0.85);
+    background: var(--bg-surface);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     padding: 6px 14px;
     border-radius: 20px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-secondary);
 }
@@ -189,7 +205,7 @@ html, body {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
     color: #ffffff;
-    min-width: 60px;
+    min-width: 55px;
     justify-content: center;
 }
 
@@ -201,13 +217,20 @@ html, body {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    max-height: 72vh;
+    max-height: 74vh;
 }
 
 .stage-header {
-    margin-bottom: 2.5vh;
-    animation: fadeIn 0.4s ease-out;
+    margin-bottom: 2.2vh;
     text-align: center;
+}
+
+.header-topline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 4px;
 }
 
 .header-pretitle {
@@ -217,7 +240,23 @@ html, body {
     color: var(--active-accent);
     text-transform: uppercase;
     transition: color 0.3s ease;
-    margin-bottom: 6px;
+}
+
+.header-status-badge {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.header-status-badge.missing {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
 }
 
 .header-title {
@@ -226,52 +265,79 @@ html, body {
     letter-spacing: -0.5px;
     color: #ffffff;
     line-height: 1.1;
-    margin-bottom: 8px;
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    margin-bottom: 6px;
+    text-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
 }
 
 .header-desc {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 500;
     color: var(--text-secondary);
-    max-width: 800px;
+    max-width: 780px;
     margin: 0 auto;
 }
 
 /* ==============================================================================
-   Cards Carousel Track
+   Cards Carousel Track & Scroll
    ============================================================================== */
 .carousel-container {
+    position: relative;
     width: 100%;
     display: flex;
     justify-content: center;
-    overflow: visible;
+    overflow: hidden;
     padding: 15px 0 25px 0;
+}
+
+.carousel-fade {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.carousel-fade-left {
+    left: 0;
+    background: linear-gradient(to right, var(--bg-base) 10%, transparent);
+}
+
+.carousel-fade-right {
+    right: 0;
+    background: linear-gradient(to left, var(--bg-base) 10%, transparent);
 }
 
 .carousel-track {
     display: flex;
-    gap: 28px;
+    gap: 24px;
     align-items: center;
-    justify-content: center;
-    max-width: 1460px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    padding: 10px 40px;
     width: 100%;
+    max-width: 100%;
 }
 
+.carousel-track::-webkit-scrollbar {
+    display: none;
+}
+
+/* Individual Card */
 .card {
     position: relative;
-    flex: 1 1 0;
-    max-width: 330px;
-    height: 380px;
-    border-radius: 20px;
+    flex: 0 0 290px;
+    height: 375px;
+    border-radius: 22px;
     cursor: pointer;
     outline: none;
     transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
                 box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
                 border-color 0.3s ease,
                 opacity 0.3s ease;
-    transform: scale(0.96);
-    opacity: 0.65;
+    transform: scale(0.95);
+    opacity: 0.6;
 }
 
 .card-inner {
@@ -280,13 +346,13 @@ html, body {
     height: 100%;
     background: var(--bg-card);
     border: 2px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
+    border-radius: 22px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 20px;
-    backdrop-filter: blur(10px);
+    padding: 18px;
+    backdrop-filter: blur(12px);
 }
 
 .card-cover {
@@ -295,18 +361,18 @@ html, body {
     flex-direction: column;
     justify-content: space-between;
     border-radius: 14px;
-    padding: 16px;
+    padding: 14px;
     position: relative;
     overflow: hidden;
 }
 
 .card-tag {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 1.5px;
-    padding: 4px 10px;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.4);
+    letter-spacing: 1.2px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(8px);
     width: fit-content;
     color: rgba(255, 255, 255, 0.9);
@@ -314,8 +380,8 @@ html, body {
 
 .card-icon {
     align-self: center;
-    width: 72px;
-    height: 72px;
+    width: 68px;
+    height: 68px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -330,73 +396,80 @@ html, body {
 }
 
 .card-meta {
-    margin-top: 14px;
+    margin-top: 12px;
 }
 
 .meta-title {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: #ffffff;
     letter-spacing: 0.5px;
 }
 
 .meta-sub {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-secondary);
 }
 
 .card-badge {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
+    bottom: 18px;
+    right: 18px;
     display: flex;
     gap: 6px;
 }
 
 .badge-key, .badge-pad {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    padding: 4px 8px;
+    padding: 3px 7px;
     border-radius: 6px;
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: var(--text-muted);
 }
 
-/* Card Cover Themes */
-.cover-steam {
-    background: linear-gradient(145deg, #0f2027, #203a43, #2c5364);
+/* Card Cover Gradients */
+.cover-steam { background: linear-gradient(145deg, #0e1e24, #1b323c, #264b5a); }
+.cover-bigpicture { background: linear-gradient(145deg, #1b0f2e, #311650, #541970); }
+.cover-heroic { background: linear-gradient(145deg, #0a2115, #0f3d23, #125732); }
+.cover-retroarch { background: linear-gradient(145deg, #260f13, #45151c, #631922); }
+.cover-playstation { background: linear-gradient(145deg, #0f172a, #1e293b, #1d4ed8); }
+.cover-dolphin { background: linear-gradient(145deg, #08202b, #0f374a, #0e5b7c); }
+.cover-desktop { background: linear-gradient(145deg, #151c27, #222d3b, #334155); }
+
+/* Missing Emulator Styling */
+.card.uninstalled .card-inner {
+    border-style: dashed;
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
-.cover-bigpicture {
-    background: linear-gradient(145deg, #1f1235, #3b1d60, #672288);
+.card.uninstalled .card-cover {
+    filter: saturate(0.6) brightness(0.8);
 }
 
-.cover-heroic {
-    background: linear-gradient(145deg, #0a2618, #0f4427, #13693d);
-}
-
-.cover-desktop {
-    background: linear-gradient(145deg, #18202c, #273444, #394b61);
+.card.uninstalled .card-tag {
+    background: rgba(245, 158, 11, 0.3);
+    color: #fcd34d;
 }
 
 /* Active Focused Card State */
 .card.active {
-    transform: scale(1.06);
+    transform: scale(1.08) translateY(-6px);
     opacity: 1;
     z-index: 5;
 }
 
 .card.active .card-inner {
     border-color: var(--active-accent);
-    box-shadow: 0 16px 45px var(--active-glow),
-                inset 0 0 20px rgba(255, 255, 255, 0.06);
+    box-shadow: 0 18px 45px var(--active-glow),
+                inset 0 0 20px rgba(255, 255, 255, 0.08);
 }
 
 .card.active .card-icon {
-    transform: scale(1.12);
+    transform: scale(1.15);
 }
 
 .card.active .badge-key,
@@ -416,7 +489,7 @@ html, body {
     align-items: center;
     height: 6vh;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-top: 15px;
+    padding-top: 12px;
 }
 
 .btn-action {
@@ -426,9 +499,9 @@ html, body {
     background: rgba(30, 41, 59, 0.7);
     color: var(--text-secondary);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 8px 16px;
+    padding: 7px 15px;
     border-radius: 12px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -443,7 +516,7 @@ html, body {
 
 .btn-badge {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     padding: 2px 6px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
@@ -453,14 +526,14 @@ html, body {
 .nav-hints {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 18px;
 }
 
 .hint-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.85rem;
+    gap: 7px;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-secondary);
 }
@@ -470,46 +543,39 @@ html, body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 800;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
 }
 
-.pad-a {
-    background: #22c55e;
-    color: #052e16;
-}
-
-.pad-b {
-    background: #ef4444;
-    color: #450a0a;
-}
+.pad-a { background: #22c55e; color: #052e16; }
+.pad-b { background: #ef4444; color: #450a0a; }
 
 .pad-dpad {
-    border-radius: 8px;
+    border-radius: 7px;
     background: #334155;
     color: #ffffff;
-    width: 34px;
+    width: 32px;
 }
 
 .pad-bumper {
     border-radius: 6px;
     background: #334155;
     color: #cbd5e1;
-    width: 52px;
-    font-size: 0.75rem;
+    width: 54px;
+    font-size: 0.72rem;
 }
 
 .key-hint {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
     background: rgba(255, 255, 255, 0.05);
-    padding: 2px 6px;
+    padding: 2px 5px;
     border-radius: 4px;
 }
 
@@ -598,18 +664,40 @@ html, body {
     animation: progressFill 1.8s ease-in-out infinite;
 }
 
-/* Animations */
-@keyframes spin {
-    to { transform: rotate(360deg); }
+/* Toast Modal */
+.toast-modal {
+    position: fixed;
+    bottom: 9vh;
+    left: 50%;
+    transform: translateX(-50%) translateY(40px);
+    background: rgba(20, 25, 38, 0.95);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.2);
+    border-radius: 16px;
+    padding: 14px 22px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 90;
+    max-width: 520px;
 }
 
+.toast-modal.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast-icon { font-size: 1.5rem; }
+.toast-title { font-weight: 800; color: #fcd34d; font-size: 0.9rem; }
+.toast-desc { font-size: 0.82rem; color: var(--text-secondary); }
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
 @keyframes progressFill {
     0% { width: 0%; margin-left: 0; }
     50% { width: 70%; margin-left: 15%; }
     100% { width: 100%; margin-left: 0; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
 }

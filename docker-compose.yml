@@ -68,6 +68,9 @@ services:
       # TLS certificates for WebTransport / HTTPS (auto-generated if missing)
       - ./kyber_tls:/etc/kyber/tls
       
+      # Customizable Launchers & Emulators list for homelab configuration
+      - ./config/launchers.json:/etc/kyber/launchers.json:ro
+      
       # Direct access to host controllers if plugged into the host
       - /dev/input:/dev/input
       # Udev data so Xorg discovers virtual uinput devices created by kynput

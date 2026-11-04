@@ -12,8 +12,8 @@ echo "$TARGET" > /tmp/kyber_next_action
 
 case "$TARGET" in
     menu)
-        # Kill current launcher to immediately return to the hub
-        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic" 2>/dev/null || true
+        # Kill current launcher or emulator to immediately return to the hub
+        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic|retroarch|rpcs3|pcsx2|dolphin-emu|duckstation|cemu|ryujinx|yuzu" 2>/dev/null || true
         ;;
 
     restart-steam)
@@ -28,12 +28,8 @@ case "$TARGET" in
     *)
         # Kill Console Hub if still active
         pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
-        # For steam, steam-bigpicture, heroic: if another launcher is running, close it
-        if [ "$TARGET" = "heroic" ]; then
-            pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
-        elif [ "$TARGET" = "steam" ] || [ "$TARGET" = "steam-bigpicture" ]; then
-            pkill -u gamer -f "heroic" 2>/dev/null || true
-        fi
+        # Clean previous game/launcher processes when switching targets
+        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic|retroarch|rpcs3|pcsx2|dolphin-emu|duckstation|cemu|ryujinx|yuzu" 2>/dev/null || true
         ;;
 esac
 

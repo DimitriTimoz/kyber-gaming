@@ -132,21 +132,58 @@ while true; do
             rm -f /tmp/kyber_next_action
             ;;
 
-        menu|*)
+        menu)
             echo "[session] Presenting Fullscreen Console Kiosk Hub..."
             # Clean any stale hub processes
             pkill -u gamer -f "kyber-hub-profile|kyber_console_hub|kyber_launcher_menu" 2>/dev/null || true
             RAW_CHOICE=$(bash /usr/local/bin/kyber_console_hub.sh || echo "menu")
             CHOICE=$(echo "$RAW_CHOICE" | tail -n 1 | tr -d '[:space:]')
             echo "[session] Console Hub selection: '$CHOICE'"
-            case "$CHOICE" in
-                steam|steam-bigpicture|heroic|restart-steam|desktop)
-                    CURRENT_ACTION="$CHOICE"
-                    ;;
-                *)
+            if [ -z "$CHOICE" ] || [ "$CHOICE" = "menu" ]; then
+                CURRENT_ACTION="menu"
+            else
+                CURRENT_ACTION="$CHOICE"
+            fi
+            ;;
+
+        *)
+            echo "[session] Executing target launcher or emulator: $CURRENT_ACTION..."
+            EXEC_CMD=""
+            if command -v "$CURRENT_ACTION" >/dev/null 2>&1; then
+                EXEC_CMD="$CURRENT_ACTION"
+            elif [ -x "/usr/games/$CURRENT_ACTION" ]; then
+                EXEC_CMD="/usr/games/$CURRENT_ACTION"
+            elif [ -x "/usr/local/bin/$CURRENT_ACTION" ]; then
+                EXEC_CMD="/usr/local/bin/$CURRENT_ACTION"
+            fi
+
+            if [ -n "$EXEC_CMD" ]; then
+                echo "[session] Launching '$EXEC_CMD'..."
+                $EXEC_CMD >/dev/null 2>&1 &
+                APP_PID=$!
+                sleep 2
+                while kill -0 "$APP_PID" 2>/dev/null; do
+                    if [ -f /tmp/kyber_next_action ]; then
+                        NEXT=$(cat /tmp/kyber_next_action)
+                        rm -f /tmp/kyber_next_action
+                        if [ "$NEXT" != "$CURRENT_ACTION" ]; then
+                            echo "[session] Action requested: $NEXT"
+                            kill -TERM "$APP_PID" 2>/dev/null || kill -9 "$APP_PID" 2>/dev/null || true
+                            CURRENT_ACTION="$NEXT"
+                            break
+                        fi
+                    fi
+                    sleep 0.5
+                done
+                if [ "$CURRENT_ACTION" = "$CURRENT_ACTION" ]; then
+                    echo "[session] Application $CURRENT_ACTION has closed. Returning to Console Hub..."
                     CURRENT_ACTION="menu"
-                    ;;
-            esac
+                fi
+            else
+                echo "[session] Target '$CURRENT_ACTION' is not installed or not executable in PATH."
+                sleep 2
+                CURRENT_ACTION="menu"
+            fi
             ;;
     esac
     sleep 0.5
