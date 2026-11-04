@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Kyber Gaming</title>
+    <title>Kyber Desktop</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,32 +12,29 @@
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="app-brand">
-                    <div class="brand-logo">🎮</div>
-                    <div>
-                        <div class="brand-name">KYBER</div>
-                        <div class="brand-badge">DESKTOP CLIENT</div>
-                    </div>
+                    <div class="brand-tag">KYBER</div>
+                    <div class="brand-sub">DESKTOP v1.0</div>
                 </div>
             </div>
 
             <nav class="sidebar-nav">
                 <button class="nav-item active" data-view="servers">
-                    <span>🖥️</span>
-                    <span>Serveurs</span>
+                    <span class="nav-code">01</span>
+                    <span>SERVEURS</span>
                 </button>
                 <button class="nav-item" data-view="settings">
-                    <span>⚙️</span>
-                    <span>Paramètres</span>
+                    <span class="nav-code">02</span>
+                    <span>PARAMETRES</span>
                 </button>
                 <button class="nav-item" data-view="about">
-                    <span>ℹ️</span>
-                    <span>À propos</span>
+                    <span class="nav-code">03</span>
+                    <span>SYSTEME</span>
                 </button>
             </nav>
 
             <div class="sidebar-footer">
                 <div class="quick-status">
-                    <span class="pulse-dot"></span>
+                    <span class="status-dot"></span>
                     <span id="quickServerCount">2 serveurs</span>
                 </div>
             </div>
@@ -49,50 +46,52 @@
             <section class="view-panel active" id="viewServers">
                 <div class="panel-header">
                     <div>
-                        <h1 class="panel-title">Mes Serveurs de Jeu</h1>
-                        <p class="panel-desc">Sélectionnez une machine distante pour démarrer votre session de cloud gaming.</p>
+                        <h1 class="panel-title">Serveurs distants</h1>
+                        <p class="panel-desc">Machines disponibles pour le streaming de jeu.</p>
                     </div>
                     <div class="header-actions">
-                        <button class="btn btn-secondary" id="btnRefreshPings" title="Tester la latence">
-                            🔄 Actualiser
+                        <button class="btn btn-secondary" id="btnRefreshPings" title="Actualiser le statut">
+                            Actualiser
                         </button>
                         <button class="btn btn-primary" id="btnAddServer">
-                            ➕ Ajouter un serveur
+                            Ajouter un serveur
                         </button>
                     </div>
                 </div>
 
                 <div class="servers-grid" id="serversGrid"></div>
+
+                <div class="session-quit-banner">
+                    <div class="quit-banner-title">Raccourci de sortie en streaming :</div>
+                    <div class="quit-banner-text">
+                        En session native <code>kyclient</code>, utilisez le raccourci <kbd>Ctrl+Q</kbd> (ou <kbd>Cmd+Q</kbd> sur macOS) ou fermez la fenetre du flux pour revenir a ce gestionnaire.
+                    </div>
+                </div>
             </section>
 
             <!-- SETTINGS VIEW -->
             <section class="view-panel" id="viewSettings">
                 <div class="panel-header">
                     <div>
-                        <h1 class="panel-title">Paramètres de Streaming</h1>
-                        <p class="panel-desc">Ajustez la qualité vidéo, la résolution d'affichage et l'optimisation réseau.</p>
+                        <h1 class="panel-title">Parametres de flux</h1>
+                        <p class="panel-desc">Configuration video, audio et peripheriques d'entree.</p>
                     </div>
                     <button class="btn btn-primary" id="btnSaveSettings">
-                        💾 Enregistrer les réglages
+                        Enregistrer
                     </button>
                 </div>
 
                 <div class="settings-container">
                     <div class="settings-card">
-                        <h2 class="settings-card-title">🖥️ Affichage & Résolution Distante</h2>
+                        <h2 class="settings-card-title">Resolution & Affichage</h2>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="settingResolution">Résolution du serveur</label>
-                                <select id="settingResolution" class="form-control">
-                                    <option value="1920x1080" selected>1080p (1920 × 1080)</option>
-                                    <option value="2560x1440">1440p 2K (2560 × 1440)</option>
-                                    <option value="3840x2160">4K UHD (3840 × 2160)</option>
-                                    <option value="1280x720">720p HD (1280 × 720)</option>
-                                </select>
+                                <label for="settingResolution">Resolution cible</label>
+                                <select id="settingResolution" class="form-control"></select>
                             </div>
 
                             <div class="form-group">
-                                <label for="settingRefreshRate">Taux de rafraîchissement</label>
+                                <label for="settingRefreshRate">Frequence (FPS)</label>
                                 <select id="settingRefreshRate" class="form-control">
                                     <option value="60" selected>60 FPS</option>
                                     <option value="120">120 FPS</option>
@@ -100,34 +99,40 @@
                                 </select>
                             </div>
                         </div>
+
+                        <div class="custom-res-row" id="settingCustomResRow" style="display:none; margin-top:0.5rem; gap:0.5rem;">
+                            <input type="number" class="form-control" id="customInputW" placeholder="Largeur (ex: 2560)" style="flex:1;">
+                            <span style="color:var(--text-muted); align-self:center;">&times;</span>
+                            <input type="number" class="form-control" id="customInputH" placeholder="Hauteur (ex: 1600)" style="flex:1;">
+                        </div>
                     </div>
 
                     <div class="settings-card">
-                        <h2 class="settings-card-title">🎮 Qualité Vidéo & Débit (Bitrate)</h2>
+                        <h2 class="settings-card-title">Qualite video & Reseau</h2>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label for="settingBitrate">Débit réseau (Bitrate)</label>
+                                <label for="settingBitrate">Debit (Bitrate)</label>
                                 <select id="settingBitrate" class="form-control">
                                     <option value="20000000">20 Mbps (Standard)</option>
-                                    <option value="40000000" selected>40 Mbps (Recommandé)</option>
-                                    <option value="60000000">60 Mbps (Haute Fidélité)</option>
+                                    <option value="40000000" selected>40 Mbps (Recommande)</option>
+                                    <option value="60000000">60 Mbps (Haute Fidelite)</option>
                                     <option value="80000000">80 Mbps (LAN Ultra Net)</option>
                                 </select>
                             </div>
 
                             <div class="form-group">
-                                <label for="settingCodec">Codec vidéo</label>
+                                <label for="settingCodec">Codec video</label>
                                 <select id="settingCodec" class="form-control">
                                     <option value="h264" selected>H.264 (Faible latence universelle)</option>
-                                    <option value="hevc">HEVC / H.265 (Qualité supérieure)</option>
+                                    <option value="hevc">HEVC / H.265 (Qualite accrue)</option>
                                     <option value="av1">AV1</option>
                                 </select>
                             </div>
 
                             <div class="form-group">
-                                <label for="settingKymuxVideo">Protocole vidéo</label>
+                                <label for="settingKymuxVideo">Protocole video</label>
                                 <select id="settingKymuxVideo" class="form-control">
-                                    <option value="gopstream" selected>GOP Stream (Faible latence)</option>
+                                    <option value="gopstream" selected>GOP Stream (Ultra-faible latence)</option>
                                     <option value="reliable">Reliable</option>
                                     <option value="unreliable_fec">Unreliable FEC</option>
                                 </select>
@@ -136,7 +141,7 @@
                     </div>
 
                     <div class="settings-card">
-                        <h2 class="settings-card-title">🔊 Audio & Périphériques</h2>
+                        <h2 class="settings-card-title">Audio & Peripheriques</h2>
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="settingKymuxAudio">Protocole audio</label>
@@ -149,8 +154,8 @@
                             <div class="form-group">
                                 <label for="settingAudioBuffer">Tampon audio</label>
                                 <select id="settingAudioBuffer" class="form-control">
-                                    <option value="50">50 ms (Ultra réactif)</option>
-                                    <option value="80" selected>80 ms (Équilibré)</option>
+                                    <option value="50">50 ms (Faible latence)</option>
+                                    <option value="80" selected>80 ms (Equilibre)</option>
                                     <option value="120">120 ms (Protection drops)</option>
                                 </select>
                             </div>
@@ -160,16 +165,16 @@
                             <label class="checkbox-item">
                                 <input type="checkbox" id="settingTlsSkip" checked>
                                 <div>
-                                    <div class="checkbox-title">Désactiver vérification TLS (--tls-skip-verification)</div>
-                                    <div class="checkbox-desc">Pour les connexions directes IP LAN.</div>
+                                    <div class="checkbox-title">Ignorer validation TLS (--tls-skip-verification)</div>
+                                    <div class="checkbox-desc">Necessaire pour les connexions directes par IP LAN (192.168.x.x).</div>
                                 </div>
                             </label>
 
                             <label class="checkbox-item">
                                 <input type="checkbox" id="settingForceXbox" checked>
                                 <div>
-                                    <div class="checkbox-title">Émuler les manettes en Xbox 360 (--gamepad-force-xbox360)</div>
-                                    <div class="checkbox-desc">Compatibilité universelle Steam et Proton.</div>
+                                    <div class="checkbox-title">Emuler les manettes en Xbox 360 (--gamepad-force-xbox360)</div>
+                                    <div class="checkbox-desc">Compatibilite universelle avec Proton et Steam.</div>
                                 </div>
                             </label>
 
@@ -177,7 +182,7 @@
                                 <input type="checkbox" id="settingKeyboardGrab" checked>
                                 <div>
                                     <div class="checkbox-title">Capture exclusive du clavier (--keyboard-grab)</div>
-                                    <div class="checkbox-desc">Empêche les raccourcis système de sortir du jeu.</div>
+                                    <div class="checkbox-desc">Empeche les raccourcis systeme de sortir du jeu.</div>
                                 </div>
                             </label>
                         </div>
@@ -189,15 +194,15 @@
             <section class="view-panel" id="viewAbout">
                 <div class="panel-header">
                     <div>
-                        <h1 class="panel-title">À Propos de Kyber Gaming</h1>
-                        <p class="panel-desc">Client natif cross-platform (Windows, macOS, Linux) propulsé par Rust et Tauri.</p>
+                        <h1 class="panel-title">Informations systeme</h1>
+                        <p class="panel-desc">Details techniques du client natif Kyber.</p>
                     </div>
                 </div>
 
                 <div class="settings-card">
-                    <h2 class="settings-card-title">⚡ Architecture & Performance</h2>
-                    <p style="color:var(--text-secondary); line-height: 1.6; font-size: 0.9rem;">
-                        Ce client de bureau universel est conçu pour piloter <strong>kyclient</strong> avec persistance multiplateforme de vos configurations et pings asynchrones ultrarapides. Il est disponible en binaire natif pour Windows (.exe), Linux (.deb / .AppImage) et macOS (.dmg).
+                    <h2 class="settings-card-title">Architecture</h2>
+                    <p style="color:var(--text-secondary); line-height: 1.6; font-size: 0.85rem; font-family:var(--font-mono);">
+                        Client natif multiplateforme (Rust + Tauri v2) pilotant le streaming QUIC / WebTransport kyclient avec ajustement dynamique d'affichage serveur via REST API.
                     </p>
                 </div>
             </section>
@@ -208,18 +213,18 @@
     <div class="modal-overlay" id="serverModal">
         <div class="modal-box">
             <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">Ajouter un Serveur</h3>
+                <h3 class="modal-title" id="modalTitle">Ajouter un serveur</h3>
                 <button class="modal-close" id="btnModalClose">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
                     <label for="serverNameInput">Nom du serveur</label>
-                    <input type="text" id="serverNameInput" class="form-control" placeholder="ex: Mon PC Fixe Gaming">
+                    <input type="text" id="serverNameInput" class="form-control" placeholder="ex: Homelab Gaming">
                 </div>
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="serverHostInput">Hôte ou IP</label>
-                        <input type="text" id="serverHostInput" class="form-control" placeholder="ex: 192.168.1.50">
+                        <label for="serverHostInput">Hote ou IP</label>
+                        <input type="text" id="serverHostInput" class="form-control" placeholder="ex: 192.168.2.3">
                     </div>
                     <div class="form-group">
                         <label for="serverPortInput">Port</label>

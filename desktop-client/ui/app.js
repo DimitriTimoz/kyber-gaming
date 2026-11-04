@@ -1,6 +1,6 @@
 /**
- * Kyber Desktop Client - Cross-Platform UI Controller
- * Powered by Rust + Tauri v2
+ * Kyber Desktop Client - Industrial UI Controller
+ * Zero-emoji, dynamic resolution detector, cross-platform Tauri v2
  */
 
 (function () {
@@ -43,6 +43,9 @@
 
     // Settings Input Elements
     const settingResolution = document.getElementById('settingResolution');
+    const settingCustomResRow = document.getElementById('settingCustomResRow');
+    const customInputW = document.getElementById('customInputW');
+    const customInputH = document.getElementById('customInputH');
     const settingRefreshRate = document.getElementById('settingRefreshRate');
     const settingBitrate = document.getElementById('settingBitrate');
     const settingCodec = document.getElementById('settingCodec');
@@ -54,6 +57,7 @@
     const settingKeyboardGrab = document.getElementById('settingKeyboardGrab');
 
     async function init() {
+        populateDetectedResolutions();
         bindNavigation();
         bindModalEvents();
         bindSettingsEvents();
@@ -63,19 +67,124 @@
         probeAllServers();
     }
 
+    // ==========================================================================
+    // Dynamic Screen Resolution Detection
+    // ==========================================================================
+    function getDisplayResolutionProfiles() {
+        const dpr = window.devicePixelRatio || 1;
+        const physW = Math.round(window.screen.width * dpr);
+        const physH = Math.round(window.screen.height * dpr);
+        const logW = window.screen.width;
+        const logH = window.screen.height;
+        return { physW, physH, logW, logH, dpr };
+    }
+
+    function populateDetectedResolutions() {
+        const { physW, physH, logW, logH, dpr } = getDisplayResolutionProfiles();
+        const detectedKey = `${physW}x${physH}`;
+
+        settingResolution.innerHTML = '';
+
+        // 1. Group: Detected Screen
+        const optGroupDetected = document.createElement('optgroup');
+        optGroupDetected.label = 'Ecran detecte (Recommande)';
+
+        const optPhys = document.createElement('option');
+        optPhys.value = detectedKey;
+        optPhys.textContent = `Natif actuel: ${physW} x ${physH}${dpr > 1 ? ` (Retina ${dpr}x)` : ''}`;
+        optGroupDetected.appendChild(optPhys);
+
+        if (dpr > 1 && (physW !== logW || physH !== logH)) {
+            const optLog = document.createElement('option');
+            optLog.value = `${logW}x${logH}`;
+            optLog.textContent = `Logique reduit: ${logW} x ${logH}`;
+            optGroupDetected.appendChild(optLog);
+        }
+        settingResolution.appendChild(optGroupDetected);
+
+        // 2. Group: 16:10 (MacBook / Laptops / Deck)
+        const optGroup1610 = document.createElement('optgroup');
+        optGroup1610.label = 'Format 16:10 (MacBook / Deck / Laptops)';
+        const res1610 = [
+            { w: 3024, h: 1964, label: '3024 x 1964 (MacBook Pro 14")' },
+            { w: 2880, h: 1800, label: '2880 x 1800 (MacBook Pro 15")' },
+            { w: 2560, h: 1600, label: '2560 x 1600 (MacBook Retina 13"/14")' },
+            { w: 1920, h: 1200, label: '1920 x 1200 (WUXGA)' },
+            { w: 1280, h: 800, label: '1280 x 800 (Steam Deck)' }
+        ];
+        res1610.forEach(r => {
+            if (`${r.w}x${r.h}` !== detectedKey) {
+                const opt = document.createElement('option');
+                opt.value = `${r.w}x${r.h}`;
+                opt.textContent = r.label;
+                optGroup1610.appendChild(opt);
+            }
+        });
+        settingResolution.appendChild(optGroup1610);
+
+        // 3. Group: 16:9 Standard
+        const optGroup169 = document.createElement('optgroup');
+        optGroup169.label = 'Format 16:9 (Standard)';
+        const res169 = [
+            { w: 3840, h: 2160, label: '3840 x 2160 (4K UHD)' },
+            { w: 2560, h: 1440, label: '2560 x 1440 (1440p QHD)' },
+            { w: 1920, h: 1080, label: '1920 x 1080 (1080p FHD)' },
+            { w: 1280, h: 720, label: '1280 x 720 (720p HD)' }
+        ];
+        res169.forEach(r => {
+            if (`${r.w}x${r.h}` !== detectedKey) {
+                const opt = document.createElement('option');
+                opt.value = `${r.w}x${r.h}`;
+                opt.textContent = r.label;
+                optGroup169.appendChild(opt);
+            }
+        });
+        settingResolution.appendChild(optGroup169);
+
+        // 4. Group: 21:9 Ultrawide
+        const optGroup219 = document.createElement('optgroup');
+        optGroup219.label = 'Format 21:9 (Ultrawide)';
+        const res219 = [
+            { w: 3440, h: 1440, label: '3440 x 1440 (UWQHD)' },
+            { w: 2560, h: 1080, label: '2560 x 1080 (UWFHD)' }
+        ];
+        res219.forEach(r => {
+            if (`${r.w}x${r.h}` !== detectedKey) {
+                const opt = document.createElement('option');
+                opt.value = `${r.w}x${r.h}`;
+                opt.textContent = r.label;
+                optGroup219.appendChild(opt);
+            }
+        });
+        settingResolution.appendChild(optGroup219);
+
+        // 5. Custom
+        const optGroupCustom = document.createElement('optgroup');
+        optGroupCustom.label = 'Manuel';
+        const optCustom = document.createElement('option');
+        optCustom.value = 'custom';
+        optCustom.textContent = 'Resolution personnalisee...';
+        optGroupCustom.appendChild(optCustom);
+        settingResolution.appendChild(optGroupCustom);
+
+        settingResolution.addEventListener('change', () => {
+            settingCustomResRow.style.display = settingResolution.value === 'custom' ? 'flex' : 'none';
+        });
+    }
+
     async function loadConfig() {
         const config = await tauriInvoke('get_config');
         if (config) {
             servers = config.servers || [];
             settings = config.settings || {};
         } else {
-            // Default fallback
+            const { physW, physH } = getDisplayResolutionProfiles();
             servers = [
-                { id: 'lan-main', name: 'Homelab Gaming (LAN)', host: '192.168.2.3', port: 8080, icon: '⚡' },
-                { id: 'tailscale-remote', name: 'Serveur Distant (Tailscale)', host: '100.73.113.43', port: 8080, icon: '🌐' }
+                { id: 'lan-main', name: 'Homelab Gaming (LAN)', host: '192.168.2.3', port: 8080 },
+                { id: 'tailscale-remote', name: 'Serveur Distant (Tailscale)', host: '100.73.113.43', port: 8080 }
             ];
             settings = {
-                resolution: '1920x1080',
+                resolution: `${physW}x${physH}`,
                 refresh_rate: '60',
                 bitrate: '40000000',
                 codec: 'h264',
@@ -135,25 +244,22 @@
             card.innerHTML = `
                 <div class="server-card-top">
                     <div class="server-info-box">
-                        <div class="server-icon">${server.icon || '🖥️'}</div>
-                        <div>
-                            <div class="server-name">${server.name}</div>
-                            <div class="server-address">${server.host}:${server.port}</div>
-                        </div>
+                        <div class="server-name">${server.name}</div>
+                        <div class="server-address">${server.host}:${server.port}</div>
                     </div>
                     <div class="server-status-pill status-${server.status || 'checking'}" id="status-${server.id}">
-                        <span class="pulse-dot"></span>
+                        <span class="status-dot"></span>
                         <span class="status-label">${getStatusLabel(server)}</span>
                     </div>
                 </div>
 
                 <div class="server-card-bottom">
-                    <div style="display:flex; gap:0.25rem;">
-                        <button class="server-action-btn" title="Modifier" onclick="window.editServer('${server.id}')">✏️</button>
-                        <button class="server-action-btn" title="Supprimer" onclick="window.deleteServer('${server.id}')">🗑️</button>
+                    <div style="display:flex; gap:0.35rem;">
+                        <button class="server-action-btn" onclick="window.editServer('${server.id}')">Editer</button>
+                        <button class="server-action-btn" onclick="window.deleteServer('${server.id}')">Supprimer</button>
                     </div>
                     <button class="btn btn-primary" onclick="window.launchServerSession('${server.id}')">
-                        <span>Lancer</span> 🚀
+                        Connecter
                     </button>
                 </div>
             `;
@@ -214,7 +320,19 @@
         const server = servers.find(s => s.id === serverId);
         if (!server) return;
 
-        showToast(`Connexion à ${server.name}...`);
+        showToast(`Connexion a ${server.name}...`);
+
+        let chosenResolution = settingResolution.value;
+        if (chosenResolution === 'custom') {
+            const w = customInputW.value.trim() || '1920';
+            const h = customInputH.value.trim() || '1080';
+            chosenResolution = `${w}x${h}`;
+        }
+
+        const effectiveSettings = {
+            ...settings,
+            resolution: chosenResolution
+        };
 
         try {
             await tauriInvoke('launch_session', {
@@ -223,9 +341,9 @@
                     name: server.name,
                     host: server.host,
                     port: server.port,
-                    icon: server.icon || null
+                    icon: null
                 },
-                settings: settings
+                settings: effectiveSettings
             });
             probeServer(server);
         } catch (err) {
@@ -234,12 +352,12 @@
     };
 
     // ==========================================================================
-    // Server Modal (Add / Edit / Delete)
+    // Server Modal
     // ==========================================================================
     function bindModalEvents() {
         btnAddServer.addEventListener('click', () => {
             editingServerId = null;
-            modalTitle.textContent = 'Ajouter un Serveur';
+            modalTitle.textContent = 'Ajouter un serveur';
             serverNameInput.value = '';
             serverHostInput.value = '';
             serverPortInput.value = '8080';
@@ -250,7 +368,7 @@
             const s = servers.find(x => x.id === serverId);
             if (!s) return;
             editingServerId = serverId;
-            modalTitle.textContent = 'Modifier le Serveur';
+            modalTitle.textContent = 'Modifier le serveur';
             serverNameInput.value = s.name;
             serverHostInput.value = s.host;
             serverPortInput.value = s.port;
@@ -258,7 +376,7 @@
         };
 
         window.deleteServer = async function (serverId) {
-            if (confirm('Voulez-vous supprimer ce serveur ?')) {
+            if (confirm('Supprimer ce serveur de la liste ?')) {
                 servers = servers.filter(s => s.id !== serverId);
                 renderServers();
                 await saveCurrentConfig();
@@ -278,7 +396,7 @@
             const port = parseInt(serverPortInput.value, 10) || 8080;
 
             if (!host) {
-                alert('Veuillez renseigner une adresse hôte ou IP valide.');
+                alert('Veuillez renseigner une adresse IP ou un nom d\'hote.');
                 return;
             }
 
@@ -295,7 +413,6 @@
                     name: name,
                     host: host,
                     port: port,
-                    icon: host.startsWith('192.168.') || host.startsWith('10.') ? '⚡' : '🌐',
                     status: 'checking'
                 });
             }
@@ -304,7 +421,7 @@
             renderServers();
             await saveCurrentConfig();
             probeAllServers();
-            showToast('Serveur enregistré !');
+            showToast('Serveur enregistre.');
         });
     }
 
@@ -312,7 +429,20 @@
     // Settings Handling
     // ==========================================================================
     function applySettingsToUI() {
-        if (settings.resolution) settingResolution.value = settings.resolution;
+        if (settings.resolution) {
+            if (Array.from(settingResolution.options).some(o => o.value === settings.resolution)) {
+                settingResolution.value = settings.resolution;
+            } else {
+                settingResolution.value = 'custom';
+                const parts = settings.resolution.split('x');
+                if (parts.length === 2) {
+                    customInputW.value = parts[0];
+                    customInputH.value = parts[1];
+                }
+            }
+        }
+        settingCustomResRow.style.display = settingResolution.value === 'custom' ? 'flex' : 'none';
+
         if (settings.refresh_rate) settingRefreshRate.value = settings.refresh_rate;
         if (settings.bitrate) settingBitrate.value = settings.bitrate;
         if (settings.codec) settingCodec.value = settings.codec;
@@ -326,8 +456,15 @@
 
     function bindSettingsEvents() {
         btnSaveSettings.addEventListener('click', async () => {
+            let resValue = settingResolution.value;
+            if (resValue === 'custom') {
+                const w = customInputW.value.trim() || '1920';
+                const h = customInputH.value.trim() || '1080';
+                resValue = `${w}x${h}`;
+            }
+
             settings = {
-                resolution: settingResolution.value,
+                resolution: resValue,
                 refresh_rate: settingRefreshRate.value,
                 bitrate: settingBitrate.value,
                 codec: settingCodec.value,
@@ -340,7 +477,7 @@
             };
 
             await saveCurrentConfig();
-            showToast('Paramètres enregistrés !');
+            showToast('Parametres enregistres.');
         });
     }
 
