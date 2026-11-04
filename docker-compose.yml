@@ -23,6 +23,10 @@ services:
       - REFRESH_RATE=60        # 60, 120, 144
       - LAUNCHER=menu           # Options: menu (default), steam, steam-bigpicture, heroic, desktop
       
+      # Authentication (secures streaming controller & resizer API)
+      - AUTH_USER=gamer
+      - AUTH_PASSWORD=kybergaming
+      
       # NVIDIA Container Toolkit flags
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all

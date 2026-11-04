@@ -40,6 +40,8 @@
     const serverNameInput = document.getElementById('serverNameInput');
     const serverHostInput = document.getElementById('serverHostInput');
     const serverPortInput = document.getElementById('serverPortInput');
+    const serverUserInput = document.getElementById('serverUserInput');
+    const serverPassInput = document.getElementById('serverPassInput');
 
     // Settings Input Elements
     const settingResolution = document.getElementById('settingResolution');
@@ -341,7 +343,9 @@
                     name: server.name,
                     host: server.host,
                     port: server.port,
-                    icon: null
+                    icon: null,
+                    auth_user: server.auth_user || null,
+                    auth_password: server.auth_password || null
                 },
                 settings: effectiveSettings
             });
@@ -361,6 +365,8 @@
             serverNameInput.value = '';
             serverHostInput.value = '';
             serverPortInput.value = '8080';
+            serverUserInput.value = 'gamer';
+            serverPassInput.value = '';
             serverModal.classList.add('active');
         });
 
@@ -372,6 +378,8 @@
             serverNameInput.value = s.name;
             serverHostInput.value = s.host;
             serverPortInput.value = s.port;
+            serverUserInput.value = s.auth_user || 'gamer';
+            serverPassInput.value = s.auth_password || '';
             serverModal.classList.add('active');
         };
 
@@ -394,6 +402,8 @@
             const name = serverNameInput.value.trim() || 'Serveur de Jeu';
             const host = serverHostInput.value.trim();
             const port = parseInt(serverPortInput.value, 10) || 8080;
+            const auth_user = serverUserInput.value.trim() || 'gamer';
+            const auth_password = serverPassInput.value;
 
             if (!host) {
                 alert('Veuillez renseigner une adresse IP ou un nom d\'hote.');
@@ -406,6 +416,8 @@
                     s.name = name;
                     s.host = host;
                     s.port = port;
+                    s.auth_user = auth_user;
+                    s.auth_password = auth_password;
                 }
             } else {
                 servers.push({
@@ -413,6 +425,8 @@
                     name: name,
                     host: host,
                     port: port,
+                    auth_user: auth_user,
+                    auth_password: auth_password,
                     status: 'checking'
                 });
             }

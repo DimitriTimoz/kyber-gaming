@@ -4,6 +4,9 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
         <script type="module" src="./bundle.js"></script>
         <!-- Dynamic autoresize disabled to prevent xcb SHM buffer crashes during active stream -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="./ui.css">
         <link rel="stylesheet" href="./theme.css">
         <link rel="stylesheet" href="./hub.css">
@@ -47,11 +50,11 @@
                     <div id="auth-basic-fields">
                       <div class="input-row">
                         <label for="auth-user">Username</label>
-                        <input id="auth-user" type="text" value="Default user"/>
+                        <input id="auth-user" type="text" value=""/>
                       </div>
                       <div class="input-row">
                         <label for="auth-pass">Password</label>
-                        <input id="auth-pass" type="password" value="Default password"/>
+                        <input id="auth-pass" type="password" value=""/>
                       </div>
                     </div>
                     <div id="auth-jwt-fields" style="display: none;">

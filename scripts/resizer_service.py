@@ -13,11 +13,34 @@ import subprocess
 import re
 import ssl
 import shutil
+import base64
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("RESIZER_PORT", "8081"))
 DISPLAY = os.environ.get("DISPLAY", ":0")
+AUTH_USER = os.environ.get("AUTH_USER", "gamer")
+AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "kybergaming")
+
+def is_authenticated(headers, params):
+    auth_header = headers.get("Authorization", "")
+    if auth_header.startswith("Basic "):
+        try:
+            decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+            if ":" in decoded:
+                u, p = decoded.split(":", 1)
+                if u == AUTH_USER and p == AUTH_PASSWORD:
+                    return True
+        except Exception:
+            pass
+
+    u = params.get("auth_user", [None])[0]
+    p = params.get("auth_pass", [None])[0]
+    if u == AUTH_USER and p == AUTH_PASSWORD:
+        return True
+
+    return False
+
 
 def run_cmd(cmd):
     try:
@@ -213,15 +236,29 @@ class ResizeHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        # Authentication endpoint
+        if parsed.path == "/api/auth/verify":
+            if is_authenticated(self.headers, params):
+                self._send_json_response({"authenticated": True, "user": AUTH_USER})
+            else:
+                self._send_json_response({"authenticated": False, "error": "Identifiants invalides"}, code=401)
+            return
+
+        # Protect sensitive execution endpoints
+        if parsed.path in ["/api/resize", "/api/launcher"]:
+            if not is_authenticated(self.headers, params):
+                self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
+                return
+
         if parsed.path == "/api/resize":
-            params = parse_qs(parsed.query)
             width = int(params.get("width", ["1920"])[0])
             height = int(params.get("height", ["1080"])[0])
             rate = int(params.get("rate", ["60"])[0])
             result = set_resolution(width, height, rate)
             self._send_json_response(result)
         elif parsed.path == "/api/launcher":
-            params = parse_qs(parsed.query)
             app = params.get("app", ["menu"])[0]
             app = re.sub(r"[^a-zA-Z0-9_\-]", "", app)
             if not app:

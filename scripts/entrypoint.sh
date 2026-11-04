@@ -80,6 +80,42 @@ if [ -f "$KYBER_CONF" ]; then
     chown gamer:gamer "$KYBER_CONF"
 fi
 
+# 7. Configure secure authentication for Kyber controller
+AUTH_USER="${AUTH_USER:-gamer}"
+AUTH_PASSWORD="${AUTH_PASSWORD:-kybergaming}"
+AUTH_HASH=$(echo -n "$AUTH_PASSWORD" | sha256sum | awk '{print $1}')
+
+echo "[entrypoint] Configuring Kyber controller authentication for user: $AUTH_USER"
+if [ -f "$KYBER_CONF" ]; then
+    python3 -c "
+conf_path = '$KYBER_CONF'
+with open(conf_path, 'r') as f:
+    lines = f.readlines()
+
+new_lines = []
+in_auth = False
+for line in lines:
+    if line.strip().startswith('[kycontroller.auth.basic]'):
+        in_auth = True
+        new_lines.append(line)
+        new_lines.append('enabled = true\n\n')
+        new_lines.append('[[kycontroller.auth.basic.logins]]\n')
+        new_lines.append('username = \"$AUTH_USER\"\n')
+        new_lines.append('password = \"$AUTH_HASH\"\n\n')
+        continue
+    if in_auth:
+        if line.strip().startswith('[') and not line.strip().startswith('[[kycontroller.auth'):
+            in_auth = False
+            new_lines.append(line)
+        continue
+    new_lines.append(line)
+
+with open(conf_path, 'w') as f:
+    f.writelines(new_lines)
+" || true
+    chown gamer:gamer "$KYBER_CONF"
+fi
+
 # Make scripts executable
 chmod +x /usr/local/bin/*.sh /usr/local/bin/*.py
 

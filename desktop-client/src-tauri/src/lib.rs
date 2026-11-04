@@ -10,6 +10,8 @@ pub struct ServerEntry {
     pub host: String,
     pub port: u16,
     pub icon: Option<String>,
+    pub auth_user: Option<String>,
+    pub auth_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,14 +49,18 @@ impl Default for AppConfig {
                     name: "Homelab Gaming (LAN)".into(),
                     host: "192.168.2.3".into(),
                     port: 8080,
-                    icon: Some("⚡".into()),
+                    icon: None,
+                    auth_user: Some("gamer".into()),
+                    auth_password: Some("kybergaming".into()),
                 },
                 ServerEntry {
                     id: "tailscale-remote".into(),
                     name: "Serveur Distant (Tailscale)".into(),
                     host: "100.73.113.43".into(),
                     port: 8080,
-                    icon: Some("🌐".into()),
+                    icon: None,
+                    auth_user: Some("gamer".into()),
+                    auth_password: Some("kybergaming".into()),
                 },
             ],
             settings: StreamSettings {
@@ -203,9 +209,11 @@ async fn launch_session(
         .build();
 
     if let Ok(c) = client {
+        let u = server.auth_user.as_deref().unwrap_or("gamer");
+        let p = server.auth_password.as_deref().unwrap_or("kybergaming");
         let resize_url = format!(
-            "https://{}:8081/api/resize?width={}&height={}&rate={}",
-            server.host, w, h, settings.refresh_rate
+            "https://{}:8081/api/resize?width={}&height={}&rate={}&auth_user={}&auth_pass={}",
+            server.host, w, h, settings.refresh_rate, u, p
         );
         let _ = c.get(&resize_url).send().await;
     }
@@ -221,6 +229,19 @@ async fn launch_session(
         "--port".into(),
         server.port.to_string(),
     ];
+
+    if let Some(user) = &server.auth_user {
+        if !user.is_empty() {
+            args.push("--auth-username".into());
+            args.push(user.clone());
+        }
+    }
+    if let Some(pass) = &server.auth_password {
+        if !pass.is_empty() {
+            args.push("--auth-password".into());
+            args.push(pass.clone());
+        }
+    }
 
     if !settings.bitrate.is_empty() {
         args.push("--bitrate".into());

@@ -1,6 +1,6 @@
 /**
  * Kyber Cloud Gaming - Industrial Console Web Hub
- * Zero-emoji, dynamic resolution detector, foolproof session quit controller
+ * Zero-emoji, Geist typography, authenticated lock gate, dynamic resolution detection
  */
 
 (function () {
@@ -20,14 +20,24 @@
         bitrate: '50000000',
         codec: 'h264',
         audioBuffer: '80',
+        authUser: '',
+        authPass: '',
+        isAuthenticated: false,
         gamepads: []
     };
 
-    // Load persisted settings
+    // Load persisted settings & auth
     try {
-        const saved = localStorage.getItem('kyber_web_settings');
-        if (saved) {
-            Object.assign(state, JSON.parse(saved));
+        const savedSettings = localStorage.getItem('kyber_web_settings');
+        if (savedSettings) {
+            Object.assign(state, JSON.parse(savedSettings));
+        }
+
+        const savedUser = localStorage.getItem('kyber_auth_user');
+        const savedPass = localStorage.getItem('kyber_auth_pass');
+        if (savedUser && savedPass) {
+            state.authUser = savedUser;
+            state.authPass = savedPass;
         }
     } catch (e) {}
 
@@ -47,22 +57,184 @@
     }
 
     // DOM Elements
-    let lobbyEl, inGameBarEl;
-    let badgeHostStatus, hostSpecsPill;
+    let lobbyEl, inGameBarEl, authGateEl;
+    let badgeHostStatus, hostSpecsPill, userAuthBadge;
     let selResolution, customResRow, inputCustomW, inputCustomH;
     let selFps, selBitrate, selCodec;
     let gamepadStatusLabel, btnVibrateGamepad;
     let btnPlayStream;
     let launcherButtons = [];
 
+    // Auth Elements
+    let inputAuthUser, inputAuthPass, checkRememberAuth, btnAuthSubmit, authErrorBanner;
+
     function initUI() {
         createLobbyDOM();
+        createAuthGateDOM();
         populateDetectedResolutions();
         bindEvents();
         updateFormValues();
         fetchSystemStatus();
         initGamepadListener();
         bindGlobalExitShortcuts();
+
+        // Check authentication
+        checkAuthOnBoot();
+    }
+
+    // ==========================================================================
+    // Authentication Gate Handling
+    // ==========================================================================
+    function createAuthGateDOM() {
+        authGateEl = document.createElement('div');
+        authGateEl.id = 'hub-auth-gate';
+        authGateEl.className = 'auth-gate-overlay';
+        authGateEl.innerHTML = `
+            <div class="auth-gate-box">
+                <div>
+                    <h2 class="auth-gate-title">Connexion securisee</h2>
+                    <p class="auth-gate-subtitle">Entrez vos identifiants pour acceder a l'hote Kyber Gaming.</p>
+                </div>
+
+                <div class="auth-error-banner" id="hub-auth-error">Identifiants invalides.</div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Nom d'utilisateur</label>
+                    <input type="text" class="setting-input" id="hub-input-user" value="${state.authUser || 'gamer'}" placeholder="ex: gamer">
+                </div>
+
+                <div class="setting-group">
+                    <label class="setting-label">Mot de passe</label>
+                    <input type="password" class="setting-input" id="hub-input-pass" value="${state.authPass || ''}" placeholder="Mot de passe">
+                </div>
+
+                <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.76rem; color:var(--kh-text-muted); cursor:pointer;">
+                    <input type="checkbox" id="hub-check-remember" checked>
+                    <span>Rester connecte sur cet appareil</span>
+                </label>
+
+                <button class="auth-btn-submit" id="hub-btn-login">Deverrouiller la console</button>
+            </div>
+        `;
+        document.body.appendChild(authGateEl);
+
+        inputAuthUser = document.getElementById('hub-input-user');
+        inputAuthPass = document.getElementById('hub-input-pass');
+        checkRememberAuth = document.getElementById('hub-check-remember');
+        btnAuthSubmit = document.getElementById('hub-btn-login');
+        authErrorBanner = document.getElementById('hub-auth-error');
+
+        btnAuthSubmit.addEventListener('click', performLogin);
+        inputAuthPass.addEventListener('keydown', e => {
+            if (e.key === 'Enter') performLogin();
+        });
+    }
+
+    async function checkAuthOnBoot() {
+        if (state.authUser && state.authPass) {
+            const ok = await verifyCredentials(state.authUser, state.authPass);
+            if (ok) {
+                unlockConsole(state.authUser, state.authPass);
+                return;
+            }
+        }
+        lockConsole();
+    }
+
+    async function verifyCredentials(user, pass) {
+        const proto = window.location.protocol;
+        const url = `${proto}//${state.host}:${state.resizerPort}/api/auth/verify?auth_user=${encodeURIComponent(user)}&auth_pass=${encodeURIComponent(pass)}`;
+        try {
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                return data.authenticated === true;
+            }
+        } catch (e) {
+            // If offline, check if user matches default
+            console.warn('Auth verification unreachable, checking local validation:', e);
+        }
+        return false;
+    }
+
+    async function performLogin() {
+        const user = inputAuthUser.value.trim();
+        const pass = inputAuthPass.value;
+
+        if (!user || !pass) {
+            showAuthError('Veuillez renseigner un utilisateur et un mot de passe.');
+            return;
+        }
+
+        btnAuthSubmit.disabled = true;
+        btnAuthSubmit.textContent = 'Verification...';
+        authErrorBanner.classList.remove('show');
+
+        const ok = await verifyCredentials(user, pass);
+        btnAuthSubmit.disabled = false;
+        btnAuthSubmit.textContent = 'Deverrouiller la console';
+
+        if (ok) {
+            if (checkRememberAuth.checked) {
+                try {
+                    localStorage.setItem('kyber_auth_user', user);
+                    localStorage.setItem('kyber_auth_pass', pass);
+                } catch (e) {}
+            } else {
+                try {
+                    localStorage.removeItem('kyber_auth_user');
+                    localStorage.removeItem('kyber_auth_pass');
+                } catch (e) {}
+            }
+            unlockConsole(user, pass);
+        } else {
+            showAuthError('Identifiants incorrects.');
+        }
+    }
+
+    function showAuthError(msg) {
+        authErrorBanner.textContent = msg;
+        authErrorBanner.classList.add('show');
+    }
+
+    function lockConsole() {
+        state.isAuthenticated = false;
+        authGateEl.classList.add('active');
+        if (userAuthBadge) userAuthBadge.style.display = 'none';
+        if (btnPlayStream) btnPlayStream.disabled = true;
+    }
+
+    function unlockConsole(user, pass) {
+        state.authUser = user;
+        state.authPass = pass;
+        state.isAuthenticated = true;
+
+        authGateEl.classList.remove('active');
+        if (userAuthBadge) {
+            userAuthBadge.style.display = 'inline-flex';
+            document.getElementById('hub-username-label').textContent = user;
+        }
+        if (btnPlayStream) btnPlayStream.disabled = false;
+
+        // Apply to webclient input fields
+        const inputU = document.getElementById('auth-user');
+        const inputP = document.getElementById('auth-pass');
+        if (inputU) inputU.value = user;
+        if (inputP) inputP.value = pass;
+    }
+
+    function performLogout() {
+        try {
+            localStorage.removeItem('kyber_auth_user');
+            localStorage.removeItem('kyber_auth_pass');
+        } catch (e) {}
+        state.authUser = '';
+        state.authPass = '';
+
+        const btnDisconnect = document.getElementById('disconnect');
+        if (btnDisconnect) btnDisconnect.click();
+
+        lockConsole();
     }
 
     // ==========================================================================
@@ -70,14 +242,10 @@
     // ==========================================================================
     function getDisplayResolutionProfiles() {
         const dpr = window.devicePixelRatio || 1;
-        // Physical screen resolution
         const physW = Math.round(window.screen.width * dpr);
         const physH = Math.round(window.screen.height * dpr);
-
-        // Logical CSS resolution
         const logW = window.screen.width;
         const logH = window.screen.height;
-
         return { physW, physH, logW, logH, dpr };
     }
 
@@ -89,8 +257,6 @@
         const divisor = gcd(w, h);
         const rw = w / divisor;
         const rh = h / divisor;
-
-        // Approximate standard ratios
         const ratio = w / h;
         if (Math.abs(ratio - 16 / 10) < 0.05) return '16:10';
         if (Math.abs(ratio - 16 / 9) < 0.05) return '16:9';
@@ -106,7 +272,7 @@
 
         selResolution.innerHTML = '';
 
-        // 1. Group: Detected Screen
+        // 1. Detected Screen
         const optGroupDetected = document.createElement('optgroup');
         optGroupDetected.label = 'Ecran detecte (Recommande)';
 
@@ -123,7 +289,7 @@
         }
         selResolution.appendChild(optGroupDetected);
 
-        // 2. Group: 16:10 (MacBook / Laptops / Steam Deck)
+        // 2. 16:10 (MacBook / Deck)
         const optGroup1610 = document.createElement('optgroup');
         optGroup1610.label = 'Format 16:10 (MacBook / Laptops / Deck)';
         const res1610 = [
@@ -143,7 +309,7 @@
         });
         selResolution.appendChild(optGroup1610);
 
-        // 3. Group: 16:9 Standard
+        // 3. 16:9 Standard
         const optGroup169 = document.createElement('optgroup');
         optGroup169.label = 'Format 16:9 (Standard)';
         const res169 = [
@@ -162,7 +328,7 @@
         });
         selResolution.appendChild(optGroup169);
 
-        // 4. Group: 21:9 Ultrawide
+        // 4. 21:9 Ultrawide
         const optGroup219 = document.createElement('optgroup');
         optGroup219.label = 'Format 21:9 (Ultrawide)';
         const res219 = [
@@ -188,7 +354,6 @@
         optGroupCustom.appendChild(optCustom);
         selResolution.appendChild(optGroupCustom);
 
-        // Default selection: if previous resolution matches an option, keep it; else select detected
         if (state.resolution && Array.from(selResolution.options).some(o => o.value === state.resolution)) {
             selResolution.value = state.resolution;
         } else {
@@ -229,6 +394,10 @@
                     </div>
                     <div class="host-specs-pill" id="hub-specs-pill">
                         GPU: Detection...
+                    </div>
+                    <div class="user-auth-badge" id="hub-user-badge" style="display:none;">
+                        <span>Session: <strong id="hub-username-label">gamer</strong></span>
+                        <button class="user-logout-btn" id="hub-btn-logout">Deconnexion</button>
                     </div>
                 </div>
             </header>
@@ -322,7 +491,7 @@
                         <ul style="padding-left:1.1rem; margin:0; display:flex; flex-direction:column; gap:0.25rem;">
                             <li>Survolez le bord superieur de l'ecran pour afficher la barre de controle.</li>
                             <li>Appuyez sur <kbd>Echap</kbd> ou <kbd>Ctrl+Shift+Q</kbd>.</li>
-                            <li>Cliquez sur le bouton rouge <strong>[Quitter]</strong>.</li>
+                            <li>Cliquez sur le bouton rouge <strong>[Quitter la session]</strong>.</li>
                         </ul>
                     </div>
                 </div>
@@ -359,6 +528,7 @@
         // Bind DOM references
         badgeHostStatus = document.getElementById('hub-host-status');
         hostSpecsPill = document.getElementById('hub-specs-pill');
+        userAuthBadge = document.getElementById('hub-user-badge');
         selResolution = document.getElementById('hub-sel-resolution');
         customResRow = document.getElementById('hub-custom-res-row');
         inputCustomW = document.getElementById('hub-input-w');
@@ -370,6 +540,8 @@
         btnVibrateGamepad = document.getElementById('hub-btn-vibrate');
         btnPlayStream = document.getElementById('hub-btn-play');
         launcherButtons = lobbyEl.querySelectorAll('.launcher-btn');
+
+        document.getElementById('hub-btn-logout').addEventListener('click', performLogout);
     }
 
     function updateFormValues() {
@@ -498,7 +670,7 @@
 
     function switchHostLauncher(launcher) {
         const proto = window.location.protocol;
-        const url = `${proto}//${state.host}:${state.resizerPort}/api/launcher?app=${encodeURIComponent(launcher)}`;
+        const url = `${proto}//${state.host}:${state.resizerPort}/api/launcher?app=${encodeURIComponent(launcher)}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
         fetch(url).catch(e => console.warn('Failed to switch launcher:', e));
     }
 
@@ -518,7 +690,7 @@
 
     function resizeHostScreen(w, h, fps) {
         const proto = window.location.protocol;
-        const url = `${proto}//${state.host}:${state.resizerPort}/api/resize?width=${w}&height=${h}&rate=${fps}`;
+        const url = `${proto}//${state.host}:${state.resizerPort}/api/resize?width=${w}&height=${h}&rate=${fps}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
         return fetch(url).catch(e => console.warn('Failed to resize display:', e));
     }
 
@@ -526,6 +698,11 @@
     // Session Lifecycle (Start & Stop)
     // ==========================================================================
     async function startStreamingSession() {
+        if (!state.isAuthenticated) {
+            lockConsole();
+            return;
+        }
+
         btnPlayStream.disabled = true;
         btnPlayStream.textContent = 'Preparation session...';
 
@@ -566,32 +743,32 @@
     }
 
     function stopStreamingSession() {
-        // 1. Release pointer lock
         if (document.exitPointerLock) {
             try { document.exitPointerLock(); } catch (e) {}
         }
 
-        // 2. Exit fullscreen
         if (document.fullscreenElement && document.exitFullscreen) {
             try { document.exitFullscreen(); } catch (e) {}
         }
 
-        // 3. Trigger native disconnect
         const btnDisconnect = document.getElementById('disconnect');
         if (btnDisconnect) {
             btnDisconnect.click();
         }
 
-        // 4. Restore Lobby view
         lobbyEl.classList.remove('hidden');
         inGameBarEl.style.display = 'none';
         inGameBarEl.classList.remove('active');
 
-        // 5. Refresh host status
         fetchSystemStatus();
     }
 
     function applySettingsToWebClient() {
+        const inputU = document.getElementById('auth-user');
+        const inputP = document.getElementById('auth-pass');
+        if (inputU) inputU.value = state.authUser;
+        if (inputP) inputP.value = state.authPass;
+
         const bitrateInput = document.getElementById('bitrate');
         if (bitrateInput) bitrateInput.value = state.bitrate;
 
@@ -657,7 +834,7 @@
         }
     }
 
-    // Init
+    // Init on load
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initUI);
     } else {
