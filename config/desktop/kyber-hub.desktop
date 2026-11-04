@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Kyber Hub
+Comment=Console OS Home & Launcher
+Exec=/usr/local/bin/switch_launcher.sh menu
+Icon=applications-games
+Terminal=false
+Categories=Game;Console;

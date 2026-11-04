@@ -657,30 +657,37 @@
         const authPassword = server.auth_password || server.password || 'kybergaming';
         desktopRomEmpty.style.display = 'none';
 
+        let data;
         try {
-            const data = await tauriInvoke('rom_browse', {
+            data = await tauriInvoke('rom_browse', {
                 host: server.host,
                 port: controlPort,
                 path: currentDesktopBrowsePath,
                 authUser: authUser,
                 authPassword: authPassword
             });
-
-            if (data && data.status === 'ok') {
-                currentDesktopDirData = data;
-                renderDesktopPresetPills();
-                renderDesktopDirectoryView();
-            } else {
-                desktopRomTableBody.innerHTML = '';
-                desktopRomCount.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
-                desktopRomEmpty.style.display = 'block';
-                desktopRomEmpty.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
-            }
         } catch (err) {
             desktopRomTableBody.innerHTML = '';
             desktopRomCount.textContent = 'Could not connect to storage service on server.';
             desktopRomEmpty.style.display = 'block';
             desktopRomEmpty.textContent = `Unable to connect to ${server.host}:${controlPort}. Ensure the server is reachable and port ${controlPort} is open.`;
+            return;
+        }
+
+        if (data && data.status === 'ok') {
+            currentDesktopDirData = data;
+            renderDesktopPresetPills();
+            try {
+                renderDesktopDirectoryView();
+            } catch (renderErr) {
+                console.error('Error rendering directory view:', renderErr);
+                desktopRomCount.textContent = 'Error displaying directory contents.';
+            }
+        } else {
+            desktopRomTableBody.innerHTML = '';
+            desktopRomCount.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
+            desktopRomEmpty.style.display = 'block';
+            desktopRomEmpty.textContent = (data && data.error) ? data.error : 'Failed to retrieve storage directory.';
         }
     }
 
@@ -710,8 +717,10 @@
         });
 
         // 2. Storage Header Info
-        desktopRomCount.textContent = `${currentDesktopDirData.total_folders} folders, ${currentDesktopDirData.total_files} files (${currentDesktopDirData.total_size_formatted})`;
-        desktopRomPath.textContent = `Storage: ${currentDesktopDirData.absolute_path}`;
+        const formattedTotalSize = currentDesktopDirData.total_size_formatted || currentDesktopDirData.total_size || '0 B';
+        desktopRomCount.textContent = `${currentDesktopDirData.total_folders || 0} folders, ${currentDesktopDirData.total_files || 0} files (${formattedTotalSize})`;
+        const storageDisplay = currentDesktopDirData.absolute_path || (currentDesktopDirData.storage_root ? (currentDesktopDirData.storage_root + (currentDesktopDirData.current_path ? '/' + currentDesktopDirData.current_path : '')) : currentDesktopBrowsePath);
+        desktopRomPath.textContent = `Storage: ${storageDisplay}`;
 
         // 3. Search Filter
         const query = (desktopRomSearchInput ? desktopRomSearchInput.value : '').trim().toLowerCase();
@@ -821,7 +830,7 @@
                     <td style="padding: 10px 18px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${formatTimestamp(file.modified)}</td>
                     <td style="padding: 10px 18px; text-align: right;">
                         <div class="rom-row-actions">
-                            ${fileType === 'archive' ? `<button class="rom-extract-btn" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);padding:2px 8px;font-size:0.7rem;font-weight:600;border-radius:4px;cursor:pointer;margin-right:6px;" title="Extract Archive">EXTRACT</button>` : ''}
+                            ${(fileType === 'archive' || fileExt === '.iso') ? `<button class="rom-extract-btn" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);padding:2px 8px;font-size:0.7rem;font-weight:600;border-radius:4px;cursor:pointer;margin-right:6px;" title="Extract Disc Image or Archive">EXTRACT</button>` : ''}
                             <button class="rom-action-icon-btn rom-dl-btn" title="Download File">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                             </button>
@@ -979,7 +988,12 @@
         });
     }
 
-    const DESKTOP_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunk size for high-throughput uploading
+    function getDesktopChunkSize(fileSize) {
+        if (fileSize > 5 * 1024 * 1024 * 1024) return 16 * 1024 * 1024; // 16 MB for > 5 GB
+        if (fileSize > 500 * 1024 * 1024) return 8 * 1024 * 1024;       // 8 MB for > 500 MB
+        if (fileSize > 50 * 1024 * 1024) return 4 * 1024 * 1024;        // 4 MB for > 50 MB
+        return 2 * 1024 * 1024;                                          // 2 MB for smaller files
+    }
 
     async function uploadDesktopFilesChunked(files) {
         const server = getSelectedRomServer();
@@ -1004,7 +1018,8 @@
             }
 
             const file = fileArr[fileIdx];
-            const totalChunks = Math.ceil(file.size / DESKTOP_CHUNK_SIZE) || 1;
+            const chunkSizeSetting = getDesktopChunkSize(file.size);
+            const totalChunks = Math.ceil(file.size / chunkSizeSetting) || 1;
             const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
             desktopRomUploadTitle.textContent = `Uploading ${file.name} (${fileIdx + 1} of ${fileArr.length})...`;
@@ -1012,8 +1027,8 @@
             for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
                 if (isDesktopUploadCancelled) break;
 
-                const start = chunkIdx * DESKTOP_CHUNK_SIZE;
-                const end = Math.min(start + DESKTOP_CHUNK_SIZE, file.size);
+                const start = chunkIdx * chunkSizeSetting;
+                const end = Math.min(start + chunkSizeSetting, file.size);
                 const chunkBlob = file.slice(start, end);
                 const chunkSize = end - start;
 
@@ -1089,6 +1104,12 @@
             return d.toISOString().slice(0, 16).replace('T', ' ');
         }
         return String(ts);
+    }
+
+    function escapeHtml(str) {
+        return (str || '').replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+        });
     }
 
     function bindRomManagerEvents() {

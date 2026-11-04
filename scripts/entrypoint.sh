@@ -83,7 +83,15 @@ Paths\gamedirs\2\expanded=true
 EOF
 fi
 
-chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config 2>/dev/null || true
+mkdir -p /home/gamer/.config/tint2 /home/gamer/.themes /home/gamer/.local/share/applications
+if [ -d /usr/share/themes/KyberDark ] && [ ! -d /home/gamer/.themes/KyberDark ]; then
+    cp -r /usr/share/themes/KyberDark /home/gamer/.themes/ 2>/dev/null || true
+fi
+if [ -f /usr/share/applications/kyber-hub.desktop ]; then
+    cp /usr/share/applications/kyber-hub.desktop /home/gamer/.local/share/applications/ 2>/dev/null || true
+fi
+
+chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes 2>/dev/null || true
 
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then

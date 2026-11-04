@@ -134,9 +134,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xserver-xorg-input-libinput \
     xserver-xorg-input-evdev \
     xinput \
+    x11-xserver-utils \
     p7zip-full \
     unzip \
     unrar-free \
+    libusb-1.0-0 \
+    libopengl0 \
+    pcmanfm \
+    xfce4-terminal \
+    tint2 \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Install PipeWire audio stack
@@ -213,7 +219,8 @@ RUN echo -e "/opt/kyber/lib\n/opt/kyber/lib/x86_64-linux-gnu\n/opt/kyber/lib64" 
 
 # 10. Setup directories and copy project configurations & scripts
 RUN mkdir -p /etc/kyber/tls /etc/X11 /var/log/supervisor /run/user/1000 \
-    /home/gamer/.config/openbox /home/gamer/.config/pipewire/pipewire.conf.d \
+    /home/gamer/.config/openbox /home/gamer/.config/tint2 /home/gamer/.config/pipewire/pipewire.conf.d \
+    /home/gamer/.themes /usr/share/themes /usr/share/applications \
     /home/gamer/.local/share/Steam
 
 COPY config/xorg/xorg.nvidia.conf /etc/kyber/xorg.nvidia.conf
@@ -225,6 +232,10 @@ COPY config/launchers.json /etc/kyber/launchers.json
 COPY config/openbox/rc.xml /home/gamer/.config/openbox/rc.xml
 COPY config/openbox/menu.xml /home/gamer/.config/openbox/menu.xml
 COPY config/openbox/autostart /home/gamer/.config/openbox/autostart
+COPY config/openbox/themes/ /usr/share/themes/
+COPY config/openbox/themes/ /home/gamer/.themes/
+COPY config/tint2/tint2rc /home/gamer/.config/tint2/tint2rc
+COPY config/desktop/kyber-hub.desktop /usr/share/applications/kyber-hub.desktop
 COPY config/pipewire/pipewire.conf.d/ /home/gamer/.config/pipewire/pipewire.conf.d/
 
 COPY scripts/make_edid.py /usr/local/bin/make_edid.py

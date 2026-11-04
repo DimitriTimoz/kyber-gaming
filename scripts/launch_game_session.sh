@@ -125,6 +125,23 @@ while true; do
 
         browser|chrome|google-chrome)
             echo "[session] Starting Web Browser (Google Chrome)..."
+            # Ensure Chrome uses native system titlebar with functional close button
+            python3 -c '
+import json, os
+p = "/home/gamer/.config/google-chrome/Default/Preferences"
+os.makedirs(os.path.dirname(p), exist_ok=True)
+data = {}
+if os.path.exists(p):
+    try: data = json.load(open(p))
+    except Exception: pass
+data.setdefault("browser", {})["custom_chrome_frame"] = False
+try: json.dump(data, open(p, "w"))
+except Exception: pass
+' 2>/dev/null || true
+
+            # Launch tint2 quick bar for persistent console navigation
+            pgrep -u gamer -x "tint2" >/dev/null 2>&1 || (tint2 >/dev/null 2>&1 &)
+
             google-chrome \
                 --no-sandbox \
                 --no-first-run \
@@ -175,17 +192,31 @@ while true; do
             ;;
 
         desktop)
-            echo "[session] Desktop mode active. Waiting for user interaction..."
-            while [ ! -s /tmp/kyber_next_action ]; do
-                sleep 1
+            echo "[session] Entering Libre Desktop Mode (tint2 + pcmanfm)..."
+            xsetroot -solid "#0b0f19" 2>/dev/null || true
+            pgrep -u gamer -x "tint2" >/dev/null 2>&1 || (tint2 >/dev/null 2>&1 &)
+            pgrep -u gamer -f "pcmanfm --desktop" >/dev/null 2>&1 || (pcmanfm --desktop >/dev/null 2>&1 &)
+
+            while true; do
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "desktop" ]; then
+                        echo "[session] Action switch requested from desktop: $NEXT"
+                        pkill -u gamer -x "tint2" 2>/dev/null || true
+                        pkill -u gamer -f "pcmanfm --desktop" 2>/dev/null || true
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+                sleep 0.5
             done
-            CURRENT_ACTION="$(cat /tmp/kyber_next_action | tr -d '[:space:]')"
-            rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
             ;;
 
         menu)
             echo "[session] Presenting Fullscreen Console Kiosk Hub..."
-            # Clean any stale hub processes
+            # Clean any stale hub processes or panels during fullscreen kiosk
+            pkill -u gamer -x "tint2" 2>/dev/null || true
             pkill -u gamer -f "kyber-hub-profile|kyber_console_hub|kyber_launcher_menu" 2>/dev/null || true
             RAW_CHOICE=$(bash /usr/local/bin/kyber_console_hub.sh || echo "menu")
             CHOICE=$(echo "$RAW_CHOICE" | tail -n 1 | tr -d '[:space:]')

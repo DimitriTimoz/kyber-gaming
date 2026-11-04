@@ -9,8 +9,8 @@
     <followMouse>no</followMouse>
     <focusLast>yes</focusLast>
     <underMouse>no</underMouse>
-    <focusDelay>200</focusDelay>
-    <raiseOnFocus>no</raiseOnFocus>
+    <focusDelay>100</focusDelay>
+    <raiseOnFocus>yes</raiseOnFocus>
   </focus>
   <placement>
     <policy>Smart</policy>
@@ -19,10 +19,22 @@
     <primaryMonitor>1</primaryMonitor>
   </placement>
   <theme>
-    <name>Clearlooks</name>
+    <name>KyberDark</name>
     <titleLayout>NLIMC</titleLayout>
-    <keepBorder>no</keepBorder>
+    <keepBorder>yes</keepBorder>
     <animateIconify>no</animateIconify>
+    <font place="ActiveWindow">
+      <name>sans</name>
+      <size>10</size>
+      <weight>bold</weight>
+      <slant>normal</slant>
+    </font>
+    <font place="InactiveWindow">
+      <name>sans</name>
+      <size>10</size>
+      <weight>normal</weight>
+      <slant>normal</slant>
+    </font>
   </theme>
   <desktops>
     <number>1</number>
@@ -33,6 +45,7 @@
   </desktops>
 
   <keyboard>
+    <!-- Window Switching -->
     <keybind key="A-Tab">
       <action name="NextWindow">
         <finalactions>
@@ -51,7 +64,39 @@
         </finalactions>
       </action>
     </keybind>
-    <keybind key="A-space">
+
+    <!-- Window Closing & Management (Standard Universal Shortcuts) -->
+    <keybind key="A-F4">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="W-q">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="W-c">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="W-w">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="C-w">
+      <action name="Close"/>
+    </keybind>
+    <keybind key="C-q">
+      <action name="Close"/>
+    </keybind>
+
+    <!-- Force Kill Stalled / Unresponsive Window -->
+    <keybind key="W-Escape">
+      <action name="Kill"/>
+    </keybind>
+    <keybind key="A-Escape">
+      <action name="Execute">
+        <command>xkill</command>
+      </action>
+    </keybind>
+
+    <!-- Quick Return to Console Hub -->
+    <keybind key="F1">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh menu</command>
       </action>
@@ -61,38 +106,186 @@
         <command>/usr/local/bin/switch_launcher.sh menu</command>
       </action>
     </keybind>
+    <keybind key="W-Home">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh menu</command>
+      </action>
+    </keybind>
+
+    <!-- Toggle Window Decorations and Fullscreen on the Fly -->
+    <keybind key="A-F11">
+      <action name="ToggleDecorations"/>
+    </keybind>
+    <keybind key="F11">
+      <action name="ToggleFullscreen"/>
+    </keybind>
+
+    <!-- Window Window State Shortcuts -->
+    <keybind key="A-space">
+      <action name="ShowMenu"><menu>client-menu</menu></action>
+    </keybind>
+    <keybind key="W-Up">
+      <action name="ToggleMaximize"/>
+    </keybind>
+    <keybind key="W-Down">
+      <action name="Iconify"/>
+    </keybind>
     <keybind key="W-d">
       <action name="ToggleShowDesktop"/>
+    </keybind>
+
+    <!-- Kyber Launchers & Console OS Navigation -->
+    <keybind key="W-space">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh menu</command>
+      </action>
+    </keybind>
+    <keybind key="W-Home">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh menu</command>
+      </action>
+    </keybind>
+    <keybind key="W-t">
+      <action name="Execute">
+        <command>xfce4-terminal</command>
+      </action>
+    </keybind>
+    <keybind key="W-e">
+      <action name="Execute">
+        <command>pcmanfm</command>
+      </action>
     </keybind>
   </keyboard>
 
   <mouse>
+    <!-- Titlebar Close Button -->
+    <context name="Close">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="Close"/>
+      </mousebind>
+      <mousebind button="Left" action="Click">
+        <action name="Close"/>
+      </mousebind>
+    </context>
+
+    <!-- Titlebar Maximize Button -->
+    <context name="Maximize">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="Unshade"/>
+      </mousebind>
+      <mousebind button="Left" action="Click">
+        <action name="ToggleMaximize"/>
+      </mousebind>
+    </context>
+
+    <!-- Titlebar Minimize / Iconify Button -->
+    <context name="Iconify">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="Unshade"/>
+      </mousebind>
+      <mousebind button="Left" action="Click">
+        <action name="Iconify"/>
+      </mousebind>
+    </context>
+
+    <!-- Window Titlebar Drag & Double-Click -->
+    <context name="Titlebar">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="Left" action="DoubleClick">
+        <action name="ToggleMaximize"/>
+      </mousebind>
+      <mousebind button="Right" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="ShowMenu"><menu>client-menu</menu></action>
+      </mousebind>
+      <mousebind button="Middle" action="Press">
+        <action name="Lower"/>
+      </mousebind>
+    </context>
+
+    <!-- Window Frame Resize and Move -->
+    <context name="Frame">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="A-Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="A-Right" action="Drag">
+        <action name="Resize"/>
+      </mousebind>
+    </context>
+
+    <!-- Client Area Context -->
+    <context name="Client">
+      <mousebind button="Left" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Middle" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="Right" action="Press">
+        <action name="Focus"/>
+        <action name="Raise"/>
+      </mousebind>
+      <mousebind button="A-Left" action="Drag">
+        <action name="Move"/>
+      </mousebind>
+      <mousebind button="A-Right" action="Drag">
+        <action name="Resize"/>
+      </mousebind>
+    </context>
+
+    <!-- Root Desktop Right-Click Menu -->
     <context name="Root">
       <mousebind button="Right" action="Press">
         <action name="ShowMenu"><menu>root-menu</menu></action>
       </mousebind>
       <mousebind button="Middle" action="Press">
-        <action name="ShowMenu"><menu>root-menu</menu></action>
+        <action name="ShowMenu"><menu>client-list-combined-menu</menu></action>
       </mousebind>
     </context>
   </mouse>
 
   <applications>
-    <application type="dialog">
-      <decor>no</decor>
-      <maximized>no</maximized>
-    </application>
-    <application title="Kyber Cloud Gaming">
-      <decor>no</decor>
-      <maximized>no</maximized>
-      <position force="yes">
-        <x>center</x>
-        <y>center</y>
-      </position>
-    </application>
-    <application class="*">
+    <!-- Kyber Console OS Hub Kiosk -->
+    <application title="*Kyber*">
       <decor>no</decor>
       <maximized>yes</maximized>
+    </application>
+
+    <!-- Steam Big Picture Mode -->
+    <application class="*steamwebhelper*" title="*Big Picture*">
+      <decor>no</decor>
+      <maximized>yes</maximized>
+    </application>
+
+    <!-- Dialogs and utility popups: Always decorated with titlebar and close button -->
+    <application type="dialog">
+      <decor>yes</decor>
+      <maximized>no</maximized>
+    </application>
+
+    <!-- All applications default: Decorated with clean titlebar, close button, and border -->
+    <application class="*">
+      <decor>yes</decor>
+      <maximized>no</maximized>
     </application>
   </applications>
 </openbox_config>

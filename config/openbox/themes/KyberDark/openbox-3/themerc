@@ -1,0 +1,102 @@
+# KyberDark Modern Console Openbox Theme
+# High-contrast gaming console theme with glowing neon accents and clear window controls
+
+# General
+border.width: 2
+padding.width: 4
+padding.height: 3
+window.handle.width: 0
+window.client.padding.width: 0
+window.client.padding.height: 0
+menu.overlap: 0
+*.justify: center
+
+# Active Window Titlebar
+window.active.title.bg: flat solid
+window.active.title.bg.color: #0b0e14
+window.active.title.separator.color: #00d2ff
+window.active.label.bg: parentrelative
+window.active.label.text.color: #ffffff
+window.active.label.text.font: shadow=y:shadowtint=40:shadowoffset=1
+
+# Inactive Window Titlebar
+window.inactive.title.bg: flat solid
+window.inactive.title.bg.color: #06080d
+window.inactive.title.separator.color: #1e2430
+window.inactive.label.bg: parentrelative
+window.inactive.label.text.color: #64748b
+
+# Window Borders (Neon Cyan glow on Active, Dark Slate on Inactive)
+window.active.border.color: #00d2ff
+window.inactive.border.color: #1e2430
+
+# Window Buttons - Common
+window.*.button.*.bg: parentrelative
+window.active.button.*.image.color: #cbd5e1
+window.inactive.button.*.image.color: #475569
+
+# Close Button (Distinct Crimson Red on active)
+window.active.button.close.unpressed.image.color: #f43f5e
+window.active.button.close.hover.bg: flat solid
+window.active.button.close.hover.bg.color: #e11d48
+window.active.button.close.hover.image.color: #ffffff
+window.active.button.close.pressed.bg: flat solid
+window.active.button.close.pressed.bg.color: #be123c
+window.active.button.close.pressed.image.color: #ffffff
+
+# Maximize Button (Cyan Box)
+window.active.button.max.unpressed.image.color: #38bdf8
+window.active.button.max.hover.bg: flat solid
+window.active.button.max.hover.bg.color: #0284c7
+window.active.button.max.hover.image.color: #ffffff
+window.active.button.max.pressed.bg: flat solid
+window.active.button.max.pressed.bg.color: #0369a1
+window.active.button.max.pressed.image.color: #ffffff
+
+# Minimize / Iconify Button (Purple Bar)
+window.active.button.iconify.unpressed.image.color: #a855f7
+window.active.button.iconify.hover.bg: flat solid
+window.active.button.iconify.hover.bg.color: #7c3aed
+window.active.button.iconify.hover.image.color: #ffffff
+window.active.button.iconify.pressed.bg: flat solid
+window.active.button.iconify.pressed.bg.color: #6d28d9
+window.active.button.iconify.pressed.image.color: #ffffff
+
+# Inactive Buttons
+window.inactive.button.close.unpressed.image.color: #64748b
+window.inactive.button.max.unpressed.image.color: #475569
+window.inactive.button.iconify.unpressed.image.color: #475569
+
+# Menu Styling
+menu.border.color: #00d2ff
+menu.border.width: 2
+menu.title.bg: flat solid
+menu.title.bg.color: #0b0e14
+menu.title.text.color: #00d2ff
+menu.title.text.justify: center
+
+menu.items.bg: flat solid
+menu.items.bg.color: #080a0f
+menu.items.text.color: #cbd5e1
+menu.items.justify: left
+menu.items.disabled.text.color: #475569
+
+menu.items.active.bg: flat solid
+menu.items.active.bg.color: #0f2744
+menu.items.active.text.color: #ffffff
+
+menu.separator.color: #1e2430
+menu.separator.width: 1
+menu.separator.padding.width: 4
+menu.separator.padding.height: 3
+
+# OSD (On-Screen Display for Alt-Tab and Move/Resize)
+osd.border.color: #00d2ff
+osd.border.width: 2
+osd.bg: flat solid
+osd.bg.color: #080a0f
+osd.label.text.color: #ffffff
+osd.hilight.bg: flat solid
+osd.hilight.bg.color: #00d2ff
+osd.unhilight.bg: flat solid
+osd.unhilight.bg.color: #1e2430

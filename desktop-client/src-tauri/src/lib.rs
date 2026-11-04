@@ -73,15 +73,6 @@ impl Default for AppConfig {
                     auth_user: Some("gamer".into()),
                     auth_password: Some("kybergaming".into()),
                 },
-                ServerEntry {
-                    id: "tailscale-remote".into(),
-                    name: "Serveur Distant (Tailscale)".into(),
-                    host: "100.73.113.43".into(),
-                    port: 8080,
-                    icon: None,
-                    auth_user: Some("gamer".into()),
-                    auth_password: Some("kybergaming".into()),
-                },
             ],
             settings: StreamSettings {
                 resolution: "native".into(),

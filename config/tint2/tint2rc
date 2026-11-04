@@ -1,0 +1,146 @@
+# Kyber Gaming Console OS - Topbar / Quick Dock Configuration
+# Provides persistent console navigation, window switcher, and instant kill/close controls
+
+# Background 1: Panel
+rounded = 0
+border_width = 1
+border_sides = B
+background_color = #080b12 90
+border_color = #1e293b 80
+background_color_hover = #080b12 90
+border_color_hover = #1e293b 80
+background_color_pressed = #080b12 90
+border_color_pressed = #1e293b 80
+
+# Background 2: Default Inactive Task
+rounded = 6
+border_width = 1
+border_sides = TBLR
+background_color = #131924 60
+border_color = #1e293b 70
+background_color_hover = #1e293b 85
+border_color_hover = #38bdf8 80
+background_color_pressed = #0f172a 90
+border_color_pressed = #00d2ff 90
+
+# Background 3: Active Focused Task
+rounded = 6
+border_width = 1
+border_sides = TBLR
+background_color = #0f2744 90
+border_color = #00d2ff 100
+background_color_hover = #13395e 95
+border_color_hover = #38bdf8 100
+background_color_pressed = #0a1b2e 100
+border_color_pressed = #00d2ff 100
+
+# Background 4: Launcher Button (Kyber Hub Home)
+rounded = 6
+border_width = 1
+border_sides = TBLR
+background_color = #00d2ff 25
+border_color = #00d2ff 80
+background_color_hover = #00d2ff 45
+border_color_hover = #38bdf8 100
+background_color_pressed = #00d2ff 60
+border_color_pressed = #00d2ff 100
+
+# Background 5: Tooltip
+rounded = 4
+border_width = 1
+border_sides = TBLR
+background_color = #080b12 95
+border_color = #00d2ff 80
+
+# Panel Configuration
+panel_items = LTS C
+panel_size = 100% 36
+panel_margin = 0 0
+panel_padding = 8 3 8
+panel_background_id = 1
+wm_menu = 1
+panel_dock = 0
+panel_pivot_struts = 0
+panel_position = top center horizontal
+panel_layer = top
+panel_monitor = all
+panel_shrink = 0
+autohide = 0
+autohide_show_timeout = 0.1
+autohide_hide_timeout = 0.5
+autohide_height = 2
+strut_policy = follow_size
+
+# Taskbar Configuration
+taskbar_mode = multi_desktop
+taskbar_hide_if_empty = 0
+taskbar_padding = 6 2 6
+taskbar_background_id = 0
+taskbar_active_background_id = 0
+taskbar_name = 0
+taskbar_hide_inactive_tasks = 0
+taskbar_hide_different_monitor = 0
+taskbar_hide_different_desktop = 0
+taskbar_always_show_all_desktop = 1
+taskbar_sort_order = none
+task_align = left
+
+# Task Configuration
+task_text = 1
+task_icon = 1
+task_centered = 0
+task_padding = 8 2 8
+task_font = sans bold 9
+task_font_color = #94a3b8 100
+task_active_font_color = #ffffff 100
+task_urgent_font_color = #f43f5e 100
+task_iconified_font_color = #64748b 80
+task_icon_asb = 100 0 0
+task_active_icon_asb = 100 0 0
+task_urgent_icon_asb = 100 0 0
+task_iconified_icon_asb = 60 0 0
+task_background_id = 2
+task_active_background_id = 3
+task_urgent_background_id = 2
+task_iconified_background_id = 2
+task_tooltip = 1
+task_thumbnail = 0
+
+# Mouse Actions on Tasks
+mouse_left = toggle_iconify
+mouse_middle = close
+mouse_right = close
+mouse_scroll_up = prev_task
+mouse_scroll_down = next_task
+
+# Launcher (Kyber Console Hub shortcut)
+launcher_padding = 4 2 8
+launcher_background_id = 4
+launcher_icon_background_id = 0
+launcher_icon_size = 18
+launcher_icon_asb = 100 0 0
+launcher_icon_theme_override = 0
+startup_notifications = 0
+launcher_tooltip = 1
+launcher_item_app = /usr/share/applications/kyber-hub.desktop
+
+# Clock
+time1_format = %H:%M
+time1_font = sans bold 10
+time1_timezone = 
+time1_color = #cbd5e1 100
+clock_font_color = #cbd5e1 100
+clock_padding = 8 2
+clock_background_id = 0
+clock_tooltip = %A %d %B %Y
+clock_tooltip_timezone = 
+clock_lclick_command = 
+clock_rclick_command = 
+
+# Tooltip
+tooltip_show_timeout = 0.3
+tooltip_hide_timeout = 0.1
+tooltip_padding = 6 4
+tooltip_background_id = 5
+tooltip_font_color = #ffffff 100
+tooltip_font = sans 9

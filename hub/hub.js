@@ -85,7 +85,7 @@
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     }
 
-    // Tactile silky focus tick
+    // Tactile silky console focus tick (Nintendo Switch / PS5 style)
     function playFocusSound() {
         try {
             initAudio();
@@ -93,15 +93,15 @@
             const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(540, now);
-            osc.frequency.exponentialRampToValueAtTime(320, now + 0.04);
-            gain.gain.setValueAtTime(0.08, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(860, now);
+            osc.frequency.exponentialRampToValueAtTime(420, now + 0.035);
+            gain.gain.setValueAtTime(0.06, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.038);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start(now);
-            osc.stop(now + 0.05);
+            osc.stop(now + 0.04);
         } catch (e) {}
     }
 
@@ -297,7 +297,38 @@
             carouselTrackEl.appendChild(card);
         });
 
+        // Position track immediately on initial render
+        updateTrackPosition();
         setItemIndex(selectIdx, false);
+    }
+
+    function updateTrackPosition() {
+        if (!carouselTrackEl || filteredItems.length === 0) return;
+        const container = carouselTrackEl.parentElement;
+        if (!container) return;
+        const containerWidth = container.clientWidth;
+        const cards = carouselTrackEl.querySelectorAll('.card');
+        const activeCard = cards[currentItemIndex];
+        if (!activeCard) return;
+
+        // Mathematical center calculation: moves active card exactly to viewport center
+        const cardCenter = activeCard.offsetLeft + (activeCard.offsetWidth / 2);
+        const targetX = (containerWidth / 2) - cardCenter;
+        carouselTrackEl.style.transform = `translate3d(${targetX}px, 0, 0)`;
+
+        // Update card classes for 3D depth and perspective hierarchy
+        cards.forEach((card, idx) => {
+            card.classList.remove('active', 'neighbor-prev', 'neighbor-next', 'distant');
+            if (idx === currentItemIndex) {
+                card.classList.add('active');
+            } else if (idx === currentItemIndex - 1) {
+                card.classList.add('neighbor-prev');
+            } else if (idx === currentItemIndex + 1) {
+                card.classList.add('neighbor-next');
+            } else {
+                card.classList.add('distant');
+            }
+        });
     }
 
     function setItemIndex(index, playSound = true) {
@@ -315,25 +346,24 @@
         document.documentElement.style.setProperty('--active-accent', accentColor);
         document.documentElement.style.setProperty('--active-glow', glowColor);
 
-        // Update Header
+        // Update Header with fluid slide-fade animation
         headerTagEl.textContent = currentItem.tag || currentItem.category.toUpperCase();
         headerTitleEl.textContent = currentItem.name.toUpperCase();
         headerDescEl.textContent = currentItem.desc;
+
+        [headerTagEl, headerTitleEl, headerDescEl].forEach(el => {
+            if (el) {
+                el.classList.remove('slide-enter');
+                void el.offsetWidth;
+                el.classList.add('slide-enter');
+            }
+        });
 
         const isInstalled = currentItem.installed !== false;
         headerStatusEl.textContent = isInstalled ? 'AVAILABLE' : 'NOT INSTALLED';
         headerStatusEl.className = `header-status-badge ${!isInstalled ? 'missing' : ''}`;
 
-        // Update Cards Focus & Smooth Scroll
-        const cards = carouselTrackEl.querySelectorAll('.card');
-        cards.forEach((card, idx) => {
-            if (idx === currentItemIndex) {
-                card.classList.add('active');
-                card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            } else {
-                card.classList.remove('active');
-            }
-        });
+        updateTrackPosition();
 
         if (playSound) playFocusSound();
     }
@@ -796,7 +826,7 @@
                     <td class="rom-date-cell">${formatTimestamp(file.modified)}</td>
                     <td style="text-align:right;">
                         <div class="rom-row-actions">
-                            ${fileType === 'archive' ? `<button class="rom-extract-btn" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);padding:2px 8px;font-size:0.7rem;font-weight:600;border-radius:4px;cursor:pointer;margin-right:6px;" title="Extract Archive">EXTRACT</button>` : ''}
+                            ${(fileType === 'archive' || fileExt === '.iso') ? `<button class="rom-extract-btn" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);padding:2px 8px;font-size:0.7rem;font-weight:600;border-radius:4px;cursor:pointer;margin-right:6px;" title="Extract Disc Image or Archive">EXTRACT</button>` : ''}
                             <a href="/api/roms/download?path=${encodeURIComponent(file.path)}" class="rom-action-icon-btn" title="Download File" download>
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                             </a>
@@ -1064,6 +1094,88 @@
         handleItemAction({ id: 'restart-steam', name: 'Steam Clean Reload', desc: 'Nettoyage du cache...' });
     });
 
+    const btnDesktopModeEl = document.getElementById('btnDesktopMode');
+    if (btnDesktopModeEl) {
+        btnDesktopModeEl.addEventListener('click', () => {
+            initAudio();
+            handleItemAction({ id: 'desktop', name: 'Linux Desktop Mode', desc: 'Accès au bureau et gestionnaire de fenêtres' });
+        });
+    }
+
+    // Running Application Polling & Indicators
+    let currentRunningApps = {};
+    async function pollLauncherStatus() {
+        try {
+            const res = await fetch('/api/launcher/status');
+            if (res.ok) {
+                currentRunningApps = await res.json();
+                updateRunningAppBadges();
+            }
+        } catch (e) {}
+    }
+
+    function updateRunningAppBadges() {
+        const cards = carouselTrackEl.querySelectorAll('.card');
+        let activeTitle = null;
+        let activeId = null;
+
+        cards.forEach(card => {
+            const id = card.dataset.id;
+            let isRunning = false;
+            if ((id === 'steam' || id === 'steam-bigpicture') && currentRunningApps.steam) isRunning = true;
+            if (id === 'heroic' && currentRunningApps.heroic) isRunning = true;
+            if (id === 'browser' && currentRunningApps.browser) isRunning = true;
+            if (id === 'eglantine' && currentRunningApps.eglantine) isRunning = true;
+
+            const cover = card.querySelector('.card-cover');
+            let badge = card.querySelector('.running-badge');
+            if (isRunning) {
+                activeTitle = card.querySelector('.meta-title')?.textContent || id;
+                activeId = id;
+                if (!badge && cover) {
+                    badge = document.createElement('div');
+                    badge.className = 'running-badge';
+                    badge.innerHTML = '<span class="pulse-dot"></span> EN COURS';
+                    cover.appendChild(badge);
+                }
+            } else if (badge) {
+                badge.remove();
+            }
+        });
+
+        const pill = document.getElementById('runningAppPill');
+        const text = document.getElementById('runningAppText');
+        if (pill && text) {
+            if (activeTitle) {
+                text.textContent = `${activeTitle}`;
+                pill.style.display = 'flex';
+                pill.onclick = (e) => {
+                    if (e.target.id === 'btnKillRunningApp') return;
+                    handleItemAction({ id: activeId, name: activeTitle });
+                };
+            } else {
+                pill.style.display = 'none';
+            }
+        }
+    }
+
+    const btnKillRunningAppEl = document.getElementById('btnKillRunningApp');
+    if (btnKillRunningAppEl) {
+        btnKillRunningAppEl.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                await fetch('/api/launcher?app=menu');
+                showToast('Fermeture en cours', "L'application a été arrêtée.");
+                setTimeout(pollLauncherStatus, 800);
+            } catch (err) {}
+        });
+    }
+
+    // Window Resize Handling for Transform Centering
+    window.addEventListener('resize', () => {
+        updateTrackPosition();
+    });
+
     // Clock
     function updateClock() {
         const now = new Date();
@@ -1074,6 +1186,9 @@
 
     // Start
     loadData();
+    setInterval(pollLauncherStatus, 3000);
+    pollLauncherStatus();
+
     window.addEventListener('gamepadconnected', () => {
         updateGamepadStatus();
         playFocusSound();

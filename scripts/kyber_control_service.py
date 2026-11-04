@@ -19,7 +19,7 @@ import shutil
 import base64
 import socket
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("KYBER_CONTROL_PORT", os.environ.get("RESIZER_PORT", "8081")))
@@ -100,16 +100,19 @@ def resolve_safe_storage_path(rel_path=""):
 
 def classify_file_type(filename):
     ext = os.path.splitext(filename)[1].lower()
-    if ext in [".nsp", ".xci", ".nsz"]:
+    # ROMs, game disc images, and packages
+    if ext in [".nsp", ".xci", ".nsz", ".xcz", ".iso", ".chd", ".cso", ".rvz", ".wbfs", ".gcm", ".cue", ".bin", ".3ds", ".cia", ".nds", ".gba", ".gbc", ".gb", ".sfc", ".smc", ".nes", ".n64", ".z64", ".v64", ".elf", ".dol", ".pbp"]:
         return "rom"
-    if ext in [".keys"] or "key" in filename.lower():
+    if ext in [".keys"] or "key" in filename.lower() or ext in [".prod.keys", ".title.keys"]:
         return "key"
-    if ext in [".zip", ".7z", ".rar", ".tar", ".gz"]:
+    if ext in [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"]:
         return "archive"
-    if ext in [".bin", ".dat"]:
+    if ext in [".dat", ".img"]:
         return "binary"
     if ext in [".sav", ".srm", ".state"]:
         return "save"
+    if ext in [".exe", ".msi", ".sh", ".appimage"]:
+        return "executable"
     return "file"
 
 def browse_directory(rel_path=""):
@@ -207,6 +210,9 @@ def create_directory(rel_path, folder_name):
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
+UPLOAD_SESSIONS = {}
+UPLOAD_SESSIONS_LOCK = threading.Lock()
+
 def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data, chunk_offset=None):
     upload_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(upload_id))
     if not upload_id:
@@ -230,16 +236,22 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
         f.seek(chunk_offset)
         f.write(chunk_data)
 
-    # Empty marker file to record completion of this chunk index
-    marker = os.path.join(temp_session_dir, f"idx_{chunk_index:06d}")
-    try:
-        with open(marker, "wb"):
-            pass
-    except Exception:
-        pass
+    # Fast in-memory tracking (O(1)) to prevent quadratic disk scan bottleneck
+    with UPLOAD_SESSIONS_LOCK:
+        if upload_id not in UPLOAD_SESSIONS:
+            UPLOAD_SESSIONS[upload_id] = {
+                "chunks": set(),
+                "total_chunks": total_chunks,
+                "total_size": total_size
+            }
+        session = UPLOAD_SESSIONS[upload_id]
+        session["chunks"].add(chunk_index)
+        is_completed = len(session["chunks"]) >= total_chunks
 
-    markers = [f for f in os.listdir(temp_session_dir) if f.startswith("idx_")]
-    if len(markers) >= total_chunks:
+    if is_completed:
+        with UPLOAD_SESSIONS_LOCK:
+            UPLOAD_SESSIONS.pop(upload_id, None)
+
         dest_dir, _ = resolve_safe_storage_path(target_path)
         if not dest_dir:
             dest_dir = os.path.join(ROMS_BASE_DIR, "eglantine/games")
@@ -267,8 +279,8 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
                     pass
 
         # Auto-extract archives if in keys, firmware or if file is an archive in emulator paths
-        is_archive = classify_file_type(safe_name) == "archive"
-        auto_extract = is_archive and (
+        is_archive = classify_file_type(safe_name) == "archive" or safe_name.lower().endswith(".iso")
+        auto_extract = (classify_file_type(safe_name) == "archive") and (
             "key" in target_path.lower() or
             "firmware" in target_path.lower() or
             "key" in safe_name.lower() or
@@ -344,7 +356,7 @@ def extract_archive(rel_path, delete_archive=False):
         return {"error": "Target is a directory, not an archive file", "status": "error"}
 
     ext = os.path.splitext(full_path)[1].lower()
-    valid_exts = [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"]
+    valid_exts = [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".iso"]
     if not any(full_path.lower().endswith(e) for e in valid_exts):
         return {"error": f"Unsupported archive format: {ext}", "status": "error"}
 
@@ -865,11 +877,13 @@ class ResizeHandler(BaseHTTPRequestHandler):
             heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
             menu_running = subprocess.run("pgrep -u gamer -f 'kyber-hub-profile|kyber_console_hub' >/dev/null 2>&1", shell=True).returncode == 0
             browser_running = subprocess.run("pgrep -u gamer -f 'chrome' | while read p; do tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null | grep -v 'kyber-hub-profile' | grep -q 'chrome' && exit 0; done; exit 1", shell=True).returncode == 0
+            eglantine_running = subprocess.run("pgrep -u gamer -f 'eglantine' >/dev/null 2>&1", shell=True).returncode == 0
             self._send_json_response({
                 "steam": steam_running,
                 "heroic": heroic_running,
                 "menu": menu_running,
-                "browser": browser_running
+                "browser": browser_running,
+                "eglantine": eglantine_running
             })
         elif parsed.path == "/" or parsed.path == "/hub" or parsed.path.startswith("/hub/"):
             hub_dir = "/opt/kyber/hub"
@@ -1013,20 +1027,40 @@ class ResizeHandler(BaseHTTPRequestHandler):
         # Concise logging
         print(f"[control-http] {args[0]} {args[1]} -> {args[2]}")
 
+class DualProtocolHTTPServer(ThreadingHTTPServer):
+    """Dual HTTP and HTTPS server that dynamically handles both plaintext HTTP and TLS on the same port."""
+    def __init__(self, server_address, RequestHandlerClass, ssl_context=None):
+        super().__init__(server_address, RequestHandlerClass)
+        self.ssl_context = ssl_context
+        self.daemon_threads = True
+
+    def get_request(self):
+        newsock, fromaddr = self.socket.accept()
+        if self.ssl_context is not None:
+            try:
+                # Peek at the first byte without consuming it from the stream
+                first_byte = newsock.recv(1, socket.MSG_PEEK)
+                # 0x16 is the standard TLS Handshake record type
+                if first_byte == b'\x16':
+                    newsock = self.ssl_context.wrap_socket(newsock, server_side=True)
+            except Exception:
+                pass
+        return newsock, fromaddr
+
 def main():
     print(f"[kyber-control] Starting Kyber Gaming Control Service on port {PORT} for display {DISPLAY}...")
     start_discovery_responder()
-    server = HTTPServer(("0.0.0.0", PORT), ResizeHandler)
     tls_cert = os.environ.get("TLS_CERT", "/etc/kyber/tls/cert.pem")
     tls_key = os.environ.get("TLS_KEY", "/etc/kyber/tls/key.pem")
+    ssl_ctx = None
     if os.path.exists(tls_cert) and os.path.exists(tls_key):
         try:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ctx.load_cert_chain(certfile=tls_cert, keyfile=tls_key)
-            server.socket = ctx.wrap_socket(server.socket, server_side=True)
-            print(f"[kyber-control] TLS enabled using {tls_cert}")
+            ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_ctx.load_cert_chain(certfile=tls_cert, keyfile=tls_key)
+            print(f"[kyber-control] Dual HTTP & HTTPS support enabled using {tls_cert}")
         except Exception as e:
             print(f"[kyber-control] Warning: Could not initialize TLS ({e}), falling back to HTTP.")
+    server = DualProtocolHTTPServer(("0.0.0.0", PORT), ResizeHandler, ssl_context=ssl_ctx)
     server.serve_forever()
 
 if __name__ == "__main__":
