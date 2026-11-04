@@ -22,6 +22,7 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 
-# Client launcher build artifacts
-client-launcher/build/
+# Rust / Tauri build artifacts
+desktop-client/src-tauri/target/
+
 
