@@ -523,19 +523,8 @@
     // ROM & Game Manager Controller (Desktop Client)
     // ==========================================================================
     const ROM_SYSTEM_LABELS = {
-        ps3: 'PS3',
-        ps2: 'PS2',
-        psx: 'PS1',
-        gamecube: 'GameCube',
-        wii: 'Wii',
-        switch: 'Switch',
-        snes: 'SNES',
-        nes: 'NES',
-        gba: 'GBA',
-        gbc: 'GBC',
-        genesis: 'Genesis',
-        n64: 'N64',
-        arcade: 'Arcade'
+        switch: 'Switch / NX2',
+        bios: 'Keys & Firmware'
     };
 
     function updateRomServerOptions() {
@@ -619,11 +608,11 @@
             desktopRomSystemsBar.appendChild(pill);
         });
 
-        // BIOS pill
+        // BIOS / Keys pill
         const biosPill = document.createElement('button');
         biosPill.className = `rom-system-pill ${selectedDesktopRomSystem === 'bios' ? 'active' : ''}`;
         const biosCount = currentRomInventory.bios ? currentRomInventory.bios.count : 0;
-        biosPill.innerHTML = `<span>BIOS</span> <span class="rom-pill-count">${biosCount}</span>`;
+        biosPill.innerHTML = `<span>Keys & Firmware</span> <span class="rom-pill-count">${biosCount}</span>`;
         biosPill.addEventListener('click', () => {
             selectedDesktopRomSystem = 'bios';
             renderDesktopRoms();
@@ -635,7 +624,7 @@
             desktopRomCount.textContent = `${currentRomInventory.total_roms} games installed (${currentRomInventory.total_size})`;
             desktopRomPath.textContent = `Storage: ${currentRomInventory.base_path}`;
         } else if (selectedDesktopRomSystem === 'bios') {
-            desktopRomCount.textContent = `${biosCount} BIOS files installed`;
+            desktopRomCount.textContent = `${biosCount} Keys / Firmware files installed`;
             desktopRomPath.textContent = `Storage: ${currentRomInventory.bios_path}`;
         } else {
             const curSys = (currentRomInventory.systems || []).find(s => s.id === selectedDesktopRomSystem);
@@ -721,20 +710,9 @@
         const ext = '.' + filename.split('.').pop().toLowerCase();
         if (selectedDesktopRomSystem !== 'all') return selectedDesktopRomSystem;
 
-        if (['.pkg', '.rap'].includes(ext)) return 'ps3';
-        if (['.iso'].includes(ext)) return 'ps2';
-        if (['.rvz', '.gcm'].includes(ext)) return 'gamecube';
-        if (['.wbfs'].includes(ext)) return 'wii';
         if (['.nsp', '.xci', '.nsz'].includes(ext)) return 'switch';
-        if (['.sfc', '.smc'].includes(ext)) return 'snes';
-        if (['.nes'].includes(ext)) return 'nes';
-        if (['.gba'].includes(ext)) return 'gba';
-        if (['.gbc', '.gb'].includes(ext)) return 'gbc';
-        if (['.md', '.gen'].includes(ext)) return 'genesis';
-        if (['.n64', '.z64', '.v64'].includes(ext)) return 'n64';
-        if (['.chd', '.pbp'].includes(ext)) return 'psx';
-        if (filename.toLowerCase().includes('bios')) return 'bios';
-        return 'arcade';
+        if (['.keys', '.bin', '.dat'].includes(ext) || filename.toLowerCase().includes('key') || filename.toLowerCase().includes('firmware') || filename.toLowerCase().includes('bios')) return 'bios';
+        return 'switch';
     }
 
     function uploadDesktopFilesSequentially(files) {

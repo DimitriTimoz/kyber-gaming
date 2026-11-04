@@ -25,7 +25,7 @@ chmod 666 /tmp/kyber_next_action 2>/dev/null || true
 case "$TARGET" in
     menu)
         # Kill current launcher or emulator to immediately return to the hub
-        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic|retroarch|rpcs3|pcsx2|dolphin-emu|duckstation|cemu|ryujinx|yuzu" 2>/dev/null || true
+        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic|eglantine|eden-cli" 2>/dev/null || true
         terminate_browser
         ;;
 
@@ -42,7 +42,7 @@ case "$TARGET" in
         # Kill Console Hub if still active
         pkill -u gamer -f "kyber-hub-profile" 2>/dev/null || true
         # Clean previous game/launcher processes when switching targets
-        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic|retroarch|rpcs3|pcsx2|dolphin-emu|duckstation|cemu|ryujinx|yuzu" 2>/dev/null || true
+        pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh|heroic|eglantine|eden-cli" 2>/dev/null || true
         if [ "$TARGET" != "browser" ] && [ "$TARGET" != "chrome" ] && [ "$TARGET" != "google-chrome" ]; then
             terminate_browser
         fi

@@ -11,16 +11,17 @@ A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, 
   - Ultra-low latency QUIC / WebTransport streaming on a unified port (8080 TCP/UDP).
   - Web client served directly from the container (`/webclient`).
   - Hardware-accelerated video capture via X11/NVFBC or DRM/VA-API with NVENC/VA-API encoding.
-- Gaming Launchers & Console Emulators:
+- Gaming Launchers & Emulators:
   - Steam (Desktop and Big Picture console modes).
   - Heroic Games Launcher (Epic Games Store and GOG).
-  - RetroArch, RPCS3 (PS3), PCSX2 (PS2), Dolphin (GameCube/Wii), DuckStation (PS1).
+  - Eglantine (Nintendo Switch & Switch 2 / NX2 experimental emulator with Vulkan rendering).
   - Google Chrome for game wikis, mod downloads, and web browsing.
   - Openbox window manager with custom keyboard shortcuts.
 - ROM & Game Installation Manager:
   - Integrated REST API (`/api/roms`) and Web/Desktop management interface.
-  - Drag-and-drop ROM uploading with auto-detection for consoles (`.iso`, `.chd`, `.rvz`, `.nsp`, `.pkg`, `.sfc`, `.zip`).
-  - Dedicated persistent volumes for ROMs (`/home/gamer/roms`), BIOS firmware (`/home/gamer/bios`), and game saves (`/home/gamer/saves`).
+  - Drag-and-drop ROM uploading for Nintendo Switch / NX2 packages (`.nsp`, `.xci`, `.nsz`, `.zip`).
+  - Automatic synchronization of uploaded `prod.keys` and `title.keys` to Eglantine key storage (`/home/gamer/.local/share/eglantine/keys`).
+  - Dedicated persistent volumes for ROMs (`/home/gamer/roms/switch`), BIOS/keys (`/home/gamer/bios`), and game saves (`/home/gamer/saves`).
   - Direct host or NAS mount support.
 - Controller & Peripheral Support: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
 - Virtual Audio: PipeWire audio routing to Kyber Opus/AAC stream without a physical sound card.
@@ -142,22 +143,12 @@ The container organizes emulator storage in standard directories:
 ```text
 /home/gamer/
 ├── roms/
-│   ├── ps3/            # RPCS3 (.iso, .pkg, .rap, .bin)
-│   ├── ps2/            # PCSX2 (.iso, .chd, .bin, .cso, .gz)
-│   ├── psx/            # DuckStation / RetroArch (.chd, .cue, .bin, .iso, .pbp)
-│   ├── gamecube/       # Dolphin (.iso, .gcm, .rvz, .ciso)
-│   ├── wii/            # Dolphin (.iso, .wbfs, .rvz)
-│   ├── switch/         # Switch emulators (.nsp, .xci, .nsz)
-│   ├── snes/           # Super Nintendo (.sfc, .smc, .zip)
-│   ├── nes/            # Nintendo Entertainment System (.nes, .zip)
-│   ├── gba/            # Game Boy Advance (.gba, .zip)
-│   ├── gbc/            # Game Boy / Color (.gbc, .gb, .zip)
-│   ├── genesis/        # Sega Genesis / Mega Drive (.md, .bin, .zip)
-│   ├── n64/            # Nintendo 64 (.n64, .z64, .v64, .zip)
-│   └── arcade/         # Arcade / MAME (.zip, .7z)
-├── bios/               # Emulator firmware BIOS files
-└── saves/              # Game saves and memory cards
+│   └── switch/         # Eglantine Switch & NX2 ROMs (.nsp, .xci, .nsz, .zip)
+├── bios/               # Firmware and keys (prod.keys, title.keys)
+└── saves/              # Game saves and memory states
 ```
+
+When keys or firmware files (such as `prod.keys` or `title.keys`) are uploaded to `/home/gamer/bios/` via the ROM Manager or REST API, they are automatically mirrored to Eglantine's internal keys directory (`/home/gamer/.local/share/eglantine/keys/`).
 
 ### Accessing the Manager
 

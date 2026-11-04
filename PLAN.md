@@ -11,8 +11,8 @@ The goal is to modernize self-hosted cloud gaming setups:
 - 100% Headless Operation: No physical monitor, television, or dummy HDMI/DisplayPort plug is required on the host. Display and EDID are simulated via software with full 3D hardware acceleration.
 - Base Operating System: Ubuntu 24.04 LTS.
 - Gaming Launchers: Steam (Desktop and Big Picture console modes) and Heroic Games Launcher (Epic Games Store and GOG).
-- Console Emulators: RetroArch, RPCS3 (PS3), PCSX2 (PS2), Dolphin (GameCube/Wii), DuckStation (PS1).
-- ROM & Game Storage: Centralized management and upload interface for games, saves, and BIOS firmware files.
+- Console Emulators: Eglantine (Nintendo Switch & Switch 2 / NX2 experimental emulator with Vulkan rendering).
+- ROM & Game Storage: Centralized management and upload interface for games, saves, and BIOS firmware keys.
 - Continuous Integration & Packaging: Automated build pipelines for container images (GHCR) and cross-platform native clients (macOS, Linux, Windows).
 
 ---
@@ -44,7 +44,7 @@ flowchart TD
             Hub["Console OS Kiosk Hub (Chrome)"]
             Steam["Steam (Big Picture & Desktop)"]
             Heroic["Heroic Games Launcher"]
-            Emulators["RetroArch / RPCS3 / PCSX2 / Dolphin / DuckStation"]
+            Emulators["Eglantine (Switch & NX2)"]
             Browser["Fullscreen Web Browser"]
         end
 
@@ -114,7 +114,7 @@ On a server without a monitor, the GPU driver often refuses to initialize render
 - Console OS Hub: Data-driven fullscreen kiosk interface (`/opt/kyber/hub`) with controller navigation, sound effects, system telemetry, and category filters.
 - Steam: Multiarch package (`amd64` + `i386`) with Proton and Steam Runtime support.
 - Heroic Games Launcher: Official `.deb` package supporting Epic Games Store and GOG.
-- Emulators: RetroArch, RPCS3, PCSX2, Dolphin, DuckStation.
+- Emulators: Eglantine (Nintendo Switch & Switch 2 / NX2).
 - Web Browser: Google Chrome for web browsing, game wikis, and mod downloads.
 
 ### 3.5. ROM & Emulator Game Manager

@@ -21,6 +21,7 @@ TEXT_MUTED = "#64748b"
 COLOR_STEAM = "#38bdf8"
 COLOR_BIGPICTURE = "#a855f7"
 COLOR_HEROIC = "#22c55e"
+COLOR_EGLANTINE = "#e11d48"
 COLOR_DESKTOP = "#cbd5e1"
 COLOR_RELOAD = "#f43f5e"
 
@@ -28,33 +29,41 @@ ITEMS = [
     {
         "id": "steam",
         "key": "1",
-        "badge": "[ TOUCHE 1 ]",
-        "title": "STEAM (MODE BUREAU)",
-        "desc": "Bibliothèque de jeux Steam, Magasin, Amis et Téléchargements",
+        "badge": "[ KEY 1 ]",
+        "title": "STEAM (DESKTOP MODE)",
+        "desc": "Steam PC gaming platform, store, friends, and downloads",
         "color": COLOR_STEAM,
     },
     {
         "id": "steam-bigpicture",
         "key": "2",
-        "badge": "[ TOUCHE 2 ]",
+        "badge": "[ KEY 2 ]",
         "title": "STEAM BIG PICTURE",
-        "desc": "Interface console plein écran conçue pour manette et TV",
+        "desc": "Fullscreen console UI optimized for gamepad and TV",
         "color": COLOR_BIGPICTURE,
     },
     {
         "id": "heroic",
         "key": "3",
-        "badge": "[ TOUCHE 3 ]",
+        "badge": "[ KEY 3 ]",
         "title": "HEROIC GAMES LAUNCHER",
-        "desc": "Vos jeux Epic Games Store et GOG",
+        "desc": "Epic Games Store and GOG game libraries",
         "color": COLOR_HEROIC,
     },
     {
-        "id": "desktop",
+        "id": "eglantine",
         "key": "4",
-        "badge": "[ TOUCHE 4 ]",
-        "title": "BUREAU LINUX (ÉCHAP)",
-        "desc": "Accéder directement au bureau libre et au gestionnaire de fenêtres",
+        "badge": "[ KEY 4 ]",
+        "title": "EGLANTINE (SWITCH / NX2)",
+        "desc": "Nintendo Switch & Switch 2 (nx2) experimental emulator",
+        "color": COLOR_EGLANTINE,
+    },
+    {
+        "id": "desktop",
+        "key": "5",
+        "badge": "[ KEY 5 / ESC ]",
+        "title": "LINUX DESKTOP",
+        "desc": "Direct access to full desktop environment and window manager",
         "color": COLOR_DESKTOP,
     },
 ]
@@ -256,7 +265,8 @@ class ModernLauncherHub:
         self.root.bind("<Key-1>", lambda e: self.launch("steam"))
         self.root.bind("<Key-2>", lambda e: self.launch("steam-bigpicture"))
         self.root.bind("<Key-3>", lambda e: self.launch("heroic"))
-        self.root.bind("<Key-4>", lambda e: self.launch("desktop"))
+        self.root.bind("<Key-4>", lambda e: self.launch("eglantine"))
+        self.root.bind("<Key-5>", lambda e: self.launch("desktop"))
         self.root.bind("<Escape>", lambda e: self.launch("desktop"))
 
     def launch(self, target):

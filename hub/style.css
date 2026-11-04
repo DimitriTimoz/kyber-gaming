@@ -435,9 +435,7 @@ html, body {
 .cover-steam { background: linear-gradient(145deg, #0e1e24, #1b323c, #264b5a); }
 .cover-bigpicture { background: linear-gradient(145deg, #1b0f2e, #311650, #541970); }
 .cover-heroic { background: linear-gradient(145deg, #0a2115, #0f3d23, #125732); }
-.cover-retroarch { background: linear-gradient(145deg, #260f13, #45151c, #631922); }
-.cover-playstation { background: linear-gradient(145deg, #0f172a, #1e293b, #1d4ed8); }
-.cover-dolphin { background: linear-gradient(145deg, #08202b, #0f374a, #0e5b7c); }
+.cover-eglantine, .cover-switch { background: linear-gradient(145deg, #2b0b14, #4c0f20, #73122c); }
 .cover-browser { background: linear-gradient(145deg, #0d1e2e, #133954, #195b85); }
 .cover-desktop { background: linear-gradient(145deg, #151c27, #222d3b, #334155); }
 

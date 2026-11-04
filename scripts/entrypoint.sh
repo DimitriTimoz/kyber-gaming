@@ -29,13 +29,17 @@ chmod 0700 "$XDG_DIR"
 # Ensure home directory ownership
 chown gamer:gamer /home/gamer
 
-# Setup emulator ROMs, BIOS, and saves directories
-ROM_SYSTEMS="ps3 ps2 psx gamecube wii switch snes nes gba gbc genesis n64 arcade"
-for sys in $ROM_SYSTEMS; do
-    mkdir -p "/home/gamer/roms/$sys"
+# Setup emulator ROMs, keys/firmware, and saves directories
+mkdir -p /home/gamer/roms/switch /home/gamer/bios /home/gamer/saves /home/gamer/.local/share/eglantine/keys
+
+# Auto-link any uploaded Switch keys from bios to Eglantine's keys directory
+for keyfile in /home/gamer/bios/*.keys; do
+    if [ -f "$keyfile" ]; then
+        ln -sf "$keyfile" "/home/gamer/.local/share/eglantine/keys/$(basename "$keyfile")" 2>/dev/null || true
+    fi
 done
-mkdir -p /home/gamer/bios /home/gamer/saves
-chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves 2>/dev/null || true
+
+chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local 2>/dev/null || true
 
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then

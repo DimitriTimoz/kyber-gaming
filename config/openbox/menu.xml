@@ -22,6 +22,11 @@
         <command>/usr/local/bin/switch_launcher.sh heroic</command>
       </action>
     </item>
+    <item label="Eglantine (Switch / NX2)">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh eglantine</command>
+      </action>
+    </item>
     <item label="Web Browser (Google Chrome)">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh browser</command>

@@ -71,7 +71,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 FROM ubuntu:24.04
 
 LABEL maintainer="Antigravity Cloud Gaming" \
-      description="Headless Cloud Gaming Docker container with Kyber streaming, Steam, and Heroic"
+      description="Headless Cloud Gaming Docker container with Kyber streaming, Steam, Heroic, and Eglantine"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=en_US.UTF-8 \
@@ -170,7 +170,7 @@ RUN apt-get update && \
     (ln -sf /usr/games/steam /usr/local/bin/steam || true) && \
     rm -rf /var/lib/apt/lists/*
 
-# 6. Install Heroic Games Launcher
+# 6. Install Heroic Games Launcher and Google Chrome
 ARG HEROIC_VERSION="2.22.4"
 RUN wget -q -O /tmp/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v${HEROIC_VERSION}/Heroic-${HEROIC_VERSION}-linux-amd64.deb" && \
     apt-get update && \
@@ -190,14 +190,19 @@ RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || tr
     echo "gamer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gamer && \
     chmod 0440 /etc/sudoers.d/gamer
 
+# 8. Install Eglantine Nintendo Switch & Switch 2 (NX2) Emulator
+COPY scripts/install_eglantine.sh /tmp/install_eglantine.sh
+RUN chmod +x /tmp/install_eglantine.sh && /tmp/install_eglantine.sh && rm -f /tmp/install_eglantine.sh
+
 # 8. Copy Kyber from builder stage
+# 9. Copy Kyber from builder stage
 COPY --from=kyber-builder /opt/kyber /opt/kyber
 COPY webclient /opt/kyber/webclient
 COPY hub /opt/kyber/hub
 
 RUN echo -e "/opt/kyber/lib\n/opt/kyber/lib/x86_64-linux-gnu\n/opt/kyber/lib64" > /etc/ld.so.conf.d/kyber.conf && ldconfig
 
-# 9. Setup directories and copy project configurations & scripts
+# 10. Setup directories and copy project configurations & scripts
 RUN mkdir -p /etc/kyber/tls /etc/X11 /var/log/supervisor /run/user/1000 \
     /home/gamer/.config/openbox /home/gamer/.config/pipewire/pipewire.conf.d \
     /home/gamer/.local/share/Steam

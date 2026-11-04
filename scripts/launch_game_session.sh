@@ -48,10 +48,10 @@ while true; do
             sleep 3
             # Monitor until Steam exits
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
-                if [ -f /tmp/kyber_next_action ]; then
-                    NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action 2>/dev/null || true
-                    if [ "$NEXT" != "steam" ]; then
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "steam" ]; then
                         echo "[session] Action requested while Steam is running: $NEXT"
                         pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                         CURRENT_ACTION="$NEXT"
@@ -72,10 +72,10 @@ while true; do
             steam -bigpicture -no-cef-sandbox >/dev/null 2>&1 &
             sleep 3
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
-                if [ -f /tmp/kyber_next_action ]; then
-                    NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action 2>/dev/null || true
-                    if [ "$NEXT" != "steam-bigpicture" ]; then
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "steam-bigpicture" ]; then
                         echo "[session] Action requested: $NEXT"
                         pkill -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                         CURRENT_ACTION="$NEXT"
@@ -97,10 +97,10 @@ while true; do
             "$HEROIC_BIN" --no-sandbox >/dev/null 2>&1 &
             sleep 3
             while pgrep -u gamer -f "heroic" >/dev/null 2>&1; do
-                if [ -f /tmp/kyber_next_action ]; then
-                    NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action 2>/dev/null || true
-                    if [ "$NEXT" != "heroic" ]; then
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "heroic" ]; then
                         echo "[session] Action requested: $NEXT"
                         pkill -u gamer -f "heroic" 2>/dev/null || true
                         CURRENT_ACTION="$NEXT"
@@ -154,10 +154,10 @@ while true; do
                     break
                 fi
 
-                if [ -f /tmp/kyber_next_action ]; then
-                    NEXT=$(cat /tmp/kyber_next_action)
-                    rm -f /tmp/kyber_next_action 2>/dev/null || true
-                    if [ "$NEXT" != "browser" ] && [ "$NEXT" != "chrome" ] && [ "$NEXT" != "google-chrome" ]; then
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "browser" ] && [ "$NEXT" != "chrome" ] && [ "$NEXT" != "google-chrome" ]; then
                         echo "[session] Action requested while browser running: $NEXT"
                         for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
                             if [ -r "/proc/$p/cmdline" ]; then
@@ -176,11 +176,11 @@ while true; do
 
         desktop)
             echo "[session] Desktop mode active. Waiting for user interaction..."
-            while [ ! -f /tmp/kyber_next_action ]; do
+            while [ ! -s /tmp/kyber_next_action ]; do
                 sleep 1
             done
-            CURRENT_ACTION="$(cat /tmp/kyber_next_action)"
-            rm -f /tmp/kyber_next_action 2>/dev/null || true
+            CURRENT_ACTION="$(cat /tmp/kyber_next_action | tr -d '[:space:]')"
+            rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
             ;;
 
         menu)
@@ -230,10 +230,10 @@ while true; do
                     fi
 
                     # Handle user requested switch
-                    if [ -f /tmp/kyber_next_action ]; then
-                        NEXT=$(cat /tmp/kyber_next_action)
-                        rm -f /tmp/kyber_next_action 2>/dev/null || true
-                        if [ "$NEXT" != "$CURRENT_ACTION" ]; then
+                    if [ -s /tmp/kyber_next_action ]; then
+                        NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                        rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                        if [ -n "$NEXT" ] && [ "$NEXT" != "$CURRENT_ACTION" ]; then
                             echo "[session] Action switch requested: $NEXT"
                             kill -TERM "$APP_PID" 2>/dev/null || true
                             pkill -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true

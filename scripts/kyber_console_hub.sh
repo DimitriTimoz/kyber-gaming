@@ -7,7 +7,8 @@ export HOME="/home/gamer"
 echo "[hub-launcher] Launching Kyber Gaming Console OS Kiosk on $DISPLAY..." >&2
 
 # Clean any existing profile lock or stale action
-rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+rm -f /tmp/kyber_next_action 2>/dev/null || true
+: > /tmp/kyber_next_action 2>/dev/null || true
 rm -f /tmp/kyber-hub-profile/Singleton* 2>/dev/null || true
 mkdir -p /tmp/kyber-hub-profile/Default
 
@@ -48,9 +49,9 @@ echo "[hub-launcher] Opening Hub UI at $HUB_URL" >&2
 CHROME_PID=$!
 sleep 1
 
-# Wait for a selection event (/tmp/kyber_next_action written by web UI or external API)
+# Wait for a selection event (/tmp/kyber_next_action written with non-empty command)
 # or until Chrome is closed
-while [ ! -f /tmp/kyber_next_action ]; do
+while [ ! -s /tmp/kyber_next_action ]; do
     if ! pgrep -u gamer -f "kyber-hub-profile" >/dev/null 2>&1; then
         echo "[hub-launcher] Chrome was closed externally." >&2
         break
@@ -60,8 +61,8 @@ done
 
 # Extract choice
 CHOICE=""
-if [ -f /tmp/kyber_next_action ]; then
-    CHOICE=$(cat /tmp/kyber_next_action)
+if [ -s /tmp/kyber_next_action ]; then
+    CHOICE=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
     rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
     echo "[hub-launcher] Selection registered: $CHOICE" >&2
 fi

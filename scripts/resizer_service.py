@@ -25,19 +25,7 @@ ROMS_BASE_DIR = os.environ.get("ROMS_DIR", "/home/gamer/roms")
 BIOS_BASE_DIR = os.environ.get("BIOS_DIR", "/home/gamer/bios")
 
 ROM_SYSTEMS_DEF = [
-    {"id": "ps3", "name": "PlayStation 3 (RPCS3)", "extensions": [".iso", ".pkg", ".rap", ".bin"]},
-    {"id": "ps2", "name": "PlayStation 2 (PCSX2)", "extensions": [".iso", ".chd", ".bin", ".cso", ".gz"]},
-    {"id": "psx", "name": "PlayStation 1 (DuckStation / RetroArch)", "extensions": [".chd", ".cue", ".bin", ".iso", ".pbp"]},
-    {"id": "gamecube", "name": "Nintendo GameCube (Dolphin)", "extensions": [".iso", ".gcm", ".rvz", ".ciso"]},
-    {"id": "wii", "name": "Nintendo Wii (Dolphin)", "extensions": [".iso", ".wbfs", ".rvz"]},
-    {"id": "switch", "name": "Nintendo Switch", "extensions": [".nsp", ".xci", ".nsz"]},
-    {"id": "snes", "name": "Super Nintendo (RetroArch)", "extensions": [".sfc", ".smc", ".zip", ".7z"]},
-    {"id": "nes", "name": "NES (RetroArch)", "extensions": [".nes", ".zip"]},
-    {"id": "gba", "name": "Game Boy Advance (RetroArch)", "extensions": [".gba", ".zip"]},
-    {"id": "gbc", "name": "Game Boy / Color (RetroArch)", "extensions": [".gbc", ".gb", ".zip"]},
-    {"id": "genesis", "name": "Sega Genesis / Mega Drive (RetroArch)", "extensions": [".md", ".bin", ".gen", ".zip"]},
-    {"id": "n64", "name": "Nintendo 64 (RetroArch)", "extensions": [".n64", ".z64", ".v64", ".zip"]},
-    {"id": "arcade", "name": "Arcade / MAME (RetroArch)", "extensions": [".zip", ".7z"]},
+    {"id": "switch", "name": "Nintendo Switch & NX2 (Eglantine)", "extensions": [".nsp", ".xci", ".nsz", ".zip"]},
 ]
 
 def format_bytes(num_bytes):
@@ -106,7 +94,7 @@ def list_roms_inventory():
 def save_uploaded_stream(system_id, filename, rfile, content_length):
     valid_systems = [s["id"] for s in ROM_SYSTEMS_DEF] + ["bios"]
     if system_id not in valid_systems:
-        system_id = "arcade"
+        system_id = "switch"
 
     safe_name = os.path.basename(filename)
     safe_name = re.sub(r'[^a-zA-Z0-9_\-\.\(\)\s]', '_', safe_name).strip()
@@ -135,6 +123,16 @@ def save_uploaded_stream(system_id, filename, rfile, content_length):
     except Exception:
         pass
 
+    # Auto-sync keys for Eglantine Switch emulator
+    if safe_name.endswith(".keys") or "key" in safe_name.lower():
+        eglantine_keys_dir = "/home/gamer/.local/share/eglantine/keys"
+        try:
+            os.makedirs(eglantine_keys_dir, exist_ok=True)
+            shutil.copy2(target_path, os.path.join(eglantine_keys_dir, safe_name))
+            shutil.chown(os.path.join(eglantine_keys_dir, safe_name), user="gamer", group="gamer")
+        except Exception:
+            pass
+
     return {
         "status": "ok",
         "system": system_id,
@@ -160,6 +158,14 @@ def delete_rom_file(system_id, filename):
 
     if os.path.exists(target_path) and os.path.isfile(target_path):
         os.remove(target_path)
+        # Clean synced Eglantine key if present
+        if safe_name.endswith(".keys") or "key" in safe_name.lower():
+            eglantine_key_path = os.path.join("/home/gamer/.local/share/eglantine/keys", safe_name)
+            if os.path.exists(eglantine_key_path):
+                try:
+                    os.remove(eglantine_key_path)
+                except Exception:
+                    pass
         return {"status": "ok", "deleted": safe_name}
     return {"error": "File not found", "status": "error"}
 
