@@ -288,8 +288,26 @@
         startPolling();
     }
 
-    // Auto-connect assistance when launched from Desktop Client In-App Player
+    // Auto-connect assistance and native screen adaptation
     window.addEventListener('DOMContentLoaded', () => {
+        // Ensure default server resolution matches client native display
+        if (!urlParams.get('res')) {
+            const dpr = window.devicePixelRatio || 1;
+            let w = Math.round(window.screen.width * dpr);
+            let h = Math.round(window.screen.height * dpr);
+            w = Math.floor(w / 2) * 2;
+            h = Math.floor(h / 2) * 2;
+            const host = window.location.hostname || '127.0.0.1';
+            const controlPort = 8081;
+            const u = urlParams.get('auth_user') || 'gamer';
+            const p = urlParams.get('auth_pass') || 'kybergaming';
+            console.log(`[kyber-hud] Adapting server display to client native screen: ${w}x${h}`);
+            fetch(`https://${host}:${controlPort}/api/resize?width=${w}&height=${h}&rate=60&auth_user=${u}&auth_pass=${p}`, {
+                mode: 'cors',
+                cache: 'no-store'
+            }).catch(() => {});
+        }
+
         if (urlParams.get('auto_connect') === 'true') {
             const connectBtn = document.getElementById('connect');
             const authUser = urlParams.get('auth_user');

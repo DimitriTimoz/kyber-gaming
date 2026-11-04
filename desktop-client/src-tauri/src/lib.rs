@@ -67,7 +67,7 @@ impl Default for AppConfig {
                 },
             ],
             settings: StreamSettings {
-                resolution: "1920x1080".into(),
+                resolution: "native".into(),
                 refresh_rate: "60".into(),
                 bitrate: "40000000".into(),
                 codec: "h264".into(),
@@ -279,7 +279,7 @@ async fn launch_session(
 ) -> Result<(), String> {
     // 1. Send resolution update to host Kyber control plane API
     let [w, h]: [&str; 2] = match settings.resolution.split('x').collect::<Vec<&str>>().as_slice() {
-        [w, h] => [*w, *h],
+        [w, h] if !w.is_empty() && !h.is_empty() && *w != "native" => [*w, *h],
         _ => ["1920", "1080"],
     };
 

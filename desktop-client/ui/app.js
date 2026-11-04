@@ -131,10 +131,12 @@
     // ==========================================================================
     function getDisplayResolutionProfiles() {
         const dpr = window.devicePixelRatio || 1;
-        const physW = Math.round(window.screen.width * dpr);
-        const physH = Math.round(window.screen.height * dpr);
-        const logW = window.screen.width;
-        const logH = window.screen.height;
+        let physW = Math.round(window.screen.width * dpr);
+        let physH = Math.round(window.screen.height * dpr);
+        physW = Math.floor(physW / 2) * 2;
+        physH = Math.floor(physH / 2) * 2;
+        const logW = Math.floor(window.screen.width / 2) * 2;
+        const logH = Math.floor(window.screen.height / 2) * 2;
         return { physW, physH, logW, logH, dpr };
     }
 
@@ -148,9 +150,15 @@
         const optGroupDetected = document.createElement('optgroup');
         optGroupDetected.label = 'Detected Display (Recommended)';
 
+        const optNative = document.createElement('option');
+        optNative.value = 'native';
+        optNative.textContent = `Auto Native Screen: ${physW} x ${physH}${dpr > 1 ? ` (Retina ${dpr}x)` : ''}`;
+        optNative.selected = true;
+        optGroupDetected.appendChild(optNative);
+
         const optPhys = document.createElement('option');
         optPhys.value = detectedKey;
-        optPhys.textContent = `Current Native: ${physW} x ${physH}${dpr > 1 ? ` (Retina ${dpr}x)` : ''}`;
+        optPhys.textContent = `Force Fixed: ${physW} x ${physH}`;
         optGroupDetected.appendChild(optPhys);
 
         if (dpr > 1 && (physW !== logW || physH !== logH)) {
@@ -236,6 +244,9 @@
         if (config) {
             servers = config.servers || [];
             settings = config.settings || {};
+            if (!settings.resolution || settings.resolution === '1920x1080') {
+                settings.resolution = 'native';
+            }
         } else {
             const { physW, physH } = getDisplayResolutionProfiles();
             servers = [
@@ -243,7 +254,7 @@
                 { id: 'tailscale-remote', name: 'Serveur Distant (Tailscale)', host: '100.73.113.43', port: 8080 }
             ];
             settings = {
-                resolution: `${physW}x${physH}`,
+                resolution: 'native',
                 refresh_rate: '60',
                 bitrate: '40000000',
                 codec: 'h264',
@@ -392,7 +403,10 @@
         showToast(`Connexion a ${server.name}...`);
 
         let chosenResolution = settingResolution.value;
-        if (chosenResolution === 'custom') {
+        if (chosenResolution === 'native' || !chosenResolution) {
+            const { physW, physH } = getDisplayResolutionProfiles();
+            chosenResolution = `${physW}x${physH}`;
+        } else if (chosenResolution === 'custom') {
             const w = customInputW.value.trim() || '1920';
             const h = customInputH.value.trim() || '1080';
             chosenResolution = `${w}x${h}`;
@@ -512,16 +526,16 @@
     // Settings Handling
     // ==========================================================================
     function applySettingsToUI() {
-        if (settings.resolution) {
-            if (Array.from(settingResolution.options).some(o => o.value === settings.resolution)) {
-                settingResolution.value = settings.resolution;
-            } else {
-                settingResolution.value = 'custom';
-                const parts = settings.resolution.split('x');
-                if (parts.length === 2) {
-                    customInputW.value = parts[0];
-                    customInputH.value = parts[1];
-                }
+        if (!settings.resolution || settings.resolution === 'native') {
+            settingResolution.value = 'native';
+        } else if (Array.from(settingResolution.options).some(o => o.value === settings.resolution)) {
+            settingResolution.value = settings.resolution;
+        } else {
+            settingResolution.value = 'custom';
+            const parts = settings.resolution.split('x');
+            if (parts.length === 2) {
+                customInputW.value = parts[0];
+                customInputH.value = parts[1];
             }
         }
         settingCustomResRow.style.display = settingResolution.value === 'custom' ? 'flex' : 'none';
