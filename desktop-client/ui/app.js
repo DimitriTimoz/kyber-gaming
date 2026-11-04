@@ -821,6 +821,7 @@
                     <td style="padding: 10px 18px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">${formatTimestamp(file.modified)}</td>
                     <td style="padding: 10px 18px; text-align: right;">
                         <div class="rom-row-actions">
+                            ${fileType === 'archive' ? `<button class="rom-extract-btn" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);padding:2px 8px;font-size:0.7rem;font-weight:600;border-radius:4px;cursor:pointer;margin-right:6px;" title="Extract Archive">EXTRACT</button>` : ''}
                             <button class="rom-action-icon-btn rom-dl-btn" title="Download File">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                             </button>
@@ -828,6 +829,14 @@
                         </div>
                     </td>
                 `;
+
+                const extractBtn = tr.querySelector('.rom-extract-btn');
+                if (extractBtn) {
+                    extractBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        extractDesktopStorageArchive(file.path, file.name);
+                    });
+                }
 
                 const dlBtn = tr.querySelector('.rom-dl-btn');
                 if (dlBtn) {
@@ -845,6 +854,33 @@
 
                 desktopRomTableBody.appendChild(tr);
             });
+        }
+    }
+
+    async function extractDesktopStorageArchive(relPath, filename) {
+        const server = getSelectedRomServer();
+        if (!server) return;
+        const controlPort = 8081;
+        const authUser = server.auth_user || server.user || 'gamer';
+        const authPassword = server.auth_password || server.password || 'kybergaming';
+        showToast(`Extraction: ${filename}...`);
+        try {
+            const res = await tauriInvoke('rom_extract', {
+                host: server.host,
+                port: controlPort,
+                path: relPath,
+                deleteArchive: false,
+                authUser: authUser,
+                authPassword: authPassword
+            });
+            if (res && res.status === 'ok') {
+                showToast(`Extraction terminee: ${filename}`);
+                loadDesktopDirectory(currentDesktopBrowsePath);
+            } else {
+                showToast(`Echec d'extraction: ${(res && res.error) || 'Erreur'}`);
+            }
+        } catch (err) {
+            showToast(`Erreur d'extraction: ${err}`);
         }
     }
 

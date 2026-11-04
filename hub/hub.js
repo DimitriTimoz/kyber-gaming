@@ -796,6 +796,7 @@
                     <td class="rom-date-cell">${formatTimestamp(file.modified)}</td>
                     <td style="text-align:right;">
                         <div class="rom-row-actions">
+                            ${fileType === 'archive' ? `<button class="rom-extract-btn" style="background:rgba(168,85,247,0.15);color:#d8b4fe;border:1px solid rgba(168,85,247,0.3);padding:2px 8px;font-size:0.7rem;font-weight:600;border-radius:4px;cursor:pointer;margin-right:6px;" title="Extract Archive">EXTRACT</button>` : ''}
                             <a href="/api/roms/download?path=${encodeURIComponent(file.path)}" class="rom-action-icon-btn" title="Download File" download>
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
                             </a>
@@ -803,6 +804,15 @@
                         </div>
                     </td>
                 `;
+
+                const extractBtn = tr.querySelector('.rom-extract-btn');
+                if (extractBtn) {
+                    extractBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        initAudio();
+                        extractStorageArchive(file.path, file.name);
+                    });
+                }
 
                 const delBtn = tr.querySelector('.rom-del-btn');
                 delBtn.addEventListener('click', (e) => {
@@ -813,6 +823,26 @@
 
                 romTableBodyEl.appendChild(tr);
             });
+        }
+    }
+
+    async function extractStorageArchive(relPath, filename) {
+        showRomToast(`Extraction: ${filename}...`);
+        try {
+            const res = await fetch('/api/roms/extract', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: relPath, delete_archive: false })
+            });
+            const data = await res.json();
+            if (data && data.status === 'ok') {
+                showRomToast(`Extraction terminee: ${filename}`);
+                loadDirectory(currentBrowsePath);
+            } else {
+                showRomToast(`Echec d'extraction: ${(data && data.error) || 'Erreur'}`);
+            }
+        } catch (err) {
+            showRomToast(`Erreur d'extraction: ${err}`);
         }
     }
 

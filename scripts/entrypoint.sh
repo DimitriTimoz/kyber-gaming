@@ -43,6 +43,11 @@ mkdir -p \
     /home/gamer/.local/share/eden/keys \
     /home/gamer/.config/eden
 
+# Compatibility symlink for AppImages or emulators referencing /home/user
+if [ ! -e /home/user ]; then
+    ln -s /home/gamer /home/user 2>/dev/null || true
+fi
+
 # Backwards compatibility symlink: roms/switch -> roms/eglantine/games
 if [ ! -e /home/gamer/roms/switch ]; then
     ln -s /home/gamer/roms/eglantine/games /home/gamer/roms/switch 2>/dev/null || true

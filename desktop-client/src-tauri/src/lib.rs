@@ -761,6 +761,71 @@ async fn rom_download_file(
     Ok(target_file_path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+async fn rom_extract(
+    host: String,
+    port: u16,
+    path: String,
+    delete_archive: Option<bool>,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let client = get_http_client();
+
+    let mut query = vec![("path", path.clone())];
+    if delete_archive.unwrap_or(false) {
+        query.push(("delete_archive", "true".into()));
+    }
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            query.push(("auth_user", u.clone()));
+            query.push(("auth_pass", p.clone()));
+        }
+    }
+
+    let payload = serde_json::json!({
+        "path": path,
+        "delete_archive": delete_archive.unwrap_or(false)
+    });
+
+    let https_url = format!("https://{}:{}/api/roms/extract", host, port);
+    let mut req = client.post(&https_url).query(&query).json(&payload);
+    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+        if !u.is_empty() && !p.is_empty() {
+            req = req.basic_auth(u, Some(p));
+        }
+    }
+
+    match req.send().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status = resp.status();
+                let err_text = resp.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status, err_text))
+            }
+        }
+        Err(_) => {
+            let http_url = format!("http://{}:{}/api/roms/extract", host, port);
+            let mut req2 = client.post(&http_url).query(&query).json(&payload);
+            if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                if !u.is_empty() && !p.is_empty() {
+                    req2 = req2.basic_auth(u, Some(p));
+                }
+            }
+            let resp2 = req2.send().await.map_err(|e| e.to_string())?;
+            if resp2.status().is_success() {
+                resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string())
+            } else {
+                let status2 = resp2.status();
+                let err_text2 = resp2.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Err(format!("Server returned HTTP {}: {}", status2, err_text2))
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -774,7 +839,8 @@ pub fn run() {
             rom_create_folder,
             rom_delete,
             rom_upload_chunk,
-            rom_download_file
+            rom_download_file,
+            rom_extract
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

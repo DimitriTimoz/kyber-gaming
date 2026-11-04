@@ -134,6 +134,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xserver-xorg-input-libinput \
     xserver-xorg-input-evdev \
     xinput \
+    p7zip-full \
+    unzip \
+    unrar-free \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Install PipeWire audio stack

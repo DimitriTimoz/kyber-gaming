@@ -256,7 +256,7 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
         except Exception:
             pass
 
-        # Auto-mirror keys
+        # Auto-mirror keys if loose key file
         if safe_name.endswith(".keys") or "key" in safe_name.lower():
             for kdir in ["/home/gamer/.local/share/eglantine/keys", "/home/gamer/.local/share/eden/keys"]:
                 try:
@@ -266,13 +266,28 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
                 except Exception:
                     pass
 
+        # Auto-extract archives if in keys, firmware or if file is an archive in emulator paths
+        is_archive = classify_file_type(safe_name) == "archive"
+        auto_extract = is_archive and (
+            "key" in target_path.lower() or
+            "firmware" in target_path.lower() or
+            "key" in safe_name.lower() or
+            "firmware" in safe_name.lower()
+        )
+        if auto_extract:
+            try:
+                extract_archive(final_dest, delete_archive=False)
+            except Exception as e:
+                print(f"[kyber-control] Auto-extract notice for {safe_name}: {e}", file=sys.stderr)
+
         file_stat = os.stat(final_dest)
         return {
             "status": "completed",
             "filename": safe_name,
             "path": final_dest,
             "size": file_stat.st_size,
-            "size_formatted": format_bytes(file_stat.st_size)
+            "size_formatted": format_bytes(file_stat.st_size),
+            "is_archive": is_archive
         }
 
     return {
@@ -280,6 +295,108 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
         "chunk_index": chunk_index,
         "total_chunks": total_chunks
     }
+
+def post_process_extracted_content(search_dir):
+    """Auto-detects and installs keys and firmware from extracted archives."""
+    keys_dirs = [
+        "/home/gamer/.local/share/eglantine/keys",
+        "/home/gamer/.local/share/eden/keys",
+        "/home/gamer/roms/eglantine/keys"
+    ]
+    for root, _, files in os.walk(search_dir):
+        for f in files:
+            lower = f.lower()
+            src_file = os.path.join(root, f)
+            # Match any keys file (prod.keys, title.keys, *.keys)
+            if lower.endswith(".keys") or lower in ["prod.keys", "title.keys"]:
+                for kdir in keys_dirs:
+                    try:
+                        os.makedirs(kdir, exist_ok=True)
+                        dest_file = os.path.join(kdir, f)
+                        shutil.copy2(src_file, dest_file)
+                        shutil.chown(dest_file, user="gamer", group="gamer")
+                    except Exception:
+                        pass
+
+            # Match any Switch firmware packages (.nca)
+            if lower.endswith(".nca"):
+                firmware_targets = [
+                    "/home/gamer/.local/share/eden/nand/system/Contents/registered",
+                    "/home/gamer/roms/eglantine/firmware"
+                ]
+                for ftarget in firmware_targets:
+                    try:
+                        os.makedirs(ftarget, exist_ok=True)
+                        dest_file = os.path.join(ftarget, f)
+                        if not os.path.exists(dest_file) or os.path.getsize(dest_file) != os.path.getsize(src_file):
+                            shutil.copy2(src_file, dest_file)
+                            shutil.chown(dest_file, user="gamer", group="gamer")
+                    except Exception:
+                        pass
+
+def extract_archive(rel_path, delete_archive=False):
+    """Safely extracts zip, 7z, rar, tar, gz archives into their parent directory and fixes permissions."""
+    full_path, clean_rel = resolve_safe_storage_path(rel_path)
+    if not full_path or not os.path.exists(full_path):
+        return {"error": "Archive file not found", "status": "error"}
+
+    if os.path.isdir(full_path):
+        return {"error": "Target is a directory, not an archive file", "status": "error"}
+
+    ext = os.path.splitext(full_path)[1].lower()
+    valid_exts = [".zip", ".7z", ".rar", ".tar", ".gz", ".tgz", ".bz2", ".xz"]
+    if not any(full_path.lower().endswith(e) for e in valid_exts):
+        return {"error": f"Unsupported archive format: {ext}", "status": "error"}
+
+    dest_dir = os.path.dirname(full_path)
+    archive_name = os.path.basename(full_path)
+
+    try:
+        has_7z = shutil.which("7z") or shutil.which("7za")
+        has_unzip = shutil.which("unzip")
+
+        if has_7z:
+            cmd = [has_7z, "x", "-y", f"-o{dest_dir}", full_path]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600)
+            if res.returncode != 0:
+                if ext == ".zip" and has_unzip:
+                    subprocess.run(["unzip", "-o", "-d", dest_dir, full_path], check=True, timeout=600)
+                else:
+                    return {"error": f"7z extraction error: {res.stderr.decode(errors='ignore')[:300]}", "status": "error"}
+        elif ext == ".zip":
+            if has_unzip:
+                subprocess.run(["unzip", "-o", "-d", dest_dir, full_path], check=True, timeout=600)
+            else:
+                import zipfile
+                with zipfile.ZipFile(full_path, "r") as zf:
+                    zf.extractall(dest_dir)
+        elif ext in [".tar", ".gz", ".tgz", ".bz2", ".xz"]:
+            import tarfile
+            with tarfile.open(full_path, "r:*") as tf:
+                tf.extractall(dest_dir)
+        else:
+            return {"error": "No decompression utility available on host", "status": "error"}
+
+        # Fix ownership
+        subprocess.run(["chown", "-R", "gamer:gamer", dest_dir], check=False)
+
+        # Post-process keys and firmware
+        post_process_extracted_content(dest_dir)
+
+        if delete_archive:
+            try:
+                os.remove(full_path)
+            except Exception:
+                pass
+
+        return {
+            "status": "ok",
+            "message": f"Successfully extracted {archive_name}",
+            "archive": archive_name,
+            "target_dir": clean_rel
+        }
+    except Exception as e:
+        return {"error": f"Extraction failure: {str(e)}", "status": "error"}
 
 def delete_storage_item(rel_path):
     full_path, clean_rel = resolve_safe_storage_path(rel_path)
@@ -720,6 +837,11 @@ class ResizeHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/roms/browse":
             target_path = params.get("path", [""])[0]
             self._send_json_response(browse_directory(target_path))
+        elif parsed.path == "/api/roms/extract":
+            target_path = params.get("path", [""])[0]
+            delete_archive = params.get("delete_archive", ["false"])[0].lower() == "true"
+            result = extract_archive(target_path, delete_archive=delete_archive)
+            self._send_json_response(result)
         elif parsed.path == "/api/roms/download":
             target_path = params.get("path", [""])[0]
             full_path, clean_rel = resolve_safe_storage_path(target_path)
@@ -788,7 +910,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
 
-        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/upload_chunk", "/api/roms/create_folder", "/api/roms/delete"]:
+        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/upload_chunk", "/api/roms/create_folder", "/api/roms/delete", "/api/roms/extract"]:
             if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
@@ -870,6 +992,17 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 sys_id = data.get("system", "switch")
                 path = f"{sys_id}/{data['filename']}" if sys_id != "bios" else f"bios/{data['filename']}"
             result = delete_storage_item(path)
+            self._send_json_response(result)
+        elif parsed.path == "/api/roms/extract":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = {}
+            target_path = data.get("path", params.get("path", [""])[0])
+            delete_archive = data.get("delete_archive", params.get("delete_archive", ["false"])[0].lower() == "true")
+            result = extract_archive(target_path, delete_archive=delete_archive)
             self._send_json_response(result)
         else:
             self.send_response(404)
