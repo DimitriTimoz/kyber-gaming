@@ -21,3 +21,7 @@ Thumbs.db
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Client launcher build artifacts
+client-launcher/build/
+
