@@ -92,28 +92,28 @@
         authGateEl.innerHTML = `
             <div class="auth-gate-box">
                 <div>
-                    <h2 class="auth-gate-title">Connexion securisee</h2>
-                    <p class="auth-gate-subtitle">Entrez vos identifiants pour acceder a l'hote Kyber Gaming.</p>
+                    <h2 class="auth-gate-title">Secure Connection</h2>
+                    <p class="auth-gate-subtitle">Enter your credentials to access the Kyber Gaming host.</p>
                 </div>
 
-                <div class="auth-error-banner" id="hub-auth-error">Identifiants invalides.</div>
+                <div class="auth-error-banner" id="hub-auth-error">Invalid credentials.</div>
 
                 <div class="setting-group">
-                    <label class="setting-label">Nom d'utilisateur</label>
-                    <input type="text" class="setting-input" id="hub-input-user" value="${state.authUser || 'gamer'}" placeholder="ex: gamer">
+                    <label class="setting-label">Username</label>
+                    <input type="text" class="setting-input" id="hub-input-user" value="${state.authUser || 'gamer'}" placeholder="e.g. gamer">
                 </div>
 
                 <div class="setting-group">
-                    <label class="setting-label">Mot de passe</label>
-                    <input type="password" class="setting-input" id="hub-input-pass" value="${state.authPass || ''}" placeholder="Mot de passe">
+                    <label class="setting-label">Password</label>
+                    <input type="password" class="setting-input" id="hub-input-pass" value="${state.authPass || ''}" placeholder="Password">
                 </div>
 
                 <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.76rem; color:var(--kh-text-muted); cursor:pointer;">
                     <input type="checkbox" id="hub-check-remember" checked>
-                    <span>Rester connecte sur cet appareil</span>
+                    <span>Remember on this device</span>
                 </label>
 
-                <button class="auth-btn-submit" id="hub-btn-login">Deverrouiller la console</button>
+                <button class="auth-btn-submit" id="hub-btn-login">Unlock Console</button>
             </div>
         `;
         document.body.appendChild(authGateEl);
@@ -162,17 +162,17 @@
         const pass = inputAuthPass.value;
 
         if (!user || !pass) {
-            showAuthError('Veuillez renseigner un utilisateur et un mot de passe.');
+            showAuthError('Please enter both username and password.');
             return;
         }
 
         btnAuthSubmit.disabled = true;
-        btnAuthSubmit.textContent = 'Verification...';
+        btnAuthSubmit.textContent = 'Verifying...';
         authErrorBanner.classList.remove('show');
 
         const ok = await verifyCredentials(user, pass);
         btnAuthSubmit.disabled = false;
-        btnAuthSubmit.textContent = 'Deverrouiller la console';
+        btnAuthSubmit.textContent = 'Unlock Console';
 
         if (ok) {
             if (checkRememberAuth.checked) {
@@ -188,7 +188,7 @@
             }
             unlockConsole(user, pass);
         } else {
-            showAuthError('Identifiants incorrects.');
+            showAuthError('Invalid credentials.');
         }
     }
 
@@ -274,24 +274,24 @@
 
         // 1. Detected Screen
         const optGroupDetected = document.createElement('optgroup');
-        optGroupDetected.label = 'Ecran detecte (Recommande)';
+        optGroupDetected.label = 'Detected Display (Recommended)';
 
         const optPhys = document.createElement('option');
         optPhys.value = detectedKey;
-        optPhys.textContent = `Natif actuel: ${physW} x ${physH} (${ratioLabel}${dpr > 1 ? `, Retina ${dpr}x` : ''})`;
+        optPhys.textContent = `Current Native: ${physW} x ${physH} (${ratioLabel}${dpr > 1 ? `, Retina ${dpr}x` : ''})`;
         optGroupDetected.appendChild(optPhys);
 
         if (dpr > 1 && (physW !== logW || physH !== logH)) {
             const optLog = document.createElement('option');
             optLog.value = `${logW}x${logH}`;
-            optLog.textContent = `Logique reduit: ${logW} x ${logH} (${ratioLabel})`;
+            optLog.textContent = `Scaled Logical: ${logW} x ${logH} (${ratioLabel})`;
             optGroupDetected.appendChild(optLog);
         }
         selResolution.appendChild(optGroupDetected);
 
         // 2. 16:10 (MacBook / Deck)
         const optGroup1610 = document.createElement('optgroup');
-        optGroup1610.label = 'Format 16:10 (MacBook / Laptops / Deck)';
+        optGroup1610.label = '16:10 Aspect Ratio (MacBook / Laptops / Deck)';
         const res1610 = [
             { w: 3024, h: 1964, label: '3024 x 1964 (MacBook Pro 14")' },
             { w: 2880, h: 1800, label: '2880 x 1800 (MacBook Pro 15")' },
@@ -311,7 +311,7 @@
 
         // 3. 16:9 Standard
         const optGroup169 = document.createElement('optgroup');
-        optGroup169.label = 'Format 16:9 (Standard)';
+        optGroup169.label = '16:9 Aspect Ratio (Standard)';
         const res169 = [
             { w: 3840, h: 2160, label: '3840 x 2160 (4K UHD)' },
             { w: 2560, h: 1440, label: '2560 x 1440 (1440p QHD)' },
@@ -330,7 +330,7 @@
 
         // 4. 21:9 Ultrawide
         const optGroup219 = document.createElement('optgroup');
-        optGroup219.label = 'Format 21:9 (Ultrawide)';
+        optGroup219.label = '21:9 Aspect Ratio (Ultrawide)';
         const res219 = [
             { w: 3440, h: 1440, label: '3440 x 1440 (UWQHD)' },
             { w: 2560, h: 1080, label: '2560 x 1080 (UWFHD)' }
@@ -347,10 +347,10 @@
 
         // 5. Custom
         const optGroupCustom = document.createElement('optgroup');
-        optGroupCustom.label = 'Manuel';
+        optGroupCustom.label = 'Manual';
         const optCustom = document.createElement('option');
         optCustom.value = 'custom';
-        optCustom.textContent = 'Resolution personnalisee...';
+        optCustom.textContent = 'Custom resolution...';
         optGroupCustom.appendChild(optCustom);
         selResolution.appendChild(optGroupCustom);
 
@@ -390,14 +390,14 @@
                 <div class="lobby-host-status">
                     <div class="status-badge" id="hub-host-status">
                         <span class="status-dot"></span>
-                        <span id="hub-status-text">Verification hote...</span>
+                        <span id="hub-status-text">Checking host...</span>
                     </div>
                     <div class="host-specs-pill" id="hub-specs-pill">
-                        GPU: Detection...
+                        GPU: Detecting...
                     </div>
                     <div class="user-auth-badge" id="hub-user-badge" style="display:none;">
                         <span>Session: <strong id="hub-username-label">gamer</strong></span>
-                        <button class="user-logout-btn" id="hub-btn-logout">Deconnexion</button>
+                        <button class="user-logout-btn" id="hub-btn-logout">Sign out</button>
                     </div>
                 </div>
             </header>
@@ -405,33 +405,33 @@
             <main class="lobby-grid">
                 <!-- Card 1: Launcher -->
                 <div class="lobby-card">
-                    <h2 class="card-title">Environnement / Launcher</h2>
+                    <h2 class="card-title">Environment / Launcher</h2>
                     <div class="launcher-options">
                         <div class="launcher-btn active" data-launcher="menu">
                             <div>
                                 <div class="launcher-name">Console OS Hub</div>
-                                <div class="launcher-desc">Interface d'accueil console (Steam, Heroic, Emulateurs)</div>
+                                <div class="launcher-desc">Console home interface (Steam, Heroic, Emulators)</div>
                             </div>
-                            <span class="launcher-tag">Defaut</span>
+                            <span class="launcher-tag">Default</span>
                         </div>
                         <div class="launcher-btn" data-launcher="steam">
                             <div>
                                 <div class="launcher-name">Steam Big Picture</div>
-                                <div class="launcher-desc">Session directe plein ecran pour manette</div>
+                                <div class="launcher-desc">Direct fullscreen session optimized for gamepad</div>
                             </div>
                             <span class="launcher-tag">Direct</span>
                         </div>
                         <div class="launcher-btn" data-launcher="heroic">
                             <div>
                                 <div class="launcher-name">Heroic Games Launcher</div>
-                                <div class="launcher-desc">Bibliotheque Epic Games et GOG</div>
+                                <div class="launcher-desc">Epic Games and GOG libraries</div>
                             </div>
                             <span class="launcher-tag">Direct</span>
                         </div>
                         <div class="launcher-btn" data-launcher="browser">
                             <div>
-                                <div class="launcher-name">Navigateur Web</div>
-                                <div class="launcher-desc">Google Chrome pour navigation, wikis et Discord</div>
+                                <div class="launcher-name">Web Browser</div>
+                                <div class="launcher-desc">Google Chrome for browsing, wikis, and Discord</div>
                             </div>
                             <span class="launcher-tag">App</span>
                         </div>
@@ -440,21 +440,21 @@
 
                 <!-- Card 2: Resolution & Stream Settings -->
                 <div class="lobby-card">
-                    <h2 class="card-title">Affichage & Flux Video</h2>
+                    <h2 class="card-title">Display & Video Stream</h2>
                     <div class="setting-group">
-                        <label class="setting-label">Resolution cible</label>
+                        <label class="setting-label">Target Resolution</label>
                         <select class="setting-select" id="hub-sel-resolution"></select>
                     </div>
 
                     <div class="custom-res-row" id="hub-custom-res-row">
-                        <input type="number" class="custom-res-input" id="hub-input-w" placeholder="Largeur (ex: 2560)" value="2560">
+                        <input type="number" class="custom-res-input" id="hub-input-w" placeholder="Width (e.g. 2560)" value="2560">
                         <span style="color:var(--kh-text-dim);">&times;</span>
-                        <input type="number" class="custom-res-input" id="hub-input-h" placeholder="Hauteur (ex: 1600)" value="1600">
+                        <input type="number" class="custom-res-input" id="hub-input-h" placeholder="Height (e.g. 1600)" value="1600">
                     </div>
 
                     <div style="display:flex; gap:0.75rem;">
                         <div class="setting-group" style="flex:1;">
-                            <label class="setting-label">Frequence</label>
+                            <label class="setting-label">Refresh Rate</label>
                             <select class="setting-select" id="hub-sel-fps">
                                 <option value="60">60 FPS</option>
                                 <option value="120">120 FPS</option>
@@ -462,43 +462,43 @@
                             </select>
                         </div>
                         <div class="setting-group" style="flex:1;">
-                            <label class="setting-label">Debit (Bitrate)</label>
+                            <label class="setting-label">Bitrate</label>
                             <select class="setting-select" id="hub-sel-bitrate">
                                 <option value="30000000">30 Mbps</option>
-                                <option value="50000000">50 Mbps (Recommande)</option>
-                                <option value="80000000">80 Mbps (LAN brut)</option>
+                                <option value="50000000">50 Mbps (Recommended)</option>
+                                <option value="80000000">80 Mbps (Raw LAN)</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="setting-group">
-                        <label class="setting-label">Codec Video</label>
+                        <label class="setting-label">Video Codec</label>
                         <select class="setting-select" id="hub-sel-codec">
-                            <option value="h264">H.264 (Faible latence & decodage rapide)</option>
-                            <option value="hevc">HEVC / H.265 (Qualite accrue)</option>
+                            <option value="h264">H.264 (Low latency & fast decode)</option>
+                            <option value="hevc">HEVC / H.265 (Higher fidelity)</option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Card 3: Controllers & Quit Instructions -->
                 <div class="lobby-card">
-                    <h2 class="card-title">Peripheriques & Raccourcis</h2>
+                    <h2 class="card-title">Controllers & Shortcuts</h2>
                     <div class="gamepad-box">
                         <div class="gamepad-indicator" id="hub-gamepad-box">
                             <span class="status-dot"></span>
-                            <span id="hub-gamepad-label">Aucune manette detectee</span>
+                            <span id="hub-gamepad-label">No controller detected</span>
                         </div>
                         <button class="gamepad-vibrate-btn" id="hub-btn-vibrate" style="display:none;">
-                            Tester vibration
+                            Test Vibration
                         </button>
                     </div>
 
                     <div style="font-size:0.75rem; color:var(--kh-text-muted); line-height:1.5;">
-                        <div style="font-weight:700; color:#fff; margin-bottom:0.35rem;">Comment quitter la session en jeu :</div>
+                        <div style="font-weight:700; color:#fff; margin-bottom:0.35rem;">How to exit in-game session:</div>
                         <ul style="padding-left:1.1rem; margin:0; display:flex; flex-direction:column; gap:0.25rem;">
-                            <li>Survolez le bord superieur de l'ecran pour afficher la barre de controle.</li>
-                            <li>Appuyez sur <kbd>Echap</kbd> ou <kbd>Ctrl+Shift+Q</kbd>.</li>
-                            <li>Cliquez sur le bouton rouge <strong>[Quitter la session]</strong>.</li>
+                            <li>Hover near the top edge of the screen to reveal the control bar.</li>
+                            <li>Press <kbd>Esc</kbd> or <kbd>Ctrl+Shift+Q</kbd>.</li>
+                            <li>Click the red <strong>[Quit Session]</strong> button.</li>
                         </ul>
                     </div>
                 </div>
@@ -506,10 +506,10 @@
 
             <footer class="lobby-footer">
                 <div class="lobby-hints">
-                    Raccourci de sortie: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> ou survolez la bordure superieure.
+                    Exit shortcut: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> or hover the top screen edge.
                 </div>
                 <button class="btn-play-stream" id="hub-btn-play">
-                    Lancer la session
+                    Start Session
                 </button>
             </footer>
         `;
@@ -522,13 +522,13 @@
         inGameBarEl.innerHTML = `
             <span class="in-game-brand">KYBER</span>
             <span>|</span>
-            <span id="ingame-status-fps">Stream actif</span>
+            <span id="ingame-status-fps">Active stream</span>
             <span>|</span>
-            <button class="in-game-btn" id="ingame-btn-fs">Plein ecran</button>
+            <button class="in-game-btn" id="ingame-btn-fs">Fullscreen</button>
             <button class="in-game-btn" id="ingame-btn-launcher">Launcher</button>
-            <button class="in-game-btn" id="ingame-btn-reload">Recharger flux</button>
+            <button class="in-game-btn" id="ingame-btn-reload">Reload Stream</button>
             <span>|</span>
-            <button class="in-game-btn btn-quit-danger" id="ingame-btn-quit">Quitter la session</button>
+            <button class="in-game-btn btn-quit-danger" id="ingame-btn-quit">Quit Session</button>
         `;
         document.body.appendChild(inGameBarEl);
 
@@ -661,17 +661,17 @@
                 state.systemInfo = data;
 
                 badgeHostStatus.className = 'status-badge';
-                document.getElementById('hub-status-text').textContent = `En ligne (${latency} ms)`;
+                document.getElementById('hub-status-text').textContent = `Online (${latency} ms)`;
 
                 if (data.gpu) {
                     const temp = data.gpu.temp ? ` [${data.gpu.temp}]` : '';
-                    hostSpecsPill.textContent = `${data.gpu.name}${temp} | Ecran X11: ${data.active_resolution || '1080p'}`;
+                    hostSpecsPill.textContent = `${data.gpu.name}${temp} | X11 Display: ${data.active_resolution || '1080p'}`;
                 }
             })
             .catch(() => {
                 badgeHostStatus.className = 'status-badge offline';
-                document.getElementById('hub-status-text').textContent = 'Hote injoignable';
-                hostSpecsPill.textContent = 'Service resizer inactif';
+                document.getElementById('hub-status-text').textContent = 'Host unreachable';
+                hostSpecsPill.textContent = 'Resizer service inactive';
             });
     }
 
@@ -711,7 +711,7 @@
         }
 
         btnPlayStream.disabled = true;
-        btnPlayStream.textContent = 'Preparation session...';
+        btnPlayStream.textContent = 'Preparing session...';
 
         const [w, h] = getTargetResolutionDimensions();
 
@@ -732,7 +732,7 @@
             setTimeout(() => inGameBarEl.classList.remove('active'), 4000);
 
             btnPlayStream.disabled = false;
-            btnPlayStream.textContent = 'Lancer la session';
+            btnPlayStream.textContent = 'Start Session';
 
             // 5. Trigger WebClient connect
             const btnConnect = document.getElementById('connect');
@@ -835,7 +835,7 @@
                 btnVibrateGamepad.style.display = 'inline-block';
             }
         } else {
-            gamepadStatusLabel.textContent = 'Aucune manette detectee (Brancher USB ou Bluetooth)';
+            gamepadStatusLabel.textContent = 'No controller detected (Connect via USB or Bluetooth)';
             if (indicatorBox) indicatorBox.classList.remove('connected');
             if (btnVibrateGamepad) btnVibrateGamepad.style.display = 'none';
         }

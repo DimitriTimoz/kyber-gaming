@@ -252,7 +252,7 @@
                     </div>
                     <div class="card-meta">
                         <div class="meta-title">${item.name}</div>
-                        <div class="meta-sub">${installed ? (item.category === 'emulators' ? 'Émulateur' : 'Prêt à lancer') : 'À installer'}</div>
+                        <div class="meta-sub">${installed ? (item.category === 'emulators' ? 'Emulator' : 'Ready to launch') : 'Not installed'}</div>
                     </div>
                     <div class="card-badge">
                         <span class="badge-key">${item.badge_key || (idx + 1)}</span>
@@ -298,7 +298,7 @@
         headerDescEl.textContent = currentItem.desc;
 
         const isInstalled = currentItem.installed !== false;
-        headerStatusEl.textContent = isInstalled ? 'DISPONIBLE' : 'À INSTALLER';
+        headerStatusEl.textContent = isInstalled ? 'AVAILABLE' : 'NOT INSTALLED';
         headerStatusEl.className = `header-status-badge ${!isInstalled ? 'missing' : ''}`;
 
         // Update Cards Focus & Smooth Scroll
@@ -336,8 +336,8 @@
 
         if (item.installed === false) {
             showToast(
-                `${item.name} n'est pas encore installé`,
-                `Pour l'activer dans votre homelab, installez le paquet ou copiez son binaire dans le conteneur.`
+                `${item.name} is not installed`,
+                `To enable it in your homelab, install the corresponding package or binary in the container.`
             );
             return;
         }
@@ -345,7 +345,7 @@
         isLaunching = true;
         playLaunchSound();
 
-        launchTitleEl.textContent = `LANCEMENT DE ${item.name.toUpperCase()}...`;
+        launchTitleEl.textContent = `LAUNCHING ${item.name.toUpperCase()}...`;
         launchSubEl.textContent = item.desc;
         launchLogoEl.innerHTML = ICONS[item.icon] || ICONS.gamepad;
         launchOverlayEl.classList.add('active');
@@ -365,7 +365,7 @@
                     clearTimeout(safetyTimer);
                     isLaunching = false;
                     launchOverlayEl.classList.remove('active');
-                    showToast('Erreur de lancement', `Impossible de lancer ${item.name} (Code HTTP ${res.status}).`);
+                    showToast('Launch Error', `Unable to launch ${item.name} (HTTP code ${res.status}).`);
                 }
             })
             .catch(err => {
@@ -373,7 +373,7 @@
                 clearTimeout(safetyTimer);
                 isLaunching = false;
                 launchOverlayEl.classList.remove('active');
-                showToast('Erreur reseau', 'Le service resizer/launcher ne repond pas.');
+                showToast('Network Error', 'The launcher service did not respond.');
             });
     }
 
@@ -404,7 +404,7 @@
             controllerTextEl.textContent = name;
         } else {
             controllerPillEl.classList.add('disconnected');
-            controllerTextEl.textContent = 'Clavier / Souris';
+            controllerTextEl.textContent = 'Keyboard / Mouse';
         }
 
         return activePad;

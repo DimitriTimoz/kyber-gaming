@@ -89,24 +89,24 @@
 
         // 1. Group: Detected Screen
         const optGroupDetected = document.createElement('optgroup');
-        optGroupDetected.label = 'Ecran detecte (Recommande)';
+        optGroupDetected.label = 'Detected Display (Recommended)';
 
         const optPhys = document.createElement('option');
         optPhys.value = detectedKey;
-        optPhys.textContent = `Natif actuel: ${physW} x ${physH}${dpr > 1 ? ` (Retina ${dpr}x)` : ''}`;
+        optPhys.textContent = `Current Native: ${physW} x ${physH}${dpr > 1 ? ` (Retina ${dpr}x)` : ''}`;
         optGroupDetected.appendChild(optPhys);
 
         if (dpr > 1 && (physW !== logW || physH !== logH)) {
             const optLog = document.createElement('option');
             optLog.value = `${logW}x${logH}`;
-            optLog.textContent = `Logique reduit: ${logW} x ${logH}`;
+            optLog.textContent = `Scaled Logical: ${logW} x ${logH}`;
             optGroupDetected.appendChild(optLog);
         }
         settingResolution.appendChild(optGroupDetected);
 
         // 2. Group: 16:10 (MacBook / Laptops / Deck)
         const optGroup1610 = document.createElement('optgroup');
-        optGroup1610.label = 'Format 16:10 (MacBook / Deck / Laptops)';
+        optGroup1610.label = '16:10 Aspect Ratio (MacBook / Deck / Laptops)';
         const res1610 = [
             { w: 3024, h: 1964, label: '3024 x 1964 (MacBook Pro 14")' },
             { w: 2880, h: 1800, label: '2880 x 1800 (MacBook Pro 15")' },
@@ -126,7 +126,7 @@
 
         // 3. Group: 16:9 Standard
         const optGroup169 = document.createElement('optgroup');
-        optGroup169.label = 'Format 16:9 (Standard)';
+        optGroup169.label = '16:9 Aspect Ratio (Standard)';
         const res169 = [
             { w: 3840, h: 2160, label: '3840 x 2160 (4K UHD)' },
             { w: 2560, h: 1440, label: '2560 x 1440 (1440p QHD)' },
@@ -145,7 +145,7 @@
 
         // 4. Group: 21:9 Ultrawide
         const optGroup219 = document.createElement('optgroup');
-        optGroup219.label = 'Format 21:9 (Ultrawide)';
+        optGroup219.label = '21:9 Aspect Ratio (Ultrawide)';
         const res219 = [
             { w: 3440, h: 1440, label: '3440 x 1440 (UWQHD)' },
             { w: 2560, h: 1080, label: '2560 x 1080 (UWFHD)' }
@@ -162,10 +162,10 @@
 
         // 5. Custom
         const optGroupCustom = document.createElement('optgroup');
-        optGroupCustom.label = 'Manuel';
+        optGroupCustom.label = 'Manual';
         const optCustom = document.createElement('option');
         optCustom.value = 'custom';
-        optCustom.textContent = 'Resolution personnalisee...';
+        optCustom.textContent = 'Custom resolution...';
         optGroupCustom.appendChild(optCustom);
         settingResolution.appendChild(optGroupCustom);
 
@@ -236,7 +236,7 @@
     // ==========================================================================
     function renderServers() {
         serversGrid.innerHTML = '';
-        quickServerCount.textContent = `${servers.length} serveur${servers.length > 1 ? 's' : ''}`;
+        quickServerCount.textContent = `${servers.length} server${servers.length > 1 ? 's' : ''}`;
 
         servers.forEach(server => {
             const card = document.createElement('div');
@@ -257,11 +257,11 @@
 
                 <div class="server-card-bottom">
                     <div style="display:flex; gap:0.35rem;">
-                        <button class="server-action-btn" onclick="window.editServer('${server.id}')">Editer</button>
-                        <button class="server-action-btn" onclick="window.deleteServer('${server.id}')">Supprimer</button>
+                        <button class="server-action-btn" onclick="window.editServer('${server.id}')">Edit</button>
+                        <button class="server-action-btn" onclick="window.deleteServer('${server.id}')">Delete</button>
                     </div>
                     <button class="btn btn-primary" onclick="window.launchServerSession('${server.id}')">
-                        Connecter
+                        Connect
                     </button>
                 </div>
             `;
@@ -271,11 +271,11 @@
 
     function getStatusLabel(server) {
         if (server.status === 'online') {
-            return server.latency ? `${server.latency} ms` : 'En ligne';
+            return server.latency ? `${server.latency} ms` : 'Online';
         } else if (server.status === 'offline') {
-            return 'Injoignable';
+            return 'Offline';
         }
-        return 'Test...';
+        return 'Checking...';
     }
 
     async function probeServer(server) {
@@ -351,7 +351,7 @@
             });
             probeServer(server);
         } catch (err) {
-            alert(`Erreur de lancement : ${err}`);
+            alert(`Launch error: ${err}`);
         }
     };
 
@@ -361,7 +361,7 @@
     function bindModalEvents() {
         btnAddServer.addEventListener('click', () => {
             editingServerId = null;
-            modalTitle.textContent = 'Ajouter un serveur';
+            modalTitle.textContent = 'Add Server';
             serverNameInput.value = '';
             serverHostInput.value = '';
             serverPortInput.value = '8080';
@@ -374,7 +374,7 @@
             const s = servers.find(x => x.id === serverId);
             if (!s) return;
             editingServerId = serverId;
-            modalTitle.textContent = 'Modifier le serveur';
+            modalTitle.textContent = 'Edit Server';
             serverNameInput.value = s.name;
             serverHostInput.value = s.host;
             serverPortInput.value = s.port;
@@ -384,7 +384,7 @@
         };
 
         window.deleteServer = async function (serverId) {
-            if (confirm('Supprimer ce serveur de la liste ?')) {
+            if (confirm('Remove this server from the list?')) {
                 servers = servers.filter(s => s.id !== serverId);
                 renderServers();
                 await saveCurrentConfig();
@@ -399,14 +399,14 @@
         btnModalCancel.addEventListener('click', closeModal);
 
         btnModalSave.addEventListener('click', async () => {
-            const name = serverNameInput.value.trim() || 'Serveur de Jeu';
+            const name = serverNameInput.value.trim() || 'Game Server';
             const host = serverHostInput.value.trim();
             const port = parseInt(serverPortInput.value, 10) || 8080;
             const auth_user = serverUserInput.value.trim() || 'gamer';
             const auth_password = serverPassInput.value;
 
             if (!host) {
-                alert('Veuillez renseigner une adresse IP ou un nom d\'hote.');
+                alert('Please provide an IP address or hostname.');
                 return;
             }
 
@@ -435,7 +435,7 @@
             renderServers();
             await saveCurrentConfig();
             probeAllServers();
-            showToast('Serveur enregistre.');
+            showToast('Server saved.');
         });
     }
 
@@ -491,7 +491,7 @@
             };
 
             await saveCurrentConfig();
-            showToast('Parametres enregistres.');
+            showToast('Settings saved.');
         });
     }
 

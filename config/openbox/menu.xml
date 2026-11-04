@@ -22,18 +22,18 @@
         <command>/usr/local/bin/switch_launcher.sh heroic</command>
       </action>
     </item>
-    <item label="Navigateur Web (Google Chrome)">
+    <item label="Web Browser (Google Chrome)">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh browser</command>
       </action>
     </item>
     <separator />
-    <item label="Recharger Steam">
+    <item label="Reload Steam">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh restart-steam</command>
       </action>
     </item>
-    <item label="Afficher le Bureau">
+    <item label="Show Desktop">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh desktop</command>
       </action>
@@ -44,7 +44,7 @@
       </action>
     </item>
     <separator />
-    <item label="Reconfigurer Openbox">
+    <item label="Reconfigure Openbox">
       <action name="Reconfigure" />
     </item>
   </menu>

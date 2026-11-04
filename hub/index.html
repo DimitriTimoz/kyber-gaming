@@ -1,21 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" translate="no" class="notranslate">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="google" content="notranslate">
-    <meta http-equiv="Content-Language" content="en">
     <title>Kyber Console OS</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- High-Performance Typography: Geist & Geist Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="theme-steam">
-    <!-- Ambient Dynamic Glow Backdrop -->
-    <div class="ambient-glow" id="ambientGlow"></div>
-    <div class="ambient-mesh"></div>
-    <div class="ambient-particles" id="particles"></div>
+<body class="console-body">
+    <div class="ambient-backdrop" id="ambientBackdrop"></div>
+    <div class="grid-overlay"></div>
 
     <div class="console-viewport">
         <!-- Top Status Bar & Categories -->
@@ -34,10 +31,10 @@
             <div class="system-status">
                 <div class="status-pill controller-status" id="controllerPill">
                     <span class="status-dot"></span>
-                    <span id="controllerText">Manette</span>
+                    <span id="controllerText">Controller</span>
                 </div>
                 <div class="status-pill gpu-status" id="gpuPill">
-                    <span id="gpuText">Détection GPU...</span>
+                    <span id="gpuText">Detecting GPU...</span>
                 </div>
                 <div class="status-pill display-status" id="displayRes">
                     <span>1080p 60Hz</span>
@@ -52,11 +49,11 @@
         <main class="stage">
             <div class="stage-header">
                 <div class="header-topline">
-                    <span class="header-pretitle" id="headerTag">CHARGEMENT...</span>
-                    <span class="header-status-badge" id="headerStatus">DISPONIBLE</span>
+                    <span class="header-pretitle" id="headerTag">LOADING...</span>
+                    <span class="header-status-badge" id="headerStatus">AVAILABLE</span>
                 </div>
                 <h1 class="header-title" id="headerTitle">KYBER GAMING</h1>
-                <p class="header-desc" id="headerDesc">Sélectionnez un jeu, un launcher ou un émulateur pour démarrer votre session.</p>
+                <p class="header-desc" id="headerDesc">Select a game, launcher, or emulator to start your session.</p>
             </div>
 
             <!-- Cards Carousel Track with Edge Fades -->
@@ -74,7 +71,7 @@
             <div class="quick-actions">
                 <button class="btn-action" id="btnRestartSteam">
                     <span class="btn-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></span>
-                    <span>Recharger Steam</span>
+                    <span>Reload Steam</span>
                     <span class="btn-badge">R</span>
                 </button>
             </div>
@@ -82,23 +79,23 @@
             <div class="nav-hints">
                 <div class="hint-item">
                     <span class="pad-btn pad-a">A</span>
-                    <span class="key-hint">Entrée</span>
-                    <span class="hint-label">Sélectionner</span>
+                    <span class="key-hint">Enter</span>
+                    <span class="hint-label">Select</span>
                 </div>
                 <div class="hint-item">
                     <span class="pad-btn pad-b">B</span>
-                    <span class="key-hint">Échap</span>
-                    <span class="hint-label">Bureau</span>
+                    <span class="key-hint">Esc</span>
+                    <span class="hint-label">Desktop</span>
                 </div>
                 <div class="hint-item">
-                    <span class="pad-dpad">‹ ›</span>
-                    <span class="key-hint">← →</span>
-                    <span class="hint-label">Naviguer</span>
+                    <span class="pad-dpad">&#8249; &#8250;</span>
+                    <span class="key-hint">&#8592; &#8594;</span>
+                    <span class="hint-label">Navigate</span>
                 </div>
                 <div class="hint-item">
                     <span class="pad-btn pad-bumper">LB / RB</span>
                     <span class="key-hint">Q / E</span>
-                    <span class="hint-label">Catégories</span>
+                    <span class="hint-label">Categories</span>
                 </div>
             </div>
         </footer>
@@ -111,8 +108,8 @@
                 <div class="spinner-ring" id="spinnerRing"></div>
                 <div class="spinner-logo" id="launchLogo"></div>
             </div>
-            <div class="launch-title" id="launchTitle">LANCEMENT EN COURS...</div>
-            <div class="launch-subtitle" id="launchSub">Préparation de la session de jeu haute performance</div>
+            <div class="launch-title" id="launchTitle">LAUNCHING...</div>
+            <div class="launch-subtitle" id="launchSub">Preparing high-performance gaming session</div>
             <div class="launch-progress">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
@@ -123,8 +120,8 @@
     <div class="toast-modal" id="toastModal">
         <div class="toast-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg></div>
         <div class="toast-body">
-            <div class="toast-title" id="toastTitle">Émulateur non installé</div>
-            <div class="toast-desc" id="toastDesc">Pour l'activer dans votre homelab, installez le paquet correspondant.</div>
+            <div class="toast-title" id="toastTitle">Emulator Not Installed</div>
+            <div class="toast-desc" id="toastDesc">To enable it in your homelab, install the corresponding package into the container.</div>
         </div>
     </div>
 
