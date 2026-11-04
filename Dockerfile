@@ -145,7 +145,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pulseaudio-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# 4. Install 32-bit and 64-bit GPU OpenGL / Vulkan runtimes
+# 4. Install 32-bit and 64-bit GPU OpenGL / Vulkan / VA-API runtimes and diagnostics
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-dri \
     libgl1-mesa-dri:i386 \
@@ -158,6 +158,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mesa-vulkan-drivers \
     mesa-vulkan-drivers:i386 \
     mesa-va-drivers \
+    mesa-vdpau-drivers \
+    libva-drm2 \
+    libdrm-amdgpu1 \
+    libdrm-amdgpu1:i386 \
+    mesa-utils \
+    vulkan-tools \
+    vainfo \
     && rm -rf /var/lib/apt/lists/*
 
 # 5. Install Steam
@@ -208,6 +215,7 @@ RUN mkdir -p /etc/kyber/tls /etc/X11 /var/log/supervisor /run/user/1000 \
 
 COPY config/xorg/xorg.nvidia.conf /etc/kyber/xorg.nvidia.conf
 COPY config/xorg/xorg.dummy.conf /etc/kyber/xorg.dummy.conf
+COPY config/xorg/xorg.modesetting.conf /etc/kyber/xorg.modesetting.conf
 COPY config/kyber/kyber_config.toml /etc/kyber/kyber_config.toml
 COPY config/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY config/launchers.json /etc/kyber/launchers.json

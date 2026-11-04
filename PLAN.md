@@ -88,8 +88,12 @@ On a server without a monitor, the GPU driver often refuses to initialize render
      - `CustomEDID "DFP-0:/etc/X11/edid.bin"`
      - `AllowEmptyInitialConfiguration "True"`
      - `UseDisplayDevice "None"`
-   - Dummy Profile (AMD / Software Fallback):
-     - `xserver-xorg-video-dummy` driver with high-refresh Modelines.
+     - Multiarch driver synchronization: Detects host driver version on startup, installs matching 64-bit and 32-bit GLX/Vulkan/CUDA runtimes, and self-heals after host driver updates.
+   - AMD Radeon & Intel Profile:
+     - `xorg.modesetting.conf` with Glamor 2D/3D hardware acceleration (`Option "AccelMethod" "glamor"`).
+     - Dynamic vendor detection with Mesa RADV (`AMD_VULKAN_ICD=RADV`) and VA-API encoding (`LIBVA_DRIVER_NAME=radeonsi`).
+   - Dummy Profile (Software Fallback):
+     - `xserver-xorg-video-dummy` driver with high-refresh Modelines when no GPU is detected.
 3. Dynamic Resizing:
    - Utilize `xrandr` via `kyber_control_service.py` to adapt resolution on-the-fly to the client viewport.
 

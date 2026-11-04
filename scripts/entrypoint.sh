@@ -113,31 +113,80 @@ if [ -f "$TLS_DIR/cert.pem" ]; then
     fi
 fi
 
-# 5. Install NVIDIA Xorg GLX module matching the host driver (if NVIDIA Xorg driver is mounted)
-if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ]; then
-    /usr/local/bin/install_nvidia_xorg.sh || echo "[entrypoint] WARNING: NVIDIA Xorg module installation failed."
+# 5. GPU hardware detection and driver synchronization
+HAS_NVIDIA=false
+HAS_AMD=false
+HAS_INTEL=false
+
+if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ] || [ -e /proc/driver/nvidia/version ] || command -v nvidia-smi >/dev/null 2>&1; then
+    HAS_NVIDIA=true
 fi
 
-# 6. Dynamic GPU configuration for Kyber
+if [ -e /dev/dri ]; then
+    chmod -R 666 /dev/dri/* 2>/dev/null || true
+    for vendor_file in /sys/class/drm/card*/device/vendor; do
+        if [ -f "$vendor_file" ]; then
+            v=$(cat "$vendor_file" 2>/dev/null || true)
+            case "$v" in
+                0x1002) HAS_AMD=true ;;
+                0x8086) HAS_INTEL=true ;;
+            esac
+        fi
+    done
+    if ! $HAS_AMD && ! $HAS_INTEL; then
+        if lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -qi 'AMD\|ATI\|Radeon'; then
+            HAS_AMD=true
+        elif lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -qi 'Intel'; then
+            HAS_INTEL=true
+        fi
+    fi
+fi
+
+# Synchronize NVIDIA userspace and Xorg modules if NVIDIA hardware is detected
+if $HAS_NVIDIA; then
+    /usr/local/bin/install_nvidia_xorg.sh || echo "[entrypoint] WARNING: NVIDIA userspace synchronization encountered an issue."
+fi
+
+# 6. Dynamic GPU configuration for Kyber streaming server
 KYBER_CONF="/etc/kyber/kyber_config.toml"
 if [ -f "$KYBER_CONF" ]; then
-    if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ]; then
-        echo "[entrypoint] Native NVIDIA Xorg driver detected -> Configuring Kyber with nvenc + xcb."
+    if $HAS_NVIDIA; then
+        echo "[entrypoint] NVIDIA GPU detected -> Configuring Kyber with nvenc + xcb."
         sed -i 's/^encoder = .*/encoder = "nvenc"/' "$KYBER_CONF"
         sed -i 's/^grab_backend = .*/grab_backend = "xcb"/' "$KYBER_CONF"
-    elif [ -e /proc/driver/nvidia/version ] || command -v nvidia-smi >/dev/null 2>&1; then
-        echo "[entrypoint] NVIDIA GPU detected with virtual screen -> Configuring Kyber with nvenc + xcb."
-        sed -i 's/^encoder = .*/encoder = "nvenc"/' "$KYBER_CONF"
-        sed -i 's/^grab_backend = .*/grab_backend = "xcb"/' "$KYBER_CONF"
-    elif [ -e /dev/dri ]; then
-        echo "[entrypoint] Non-NVIDIA GPU detected (/dev/dri) -> Configuring Kyber with vaapi + drm."
+        # Export default environment for gamer sessions
+        cat << 'EOF' > /etc/profile.d/kyber_gpu.sh
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+export VK_DRIVER_FILES=/etc/vulkan/icd.d/nvidia_icd.json:/etc/vulkan/icd.d/nvidia_icd.i686.json
+EOF
+    elif $HAS_AMD; then
+        echo "[entrypoint] AMD Radeon GPU detected (/dev/dri) -> Configuring Kyber with vaapi + drm."
         sed -i 's/^encoder = .*/encoder = "vaapi"/' "$KYBER_CONF"
         sed -i 's/^grab_backend = .*/grab_backend = "drm"/' "$KYBER_CONF"
+        cat << 'EOF' > /etc/profile.d/kyber_gpu.sh
+export LIBVA_DRIVER_NAME=radeonsi
+export AMD_VULKAN_ICD=RADV
+export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/radeon_icd.x86_64.json:/usr/share/vulkan/icd.d/radeon_icd.i686.json
+export MESA_VK_DEVICE_SELECT=1
+EOF
+    elif $HAS_INTEL; then
+        echo "[entrypoint] Intel GPU detected (/dev/dri) -> Configuring Kyber with vaapi + drm."
+        sed -i 's/^encoder = .*/encoder = "vaapi"/' "$KYBER_CONF"
+        sed -i 's/^grab_backend = .*/grab_backend = "drm"/' "$KYBER_CONF"
+        cat << 'EOF' > /etc/profile.d/kyber_gpu.sh
+export LIBVA_DRIVER_NAME=iHD
+export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/intel_icd.x86_64.json:/usr/share/vulkan/icd.d/intel_icd.i686.json
+EOF
     else
         echo "[entrypoint] No hardware GPU detected -> Fallback to software x264 + xcb."
         sed -i 's/^encoder = .*/encoder = "x264"/' "$KYBER_CONF"
         sed -i 's/^grab_backend = .*/grab_backend = "xcb"/' "$KYBER_CONF"
+        cat << 'EOF' > /etc/profile.d/kyber_gpu.sh
+export LIBGL_ALWAYS_SOFTWARE=1
+export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json
+EOF
     fi
+    chmod 644 /etc/profile.d/kyber_gpu.sh 2>/dev/null || true
     chown gamer:gamer "$KYBER_CONF"
 fi
 

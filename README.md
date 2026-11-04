@@ -177,6 +177,28 @@ The management interface features a built-in chunked upload engine:
 
 ---
 
+## Hardware GPU Acceleration & Driver Compatibility
+
+Kyber Gaming is engineered to handle heterogenous GPU architectures and host kernel driver updates automatically without rebuilding images:
+
+### 1. NVIDIA Acceleration & Automated Driver Synchronization
+- Multiarch 64-bit & 32-bit Acceleration:
+  - 64-bit GLX, NvFBC (`libnvidia-fbc.so`), and NVENC video encoding for host streaming.
+  - Complete 32-bit acceleration stack (`libGLX_nvidia`, `libnvidia-glcore`, `libcuda`, `libnvidia-encode`, `libnvidia-fbc`, 32-bit Vulkan ICD manifest) in `/usr/lib/i386-linux-gnu/`. This ensures seamless compatibility with 32-bit Steam titles and Wine / Proton 32-bit DirectX games.
+- Host Driver Upgrade Self-Healing:
+  - On startup, the container detects the exact host driver version (`/proc/driver/nvidia/version` or `nvidia-smi`).
+  - If the host kernel driver was updated (e.g., from `550.120` to `550.163` or `560.xx`), the container detects the ABI mismatch, removes stale libraries, downloads the matching official userspace suite to `/var/cache/nvidia-driver/`, extracts the missing components, updates `ldconfig`, and starts Xorg without segmentation faults.
+
+### 2. AMD Radeon & Intel GPU Support
+- Direct Rendering Infrastructure (DRI):
+  - Automatically identifies AMD Radeon vendor IDs (`0x1002`) and Intel GPU vendor IDs (`0x8086`) under `/dev/dri/`.
+  - Configures Xorg modesetting with Glamor 2D/3D hardware acceleration (`/etc/kyber/xorg.modesetting.conf`).
+  - Sets up environment profiles for Mesa RADV (`AMD_VULKAN_ICD=RADV`, `radeon_icd.x86_64.json`) and VA-API hardware video encoding (`LIBVA_DRIVER_NAME=radeonsi`).
+- Software Fallback:
+  - If no physical GPU or DRI device is detected, Kyber safely falls back to the virtual dummy display driver (`xorg.dummy.conf`).
+
+---
+
 ## Dynamic Display Resizing
 
 The virtual X11 screen adjusts on the fly via port 8081:

@@ -15,8 +15,11 @@ mkdir -p /etc/X11
 if [ -f /usr/lib/xorg/modules/drivers/nvidia_drv.so ] && \
    [ -e /usr/lib/xorg/modules/extensions/libglxserver_nvidia.so ] && \
    [ "${FORCE_DUMMY:-false}" != "true" ]; then
-    echo "[init_display] NVIDIA Xorg driver and GLX module found. Using NVIDIA Xorg configuration."
+    echo "[init_display] Native NVIDIA Xorg driver and GLX module found. Using NVIDIA Xorg configuration."
     cp /etc/kyber/xorg.nvidia.conf /etc/X11/xorg.conf
+elif [ -e /dev/dri/card0 ] && [ -f /etc/kyber/xorg.modesetting.conf ] && [ "${FORCE_DUMMY:-false}" != "true" ]; then
+    echo "[init_display] AMD / Intel Direct Rendering Manager (/dev/dri/card0) detected. Using Modesetting Glamor configuration."
+    cp /etc/kyber/xorg.modesetting.conf /etc/X11/xorg.conf
 else
     echo "[init_display] Using Xorg Dummy driver for reliable headless virtual screen."
     cp /etc/kyber/xorg.dummy.conf /etc/X11/xorg.conf
