@@ -1,50 +1,68 @@
-# 🖥️ Kyber Gaming Desktop Client (Cross-Platform)
+# Kyber Gaming Desktop Client
 
-Client de bureau natif multiplateforme (**Windows**, **macOS**, **Linux**) propulsé par **Rust** et **Tauri v2** pour piloter le streaming de jeux [Kyber](https://kyber.tech/).
-
----
-
-## 🚀 Fonctionnalités
-
-- 🌐 **Gestionnaire de serveurs** : Enregistrez vos hôtes (LAN direct, IP Tailscale, homelab) avec test de latence asynchrone en temps réel (<1 ms).
-- ⚙️ **Réglages avancés** :
-  - **Résolution dynamique** : 1080p, 1440p (2K), 4K UHD avec envoi automatique de la commande de redimensionnement de l'écran virtuel du serveur via l'API `/api/resize`.
-  - **Framerate** : 60, 120 (ProMotion/High-refresh), 144 FPS.
-  - **Débit réseau (Bitrate)** : 20 à 80 Mbps (qualité brute sans artefacts).
-  - **Codec vidéo** : H.264, HEVC / H.265, AV1.
-  - **Protocole Kymux** : `gopstream` (ultra-faible latence), `unreliable_fec`.
-  - **Tampon audio** : 50 ms à 120 ms avec protection anti-drop.
-  - **Émulation manette** : Activation automatique de l'émulation Xbox 360 (`--gamepad-force-xbox360 true`).
-- 📁 **Persistance standardisée des configurations** :
-  - **Linux** : `~/.config/kyber/config.json`
-  - **Windows** : `%APPDATA%\kyber\config.json`
-  - **macOS** : `~/Library/Application Support/kyber/config.json`
-- 🎯 **Supervision de session** : Minimise la fenêtre du client pendant le jeu et la restaure automatiquement dès la fin de la session.
+Cross-platform native desktop client (Windows, macOS, Linux) built with Rust and Tauri v2 for orchestrating low-latency game streaming with Kyber.
 
 ---
 
-## 🛠️ Compilation & Exécution
+## Features
 
-### Prérequis
-1. **Rust & Cargo** : [rustup.rs](https://rustup.rs)
-2. **Tauri CLI** :
+- Server Registry: Save and manage remote Kyber hosts (LAN, Tailscale IP, or public endpoints) with real-time asynchronous ping latency monitoring (<1 ms).
+- Dynamic Screen Resolution & Viewport Adjustment:
+  - 1080p, 1440p (2K), 4K UHD, or auto-detected display dimensions matching your physical screen.
+  - Automatically notifies the server's X11 virtual display via the `/api/resize` REST API before session start.
+- Stream Quality & Peripherals Configuration:
+  - Framerate: 60, 120 (ProMotion / high-refresh), 144 FPS.
+  - Bitrate: 20 to 80 Mbps.
+  - Video Codecs: H.264, HEVC / H.265, AV1.
+  - Audio Buffer: 50 ms to 120 ms with buffer-underrun protection.
+  - Controller Emulation: Automatic Xbox 360 virtual device injection (`--gamepad-force-xbox360 true`).
+- ROM & Emulator Game Manager:
+  - Dedicated storage interface to view, upload, and delete ROMs and firmware BIOS files on the connected server.
+  - Direct file drag-and-drop with console system auto-detection.
+- Standardized Operating System Persistence:
+  - Linux: `~/.config/kyber/config.json`
+  - Windows: `%APPDATA%\kyber\config.json`
+  - macOS: `~/Library/Application Support/kyber/config.json`
+- Session Lifecycle Management:
+  - Launches `kyclient` with specified display and network parameters.
+  - Minimizes client window during gameplay and restores upon exit.
+  - Clean exit shortcut: use `Ctrl+Q` (or `Cmd+Q` on macOS) to quit streaming and return to the launcher.
+
+---
+
+## Building & Development
+
+### Prerequisites
+
+1. Rust toolchain: [rustup.rs](https://rustup.rs) (stable).
+2. Tauri CLI v2:
    ```bash
-   cargo install tauri-cli --version "^2.0.0"
+   cargo install tauri-cli --version "^2.0.0" --locked
    ```
 
-### Lancer en mode développement
+### Run in Development Mode
+
 ```bash
 cd desktop-client
 cargo tauri dev
 ```
 
-### Compiler pour la production
+### Build Production Packages Locally
+
 ```bash
 cd desktop-client
 cargo tauri build
 ```
 
-Les installeurs et binaires générés se trouvent dans :
-- **Windows** : `src-tauri/target/release/bundle/nsis/` (`.exe`) ou `msi/`
-- **Linux** : `src-tauri/target/release/bundle/deb/` (`.deb`) ou `appimage/` (`.AppImage`)
-- **macOS** : `src-tauri/target/release/bundle/dmg/` (`.dmg`) ou `macos/` (`.app`)
+Bundle output locations:
+- macOS: `src-tauri/target/release/bundle/dmg/*.dmg` (or universal binary with `--target universal-apple-darwin`)
+- Linux: `src-tauri/target/release/bundle/deb/*.deb` and `appimage/*.AppImage`
+- Windows: `src-tauri/target/release/bundle/msi/*.msi` and `nsis/*.exe`
+
+---
+
+## Automated CI Packaging
+
+Binaries are automatically compiled and published through GitHub Actions workflows:
+- Matrix compilation for macOS, Linux, and Windows: `.github/workflows/desktop.yml`
+- Tagged releases with SHA256 checksums: `.github/workflows/release.yml`
