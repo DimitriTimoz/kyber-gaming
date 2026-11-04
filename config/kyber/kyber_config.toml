@@ -11,14 +11,14 @@ encoder = "nvenc"
 # Capture backend: nvfbc (NVIDIA Quadro), drm (AMD/Intel VA-API), or xcb (GeForce / Generic X11)
 grab_backend = "xcb"
 
-# Intra Refresh for lowest latency streaming with QUIC
-intra_refresh = true
+# Intra Refresh: set to false to prevent Apple VideoToolbox / VLC tearing and decoding artifacts
+intra_refresh = false
 
 # Clock type for PTS (ZeroedOrigin recommended for lowest latency)
 clock_type = "ZeroedOrigin"
 
-# Minimum bitrate (8 Mbps default for clean gaming feed)
-minimum_bitrate = 8000000
+# Minimum bitrate (40 Mbps for crisp, crystal-clear 1080p60 on LAN)
+minimum_bitrate = 40000000
 
 [kycontroller]
 # Port used for HTTP/HTTPS (TCP) and WebTransport / QUIC (UDP)
