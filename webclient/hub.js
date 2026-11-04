@@ -428,6 +428,13 @@
                             </div>
                             <span class="launcher-tag">Direct</span>
                         </div>
+                        <div class="launcher-btn" data-launcher="browser">
+                            <div>
+                                <div class="launcher-name">Navigateur Web</div>
+                                <div class="launcher-desc">Google Chrome pour navigation, wikis et Discord</div>
+                            </div>
+                            <span class="launcher-tag">App</span>
+                        </div>
                     </div>
                 </div>
 

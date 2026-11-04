@@ -438,6 +438,7 @@ html, body {
 .cover-retroarch { background: linear-gradient(145deg, #260f13, #45151c, #631922); }
 .cover-playstation { background: linear-gradient(145deg, #0f172a, #1e293b, #1d4ed8); }
 .cover-dolphin { background: linear-gradient(145deg, #08202b, #0f374a, #0e5b7c); }
+.cover-browser { background: linear-gradient(145deg, #0d1e2e, #133954, #195b85); }
 .cover-desktop { background: linear-gradient(145deg, #151c27, #222d3b, #334155); }
 
 /* Missing Emulator Styling */

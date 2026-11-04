@@ -1,39 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_menu xmlns="http://openbox.org/3.4/menu">
   <menu id="root-menu" label="Kyber Gaming">
-    <item label="🎮 Menu des Launchers">
+    <item label="Console OS Hub">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh menu</command>
       </action>
     </item>
     <separator />
-    <item label="🚀 Steam">
+    <item label="Steam">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh steam</command>
       </action>
     </item>
-    <item label="📺 Steam Big Picture">
+    <item label="Steam Big Picture">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh steam-bigpicture</command>
       </action>
     </item>
-    <item label="🦸 Heroic Games Launcher">
+    <item label="Heroic Games Launcher">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh heroic</command>
       </action>
     </item>
+    <item label="Navigateur Web (Google Chrome)">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh browser</command>
+      </action>
+    </item>
     <separator />
-    <item label="🔄 Recharger Steam">
+    <item label="Recharger Steam">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh restart-steam</command>
       </action>
     </item>
-    <item label="🖥️ Afficher le Bureau">
+    <item label="Afficher le Bureau">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh desktop</command>
       </action>
     </item>
-    <item label="💻 Terminal">
+    <item label="Terminal">
       <action name="Execute">
         <command>x-terminal-emulator</command>
       </action>

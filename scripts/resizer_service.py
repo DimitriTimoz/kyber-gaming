@@ -276,10 +276,12 @@ class ResizeHandler(BaseHTTPRequestHandler):
             steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
             heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
             menu_running = subprocess.run("pgrep -u gamer -f 'kyber-hub-profile|kyber_console_hub' >/dev/null 2>&1", shell=True).returncode == 0
+            browser_running = subprocess.run("pgrep -u gamer -f 'chrome' | while read p; do tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null | grep -v 'kyber-hub-profile' | grep -q 'chrome' && exit 0; done; exit 1", shell=True).returncode == 0
             self._send_json_response({
                 "steam": steam_running,
                 "heroic": heroic_running,
-                "menu": menu_running
+                "menu": menu_running,
+                "browser": browser_running
             })
         elif parsed.path == "/" or parsed.path == "/hub" or parsed.path.startswith("/hub/"):
             hub_dir = "/opt/kyber/hub"

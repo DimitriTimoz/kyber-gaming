@@ -111,6 +111,19 @@
       "badge_pad": "RB"
     },
     {
+      "id": "browser",
+      "category": "system",
+      "name": "Navigateur Web",
+      "tag": "GOOGLE CHROME",
+      "desc": "Navigation internet, guides et wikis de jeux, mods et Discord en plein écran.",
+      "command": "google-chrome",
+      "icon": "browser",
+      "color": "#38bdf8",
+      "color_glow": "rgba(56, 189, 248, 0.45)",
+      "badge_key": "4",
+      "badge_pad": "LB"
+    },
+    {
       "id": "desktop",
       "category": "system",
       "name": "Bureau Linux",
@@ -120,7 +133,7 @@
       "icon": "desktop",
       "color": "#94a3b8",
       "color_glow": "rgba(148, 163, 184, 0.35)",
-      "badge_key": "4",
+      "badge_key": "0",
       "badge_pad": "SEL"
     }
   ]

@@ -15,6 +15,7 @@
         retroarch: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.5 7h7v2h-7zm-3 4h13v2H5.5zm1.5 4h10v2H7zm-5-9h2v12h-2zm18 0h2v12h-2zM4 4h16v2H4zm0 14h16v2H4z"/></svg>`,
         playstation: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8.58 16.48l3.42-1.74v-5.6l-3.42 1.53v5.81zm12.92-2.1c-.26-.85-1.2-1.52-2.42-1.72l-5.08-.82v2.79l3.37.56c.64.11.8.31.78.47-.04.28-.48.56-1.13.56-1.04 0-2.47-.44-3.02-.68v2.6c1.19.46 2.49.65 3.76.65 1.77 0 3.32-.47 3.66-1.59.06-.21.08-.55.08-.82zm-9.5-8.88l-6 2.76v2.85l3.42-1.53v1.89l-3.42 1.53v2.85l6-2.76V5.5zm-5.5 12.38c.6.24 1.74.56 2.58.56.84 0 1.25-.17 1.25-.43 0-.17-.18-.33-.67-.44l-3.16-.54v-2.74l4.89.84c1.14.2 2.11.82 2.37 1.63.26.85-.2 1.74-1.68 2.22-1.06.35-2.28.49-3.58.49-1.39 0-2.77-.2-3.79-.65l1.79-.94z"/></svg>`,
         dolphin: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 3.1 1.41 5.88 3.64 7.73l1.83-2.61C6.2 15.89 5.5 14.04 5.5 12c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5c0 1.23-.34 2.38-.94 3.36l1.89 2.12C20.47 16.03 21 14.1 21 12c0-5.52-4.48-10-10-10zm-1 6v3H8v2h3v3h2v-3h3v-2h-3V8h-2z"/></svg>`,
+        browser: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
         desktop: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z"/></svg>`
     };
 
@@ -346,7 +347,7 @@
 
         launchTitleEl.textContent = `LANCEMENT DE ${item.name.toUpperCase()}...`;
         launchSubEl.textContent = item.desc;
-        launchLogoEl.innerHTML = ICONS[item.icon] || '🎮';
+        launchLogoEl.innerHTML = ICONS[item.icon] || ICONS.gamepad;
         launchOverlayEl.classList.add('active');
 
         const targetUrl = `/api/launcher?app=${encodeURIComponent(item.id)}`;
@@ -481,6 +482,7 @@
                 e.preventDefault();
                 if (filteredItems[currentItemIndex]) handleItemAction(filteredItems[currentItemIndex]);
                 break;
+            case '0':
             case '1':
             case '2':
             case '3':

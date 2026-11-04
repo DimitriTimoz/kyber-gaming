@@ -123,6 +123,57 @@ while true; do
             CURRENT_ACTION="steam"
             ;;
 
+        browser|chrome|google-chrome)
+            echo "[session] Starting Web Browser (Google Chrome)..."
+            google-chrome \
+                --no-sandbox \
+                --no-first-run \
+                --no-default-browser-check \
+                --disable-gpu-sandbox \
+                --test-type \
+                --disable-infobars \
+                --start-maximized \
+                --disable-features=Translate \
+                --lang=fr-FR >/dev/null 2>&1 &
+            sleep 2
+            while true; do
+                # Check if non-hub Chrome is running
+                BROWSER_RUNNING=0
+                for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
+                    if [ -r "/proc/$p/cmdline" ]; then
+                        if tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -v "kyber-hub-profile" | grep -q "chrome"; then
+                            BROWSER_RUNNING=1
+                            break
+                        fi
+                    fi
+                done
+
+                if [ "$BROWSER_RUNNING" -eq 0 ]; then
+                    echo "[session] Browser closed. Returning to Console Hub..."
+                    CURRENT_ACTION="menu"
+                    break
+                fi
+
+                if [ -f /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action)
+                    rm -f /tmp/kyber_next_action
+                    if [ "$NEXT" != "browser" ] && [ "$NEXT" != "chrome" ] && [ "$NEXT" != "google-chrome" ]; then
+                        echo "[session] Action requested while browser running: $NEXT"
+                        for p in $(pgrep -u gamer -f "chrome" 2>/dev/null); do
+                            if [ -r "/proc/$p/cmdline" ]; then
+                                if tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null | grep -v "kyber-hub-profile" | grep -q "chrome"; then
+                                    kill "$p" 2>/dev/null || true
+                                fi
+                            fi
+                        done
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+                sleep 1
+            done
+            ;;
+
         desktop)
             echo "[session] Desktop mode active. Waiting for user interaction..."
             while [ ! -f /tmp/kyber_next_action ]; do

@@ -120,7 +120,7 @@ class ModernLauncherHub:
 
         btn_reload = tk.Button(
             footer,
-            text="🔄 Recharger Steam (sans mot de passe)",
+            text="[R] Recharger Steam (sans mot de passe)",
             font=("DejaVu Sans", 11),
             fg="#fda4af",
             bg="#2c171e",
@@ -137,7 +137,7 @@ class ModernLauncherHub:
 
         lbl_hint = tk.Label(
             footer,
-            text="💡 Navigation : Flèches haut/bas + Entrée  |  Touches 1 à 4  |  Clic souris",
+            text="Navigation : Fleches haut/bas + Entree  |  Touches 1 a 4  |  Clic souris",
             font=("DejaVu Sans", 11),
             fg=TEXT_MUTED,
             bg=BG_COLOR
