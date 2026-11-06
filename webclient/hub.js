@@ -58,7 +58,7 @@
     }
 
     // DOM Elements
-    let lobbyEl, inGameBarEl, authGateEl;
+    let lobbyEl, inGameBarEl, authGateEl, loadingEl;
     let badgeHostStatus, hostSpecsPill, userAuthBadge;
     let selResolution, customResRow, inputCustomW, inputCustomH;
     let selFps, selBitrate, selCodec;
@@ -68,6 +68,40 @@
 
     // Auth Elements
     let inputAuthUser, inputAuthPass, checkRememberAuth, btnAuthSubmit, authErrorBanner;
+    let loadingTimer = null;
+
+    const LAUNCHER_DISPLAY_NAMES = {
+        'menu': 'Console OS Hub',
+        'steam': 'Steam',
+        'steam-bigpicture': 'Steam Big Picture',
+        'heroic': 'Heroic Games Launcher',
+        'browser': 'Web Browser',
+        'desktop': 'XFCE Desktop'
+    };
+
+    function showLoadingScreen(title, desc, maxDurationMs = 3500) {
+        if (!loadingEl) return;
+        const titleEl = document.getElementById('kyber-loading-title');
+        const descEl = document.getElementById('kyber-loading-desc');
+        if (titleEl) titleEl.textContent = title;
+        if (descEl) descEl.textContent = desc;
+        loadingEl.classList.remove('hidden');
+
+        if (loadingTimer) clearTimeout(loadingTimer);
+        loadingTimer = setTimeout(() => {
+            hideLoadingScreen();
+        }, maxDurationMs);
+    }
+
+    function hideLoadingScreen() {
+        if (!loadingEl) return;
+        loadingEl.classList.add('hidden');
+        if (loadingTimer) {
+            clearTimeout(loadingTimer);
+            loadingTimer = null;
+        }
+    }
+    window.kyberLoading = { show: showLoadingScreen, hide: hideLoadingScreen };
 
     function initUI() {
         createLobbyDOM();
@@ -533,6 +567,20 @@
         `;
         document.body.appendChild(inGameBarEl);
 
+        // Loading Overlay
+        loadingEl = document.createElement('div');
+        loadingEl.id = 'kyber-loading-overlay';
+        loadingEl.className = 'hidden';
+        loadingEl.innerHTML = `
+            <div class="loading-box">
+                <div class="loading-spinner"></div>
+                <div class="loading-title" id="kyber-loading-title">INITIALIZING STREAM</div>
+                <div class="loading-desc" id="kyber-loading-desc">Synchronizing display and launching environment...</div>
+                <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+            </div>
+        `;
+        document.body.appendChild(loadingEl);
+
         // Bind DOM references
         badgeHostStatus = document.getElementById('hub-host-status');
         hostSpecsPill = document.getElementById('hub-specs-pill');
@@ -684,6 +732,8 @@
     function switchHostLauncher(launcher) {
         const proto = window.location.protocol;
         const url = `${proto}//${state.host}:${state.resizerPort}/api/launcher?app=${encodeURIComponent(launcher)}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
+        const name = LAUNCHER_DISPLAY_NAMES[launcher] || launcher;
+        showLoadingScreen('SWITCHING ENVIRONMENT', `Launching ${name}...`, 3000);
         fetch(url).catch(e => console.warn('Failed to switch launcher:', e));
     }
 
@@ -718,6 +768,9 @@
 
         btnPlayStream.disabled = true;
         btnPlayStream.textContent = 'Preparing session...';
+
+        const launcherName = LAUNCHER_DISPLAY_NAMES[state.selectedLauncher] || 'Kyber Game Session';
+        showLoadingScreen('INITIALIZING SESSION', `Starting ${launcherName} and synchronizing video stream...`, 4000);
 
         const [w, h] = getTargetResolutionDimensions();
 
@@ -756,6 +809,7 @@
     }
 
     function stopStreamingSession() {
+        hideLoadingScreen();
         if (document.exitPointerLock) {
             try { document.exitPointerLock(); } catch (e) {}
         }

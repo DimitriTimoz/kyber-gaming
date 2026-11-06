@@ -67,22 +67,34 @@
 
     <!-- Window Closing & Management (Standard Universal Shortcuts) -->
     <keybind key="A-F4">
-      <action name="Close"/>
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh close-active</command>
+      </action>
     </keybind>
     <keybind key="W-q">
-      <action name="Close"/>
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh close-active</command>
+      </action>
     </keybind>
     <keybind key="W-c">
-      <action name="Close"/>
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh close-active</command>
+      </action>
     </keybind>
     <keybind key="W-w">
-      <action name="Close"/>
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh close-active</command>
+      </action>
     </keybind>
     <keybind key="C-w">
-      <action name="Close"/>
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh close-active</command>
+      </action>
     </keybind>
     <keybind key="C-q">
-      <action name="Close"/>
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh close-active</command>
+      </action>
     </keybind>
 
     <!-- Force Kill Stalled / Unresponsive Window -->
@@ -166,7 +178,6 @@
         <action name="Unshade"/>
       </mousebind>
       <mousebind button="Left" action="Click">
-        <action name="Close"/>
         <action name="Execute">
           <command>/usr/local/bin/switch_launcher.sh close-active</command>
         </action>
@@ -219,12 +230,8 @@
       </mousebind>
     </context>
 
-    <!-- Window Frame Resize and Move -->
+    <!-- Window Frame Resize and Move (Alt modifier only to allow clicks to pass to client) -->
     <context name="Frame">
-      <mousebind button="Left" action="Press">
-        <action name="Focus"/>
-        <action name="Raise"/>
-      </mousebind>
       <mousebind button="A-Left" action="Drag">
         <action name="Move"/>
       </mousebind>
@@ -233,20 +240,8 @@
       </mousebind>
     </context>
 
-    <!-- Client Area Context -->
+    <!-- Client Area Context (Alt modifier only to pass raw clicks directly to games/launchers) -->
     <context name="Client">
-      <mousebind button="Left" action="Press">
-        <action name="Focus"/>
-        <action name="Raise"/>
-      </mousebind>
-      <mousebind button="Middle" action="Press">
-        <action name="Focus"/>
-        <action name="Raise"/>
-      </mousebind>
-      <mousebind button="Right" action="Press">
-        <action name="Focus"/>
-        <action name="Raise"/>
-      </mousebind>
       <mousebind button="A-Left" action="Drag">
         <action name="Move"/>
       </mousebind>
@@ -300,6 +295,13 @@
     <application class="*steamwebhelper*">
       <decor>yes</decor>
       <maximized>no</maximized>
+    </application>
+
+    <!-- Main Steam Client Window: Always decorated with titlebar and maximized -->
+    <application class="*steam*" title="*Steam*">
+      <decor>yes</decor>
+      <maximized>yes</maximized>
+      <focus>yes</focus>
     </application>
 
     <!-- Steam Big Picture Mode -->

@@ -547,3 +547,91 @@
 .auth-btn-submit:hover {
     background: var(--kh-primary-hover);
 }
+
+/* Loading Overlay */
+#kyber-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 10, 15, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    pointer-events: auto;
+}
+
+#kyber-loading-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loading-box {
+    background: rgba(18, 22, 31, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 2.2rem 2.6rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+    width: 380px;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.7);
+    text-align: center;
+    font-family: var(--kh-font);
+}
+
+.loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(56, 189, 248, 0.2);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: kyber-spin 0.8s linear infinite;
+    margin-bottom: 0.3rem;
+}
+
+@keyframes kyber-spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-title {
+    font-family: var(--kh-font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #fff;
+}
+
+.loading-desc {
+    font-size: 0.76rem;
+    color: var(--kh-text-dim);
+    line-height: 1.4;
+}
+
+.loading-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.4rem;
+}
+
+.loading-bar-fill {
+    width: 60%;
+    height: 100%;
+    background: #38bdf8;
+    border-radius: 2px;
+    animation: kyber-bar 1.4s ease-in-out infinite;
+}
+
+@keyframes kyber-bar {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(80%); }
+    100% { transform: translateX(200%); }
+}

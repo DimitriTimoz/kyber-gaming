@@ -87,13 +87,29 @@ while true; do
             NO_WIN_TICKS=0
             WAIT_TICKS=0
 
-            # Monitor until Steam exits or its window is closed via [X]
+            # Background watcher: continuously strip _MOTIF_WM_HINTS from all Steam windows
+            # so Openbox paints the titlebar with the red Close [X] button
+            (
+                while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
+                    for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam\.steam" | awk '{print $1}'); do
+                        if xprop -id "$wid" _MOTIF_WM_HINTS 2>/dev/null | grep -q "0x2"; then
+                            xprop -id "$wid" -remove _MOTIF_WM_HINTS 2>/dev/null || true
+                            openbox --reconfigure 2>/dev/null || true
+                        fi
+                    done
+                    sleep 0.35
+                done
+            ) &
+            DECOR_WATCHER_PID=$!
+
+            # Monitor until Steam exits or its main window is closed via [X]
             while pgrep -u gamer -f "ubuntu12_32/steam|steam.sh" >/dev/null 2>&1; do
                 if [ -s /tmp/kyber_next_action ]; then
                     NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
                     rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
                     if [ -n "$NEXT" ] && [ "$NEXT" != "steam" ]; then
                         echo "[session] Action requested while Steam is running: $NEXT"
+                        kill -9 "$DECOR_WATCHER_PID" 2>/dev/null || true
                         pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                         sleep 0.3
                         pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
@@ -102,7 +118,7 @@ while true; do
                     fi
                 fi
 
-                # Inspect current Steam windows
+                # Check for Steam Login window
                 LOGIN_WID=$(wmctrl -l 2>/dev/null | grep -iE "Sign in to Steam|Se connecter|Steam Login" | awk '{print $1}' | head -n 1 || true)
                 if [ -n "$LOGIN_WID" ]; then
                     STEAM_LOGIN_SEEN=1
@@ -123,21 +139,29 @@ while true; do
                     wmctrl -ia "$LOGIN_WID" 2>/dev/null || true
                 fi
 
-                # Count viewable Steam windows (excluding unmapped dummy windows with USER_TIME=0)
-                VIEWABLE_STEAM=0
+                # Locate primary Steam window (titled 'Steam')
                 MAIN_STEAM_WID=""
-                for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam\.steam" | awk '{print $1}'); do
+                MAIN_STEAM_VIEWABLE=0
+                for wid in $(wmctrl -l 2>/dev/null | grep -E " Steam$" | awk '{print $1}'); do
                     if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
-                        UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
-                        if [ "$UTIME" != "0" ] || [ "$wid" = "$LOGIN_WID" ]; then
-                            VIEWABLE_STEAM=$((VIEWABLE_STEAM + 1))
-                            STEAM_WIN_SEEN=1
-                            if [ "$wid" != "$LOGIN_WID" ]; then
-                                MAIN_STEAM_WID="$wid"
-                            fi
-                        fi
+                        MAIN_STEAM_WID="$wid"
+                        MAIN_STEAM_VIEWABLE=1
+                        STEAM_WIN_SEEN=1
+                        break
                     fi
                 done
+
+                # Fallback to any viewable steam window that is not a popup/notification
+                if [ -z "$MAIN_STEAM_WID" ] && [ "$STEAM_LOGIN_SEEN" -eq 0 ]; then
+                    for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam\.steam" | grep -viE "special offers|notification|news" | awk '{print $1}'); do
+                        if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                            MAIN_STEAM_WID="$wid"
+                            MAIN_STEAM_VIEWABLE=1
+                            STEAM_WIN_SEEN=1
+                            break
+                        fi
+                    done
+                fi
 
                 if [ -n "$MAIN_STEAM_WID" ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
                     enforce_window_maximized "$MAIN_STEAM_WID"
@@ -148,12 +172,19 @@ while true; do
                     LOADING_DISMISSED=1
                 fi
 
-                # If a Steam window was open and user clicked [X] (closing all visible Steam windows while no game is running)
-                if [ "$STEAM_WIN_SEEN" -eq 1 ]; then
-                    if [ "$VIEWABLE_STEAM" -eq 0 ] && ! pgrep -u gamer -f "reaper|pressure-vessel" >/dev/null 2>&1; then
+                # Check if a game launched from Steam is running
+                GAME_RUNNING=0
+                if pgrep -u gamer -f "reaper|pressure-vessel" >/dev/null 2>&1; then
+                    GAME_RUNNING=1
+                fi
+
+                # Detect when the main Steam window has been closed by the user
+                if [ "$STEAM_WIN_SEEN" -eq 1 ] && [ "$GAME_RUNNING" -eq 0 ]; then
+                    if [ "$MAIN_STEAM_VIEWABLE" -eq 0 ] && [ -z "$LOGIN_WID" ]; then
                         NO_WIN_TICKS=$((NO_WIN_TICKS + 1))
                         if [ "$NO_WIN_TICKS" -ge 2 ]; then
-                            echo "[session] Steam window closed by user [X]. Shutting down background Steam..."
+                            echo "[session] Steam main window closed by user. Terminating background Steam..."
+                            kill -9 "$DECOR_WATCHER_PID" 2>/dev/null || true
                             pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                             sleep 0.3
                             pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
@@ -162,12 +193,13 @@ while true; do
                     else
                         NO_WIN_TICKS=0
                     fi
-                    sleep 1
-                else
-                    WAIT_TICKS=$((WAIT_TICKS + 1))
-                    sleep 0.25
                 fi
+
+                WAIT_TICKS=$((WAIT_TICKS + 1))
+                sleep 0.35
             done
+
+            kill -9 "$DECOR_WATCHER_PID" 2>/dev/null || true
             if [ "$CURRENT_ACTION" = "steam" ]; then
                 echo "[session] Steam has closed. Returning to Launcher Hub..."
                 dismiss_loading_screen
@@ -197,20 +229,20 @@ while true; do
                     fi
                 fi
 
-                VIEWABLE_BP=0
-                BP_WID=""
-                for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam" | awk '{print $1}'); do
-                    if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
-                        UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
-                        if [ "$UTIME" != "0" ]; then
-                            VIEWABLE_BP=$((VIEWABLE_BP + 1))
-                            STEAM_BP_SEEN=1
-                            BP_WID="$wid"
-                        fi
-                    fi
-                done
+                BP_WID=$(wmctrl -l 2>/dev/null | grep -iE "big picture" | awk '{print $1}' | head -n 1 || true)
+                if [ -z "$BP_WID" ]; then
+                    BP_WID=$(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam" | awk '{print $1}' | head -n 1 || true)
+                fi
 
-                if [ -n "$BP_WID" ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                VIEWABLE_BP=0
+                if [ -n "$BP_WID" ]; then
+                    if xwininfo -id "$BP_WID" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                        VIEWABLE_BP=1
+                        STEAM_BP_SEEN=1
+                    fi
+                fi
+
+                if [ -n "$BP_WID" ] && [ "$VIEWABLE_BP" -eq 1 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
                     enforce_window_maximized "$BP_WID"
                     dismiss_loading_screen
                     LOADING_DISMISSED=1
@@ -219,11 +251,16 @@ while true; do
                     LOADING_DISMISSED=1
                 fi
 
-                if [ "$STEAM_BP_SEEN" -eq 1 ]; then
-                    if [ "$VIEWABLE_BP" -eq 0 ] && ! pgrep -u gamer -f "reaper|pressure-vessel" >/dev/null 2>&1; then
+                GAME_RUNNING=0
+                if pgrep -u gamer -f "reaper|pressure-vessel" >/dev/null 2>&1; then
+                    GAME_RUNNING=1
+                fi
+
+                if [ "$STEAM_BP_SEEN" -eq 1 ] && [ "$GAME_RUNNING" -eq 0 ]; then
+                    if [ "$VIEWABLE_BP" -eq 0 ]; then
                         NO_WIN_TICKS=$((NO_WIN_TICKS + 1))
                         if [ "$NO_WIN_TICKS" -ge 2 ]; then
-                            echo "[session] Steam Big Picture window closed via [X]. Returning to Hub..."
+                            echo "[session] Steam Big Picture window closed. Returning to Hub..."
                             pkill -TERM -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
                             sleep 0.3
                             pkill -9 -u gamer -f "steamwebhelper|ubuntu12_32/steam|steam.sh" 2>/dev/null || true
@@ -232,11 +269,9 @@ while true; do
                     else
                         NO_WIN_TICKS=0
                     fi
-                    sleep 1
-                else
-                    WAIT_TICKS=$((WAIT_TICKS + 1))
-                    sleep 0.25
                 fi
+                WAIT_TICKS=$((WAIT_TICKS + 1))
+                sleep 0.35
             done
             if [ "$CURRENT_ACTION" = "steam-bigpicture" ]; then
                 echo "[session] Steam Big Picture closed. Returning to Launcher Hub..."

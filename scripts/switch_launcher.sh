@@ -36,38 +36,60 @@ kill_all_launchers() {
 
 case "$TARGET" in
     close-active)
-        # Triggered when clicking the Openbox [X] titlebar button on any window
+        # Triggered when clicking the Openbox [X] titlebar button or close keyboard shortcuts
         ACTIVE_WID=$(xdotool getactivewindow 2>/dev/null || true)
-        if [ -z "$ACTIVE_WID" ]; then
+        if [ -z "$ACTIVE_WID" ] || [ "$ACTIVE_WID" = "0" ]; then
             ACTIVE_WID=$(xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | awk '{print $NF}')
         fi
 
         WIN_CLASS=""
+        WIN_NAME=""
         WIN_PID=""
-        if [ -n "$ACTIVE_WID" ] && [ "$ACTIVE_WID" != "0x0" ]; then
+        if [ -n "$ACTIVE_WID" ] && [ "$ACTIVE_WID" != "0x0" ] && [ "$ACTIVE_WID" != "0" ]; then
             WIN_CLASS=$(xprop -id "$ACTIVE_WID" WM_CLASS 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
+            WIN_NAME=$(xprop -id "$ACTIVE_WID" WM_NAME 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
             WIN_PID=$(xprop -id "$ACTIVE_WID" _NET_WM_PID 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
-            wmctrl -ic "$ACTIVE_WID" 2>/dev/null || true
         fi
 
-        sleep 0.35
+        echo "[switch_launcher] Close requested for window $ACTIVE_WID (class: '$WIN_CLASS', name: '$WIN_NAME')"
 
-        # If the window is still viewable (e.g. frozen emulator or hung dialog), force-kill it
+        # 1. Popups and secondary dialogs for Steam (Special Offers, News, Friends, Settings):
+        # Close only the dialog window without terminating the main Steam session
+        if echo "$WIN_CLASS" | grep -qi "steam" && echo "$WIN_NAME" | grep -qiE "special offers|news|friends list|settings"; then
+            if [ -n "$ACTIVE_WID" ] && [ "$ACTIVE_WID" != "0x0" ]; then
+                wmctrl -ic "$ACTIVE_WID" 2>/dev/null || true
+                sleep 0.1
+                if xwininfo -id "$ACTIVE_WID" 2>/dev/null | grep -q "IsViewable"; then
+                    xdotool windowkill "$ACTIVE_WID" 2>/dev/null || true
+                fi
+            fi
+            exit 0
+        fi
+
+        # 2. Main gaming launchers & browser (Steam, Heroic, Eglantine, Eden, Chrome):
+        # Shut down the launcher completely and return to the Console Hub menu
+        if echo "$WIN_CLASS" | grep -qE "steam|heroic|eglantine|eden|google-chrome"; then
+            if ! echo "$WIN_CLASS" | grep -q "kyberhub"; then
+                echo "[switch_launcher] Closing main launcher ($WIN_CLASS). Returning to Hub..."
+                if [ -n "$ACTIVE_WID" ] && [ "$ACTIVE_WID" != "0x0" ]; then
+                    wmctrl -ic "$ACTIVE_WID" 2>/dev/null || true
+                fi
+                kill_all_launchers
+                echo "menu" > /tmp/kyber_next_action
+                chmod 666 /tmp/kyber_next_action 2>/dev/null || true
+                exit 0
+            fi
+        fi
+
+        # 3. Standard desktop applications / utility windows:
         if [ -n "$ACTIVE_WID" ] && [ "$ACTIVE_WID" != "0x0" ]; then
+            wmctrl -ic "$ACTIVE_WID" 2>/dev/null || true
+            sleep 0.2
             if xwininfo -id "$ACTIVE_WID" 2>/dev/null | grep -q "IsViewable"; then
                 if [ -n "$WIN_PID" ] && [ "$WIN_PID" -gt 1 ] 2>/dev/null; then
                     kill -9 "$WIN_PID" 2>/dev/null || true
                 fi
                 xdotool windowkill "$ACTIVE_WID" 2>/dev/null || true
-            fi
-        fi
-
-        # If the closed window belonged to a main launcher, return cleanly to the Console Hub
-        if echo "$WIN_CLASS" | grep -qE "steam|heroic|eglantine|eden|google-chrome"; then
-            if ! echo "$WIN_CLASS" | grep -q "kyberhub"; then
-                kill_all_launchers
-                echo "menu" > /tmp/kyber_next_action
-                chmod 666 /tmp/kyber_next_action 2>/dev/null || true
             fi
         fi
         exit 0
