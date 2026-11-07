@@ -19,6 +19,9 @@ import shutil
 import base64
 import socket
 import threading
+import time
+import stat
+import urllib.parse
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -29,6 +32,11 @@ AUTH_USER = os.environ.get("AUTH_USER", "gamer")
 AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "kybergaming")
 ROMS_BASE_DIR = os.environ.get("ROMS_DIR", "/home/gamer/roms")
 BIOS_BASE_DIR = os.environ.get("BIOS_DIR", "/home/gamer/bios")
+UPLOAD_TEMP_DIR = os.environ.get("UPLOAD_TEMP_DIR", "/home/gamer/.kyber_uploads")
+try:
+    os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
+except Exception:
+    pass
 
 def run_discovery_responder():
     try:
@@ -69,9 +77,6 @@ ROM_SYSTEMS_DEF = [
     {"id": "switch", "name": "Nintendo Switch & NX2 (Eglantine)", "extensions": [".nsp", ".xci", ".nsz", ".zip"]},
 ]
 
-UPLOAD_TEMP_DIR = "/home/gamer/.kyber_uploads"
-os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)
-
 def format_bytes(num_bytes):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if abs(num_bytes) < 1024.0:
@@ -80,23 +85,98 @@ def format_bytes(num_bytes):
     return f"{num_bytes:.1f} PB"
 
 def resolve_safe_storage_path(rel_path=""):
-    clean_rel = os.path.normpath(str(rel_path).strip().lstrip("/\\"))
-    if clean_rel in [".", ""]:
-        return ROMS_BASE_DIR, ""
-
-    if clean_rel == "bios" or clean_rel.startswith("bios/"):
-        sub = clean_rel[4:].lstrip("/\\")
-        base = os.path.abspath(BIOS_BASE_DIR)
-        full = os.path.abspath(os.path.join(base, sub))
-        if os.path.commonpath([base, full]) != base:
-            return None, None
-        return full, clean_rel
-
-    base = os.path.abspath(ROMS_BASE_DIR)
-    full = os.path.abspath(os.path.join(base, clean_rel))
-    if os.path.commonpath([base, full]) != base:
+    """
+    Safely resolves a relative or absolute storage path against ROMS_BASE_DIR or BIOS_BASE_DIR.
+    Prevents directory traversal attacks and correctly handles URL-encoding, leading slashes,
+    and absolute paths that are already rooted at ROMS_BASE_DIR or BIOS_BASE_DIR.
+    Returns (absolute_path, clean_relative_path) or (None, None) if invalid/unsafe.
+    """
+    if rel_path is None:
         return None, None
-    return full, clean_rel
+
+    raw_path = urllib.parse.unquote(str(rel_path).strip())
+    raw_path = raw_path.replace("\\", "/")
+
+    roms_base_abs = os.path.abspath(ROMS_BASE_DIR)
+    bios_base_abs = os.path.abspath(BIOS_BASE_DIR)
+
+    # Check if raw_path is explicitly an absolute path targeting one of our bases
+    if os.path.isabs(raw_path):
+        norm_abs = os.path.abspath(raw_path)
+        try:
+            if os.path.commonpath([bios_base_abs, norm_abs]) == bios_base_abs:
+                rel = os.path.relpath(norm_abs, bios_base_abs).replace("\\", "/")
+                clean_rel = "bios" if rel == "." else f"bios/{rel}"
+                return norm_abs, clean_rel
+        except (ValueError, Exception):
+            pass
+
+        try:
+            if os.path.commonpath([roms_base_abs, norm_abs]) == roms_base_abs:
+                rel = os.path.relpath(norm_abs, roms_base_abs).replace("\\", "/")
+                clean_rel = "" if rel == "." else rel
+                return norm_abs, clean_rel
+        except (ValueError, Exception):
+            pass
+
+        # Check default system paths if configured
+        for def_bios in ["/home/gamer/bios"]:
+            if norm_abs == def_bios or norm_abs.startswith(def_bios + "/"):
+                sub = norm_abs[len(def_bios):].lstrip("/")
+                full = os.path.abspath(os.path.join(bios_base_abs, sub))
+                clean_rel = "bios" if not sub else f"bios/{sub}"
+                return full, clean_rel
+
+        for def_roms in ["/home/gamer/roms"]:
+            if norm_abs == def_roms or norm_abs.startswith(def_roms + "/"):
+                sub = norm_abs[len(def_roms):].lstrip("/")
+                full = os.path.abspath(os.path.join(roms_base_abs, sub))
+                return full, sub
+
+        # Disallow system directories
+        if any(norm_abs == p or norm_abs.startswith(p + "/") for p in ["/etc", "/root", "/var", "/usr", "/bin", "/sbin", "/lib", "/dev", "/proc", "/sys"]):
+            return None, None
+
+    # Treat leading slashes in relative paths as rooted at storage root
+    clean_parts = [p for p in raw_path.split("/") if p and p != "."]
+
+    # Reject any component that consists entirely of dots (e.g. "..", "...", "....")
+    for p in clean_parts:
+        if all(c == "." for c in p) and len(p) >= 2:
+            return None, None
+
+    joined_rel = "/".join(clean_parts)
+    norm_rel = os.path.normpath(joined_rel) if joined_rel else ""
+    if norm_rel in [".", ""]:
+        return roms_base_abs, ""
+
+    # Strip redundant "roms/" prefix if present
+    if norm_rel == "roms":
+        return roms_base_abs, ""
+    if norm_rel.startswith("roms/"):
+        norm_rel = norm_rel[5:].lstrip("/")
+        if not norm_rel:
+            return roms_base_abs, ""
+
+    if norm_rel == "bios":
+        return bios_base_abs, "bios"
+    if norm_rel.startswith("bios/"):
+        sub = norm_rel[5:].lstrip("/")
+        full = os.path.abspath(os.path.join(bios_base_abs, sub))
+        try:
+            if os.path.commonpath([bios_base_abs, full]) != bios_base_abs:
+                return None, None
+        except (ValueError, Exception):
+            return None, None
+        return full, f"bios/{sub}"
+
+    full = os.path.abspath(os.path.join(roms_base_abs, norm_rel))
+    try:
+        if os.path.commonpath([roms_base_abs, full]) != roms_base_abs:
+            return None, None
+    except (ValueError, Exception):
+        return None, None
+    return full, norm_rel
 
 def classify_file_type(filename):
     ext = os.path.splitext(filename)[1].lower()
@@ -194,72 +274,150 @@ def create_directory(rel_path, folder_name):
     if not full_path or not os.path.exists(full_path):
         return {"error": "Base path not found", "status": "error"}
 
-    safe_folder = re.sub(r'[^a-zA-Z0-9_\-\.\s]', '_', folder_name).strip()
-    if not safe_folder:
+    raw_name = urllib.parse.unquote(str(folder_name).strip())
+    if ".." in raw_name:
+        return {"error": "Invalid folder name", "status": "error"}
+
+    safe_folder = re.sub(r'[^\w\-\.\(\)\[\]\s]', '_', raw_name).strip()
+    if not safe_folder or safe_folder in [".", ".."] or all(c == "." for c in safe_folder):
         return {"error": "Invalid folder name", "status": "error"}
 
     target_dir = os.path.join(full_path, safe_folder)
     try:
         os.makedirs(target_dir, exist_ok=True)
-        shutil.chown(target_dir, user="gamer", group="gamer")
+        try:
+            shutil.chown(target_dir, user="gamer", group="gamer")
+        except Exception:
+            pass
+        created_rel = f"{clean_rel}/{safe_folder}".lstrip("/")
         return {
             "status": "ok",
             "folder_name": safe_folder,
-            "path": f"{clean_rel}/{safe_folder}".lstrip("/")
+            "path": created_rel,
+            "created_path": created_rel
         }
     except Exception as e:
         return {"error": str(e), "status": "error"}
 
 UPLOAD_SESSIONS = {}
 UPLOAD_SESSIONS_LOCK = threading.Lock()
+UPLOAD_FILE_LOCKS = {}
+UPLOAD_FILE_LOCKS_MUTEX = threading.Lock()
+
+def get_upload_file_lock(upload_id):
+    with UPLOAD_FILE_LOCKS_MUTEX:
+        if upload_id not in UPLOAD_FILE_LOCKS:
+            UPLOAD_FILE_LOCKS[upload_id] = threading.Lock()
+        return UPLOAD_FILE_LOCKS[upload_id]
+
+def cleanup_stale_upload_sessions(max_age_secs=3600):
+    now = time.time()
+    stale_ids = []
+    with UPLOAD_SESSIONS_LOCK:
+        for uid, sess in list(UPLOAD_SESSIONS.items()):
+            if now - sess.get("last_active", now) > max_age_secs:
+                stale_ids.append(uid)
+                UPLOAD_SESSIONS.pop(uid, None)
+
+    with UPLOAD_FILE_LOCKS_MUTEX:
+        for uid in stale_ids:
+            UPLOAD_FILE_LOCKS.pop(uid, None)
+
+    for uid in stale_ids:
+        sdir = os.path.join(UPLOAD_TEMP_DIR, uid)
+        if os.path.lexists(sdir):
+            try:
+                shutil.rmtree(sdir, ignore_errors=True)
+            except Exception:
+                pass
+
+def cancel_uploaded_session(upload_id):
+    upload_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(upload_id))
+    if not upload_id:
+        return {"error": "Invalid upload ID", "status": "error"}
+    with UPLOAD_SESSIONS_LOCK:
+        UPLOAD_SESSIONS.pop(upload_id, None)
+    with UPLOAD_FILE_LOCKS_MUTEX:
+        UPLOAD_FILE_LOCKS.pop(upload_id, None)
+
+    temp_session_dir = os.path.join(UPLOAD_TEMP_DIR, upload_id)
+    if os.path.lexists(temp_session_dir):
+        try:
+            shutil.rmtree(temp_session_dir, ignore_errors=True)
+        except Exception:
+            pass
+    return {"status": "ok", "message": f"Upload session {upload_id} cancelled"}
 
 def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data, chunk_offset=None):
     upload_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(upload_id))
     if not upload_id:
         return {"error": "Invalid upload ID", "status": "error"}
 
-    safe_name = os.path.basename(filename)
-    safe_name = re.sub(r'[^a-zA-Z0-9_\-\.\(\)\s]', '_', safe_name).strip()
+    raw_name = urllib.parse.unquote(os.path.basename(str(filename)))
+    safe_name = re.sub(r'[^\w\-\.\(\)\[\]\s]', '_', raw_name).strip()
     if not safe_name:
         safe_name = f"upload_{upload_id}.bin"
 
     temp_session_dir = os.path.join(UPLOAD_TEMP_DIR, upload_id)
     os.makedirs(temp_session_dir, exist_ok=True)
-
     part_file = os.path.join(temp_session_dir, "data.part")
 
     if chunk_offset is None or chunk_offset < 0:
         chunk_offset = chunk_index * len(chunk_data)
 
-    mode = "r+b" if os.path.exists(part_file) else "w+b"
-    with open(part_file, mode) as f:
-        f.seek(chunk_offset)
-        f.write(chunk_data)
+    file_lock = get_upload_file_lock(upload_id)
+    with file_lock:
+        if chunk_index == 0 and total_size > 0:
+            try:
+                statvfs = shutil.disk_usage(temp_session_dir)
+                if statvfs.free < (total_size + 50 * 1024 * 1024):
+                    return {"error": "Insufficient disk space on server for upload", "status": "error"}
+            except Exception:
+                pass
 
-    # Fast in-memory tracking (O(1)) to prevent quadratic disk scan bottleneck
+        if not os.path.exists(part_file):
+            with open(part_file, "wb") as f:
+                if chunk_offset > 0:
+                    f.truncate(chunk_offset)
+
+        with open(part_file, "r+b") as f:
+            f.seek(chunk_offset)
+            f.write(chunk_data)
+
+    now = time.time()
     with UPLOAD_SESSIONS_LOCK:
         if upload_id not in UPLOAD_SESSIONS:
             UPLOAD_SESSIONS[upload_id] = {
                 "chunks": set(),
                 "total_chunks": total_chunks,
-                "total_size": total_size
+                "total_size": total_size,
+                "last_active": now
             }
         session = UPLOAD_SESSIONS[upload_id]
         session["chunks"].add(chunk_index)
+        session["last_active"] = now
         is_completed = len(session["chunks"]) >= total_chunks
 
     if is_completed:
         with UPLOAD_SESSIONS_LOCK:
             UPLOAD_SESSIONS.pop(upload_id, None)
+        with UPLOAD_FILE_LOCKS_MUTEX:
+            UPLOAD_FILE_LOCKS.pop(upload_id, None)
 
-        dest_dir, _ = resolve_safe_storage_path(target_path)
+        dest_dir, clean_rel = resolve_safe_storage_path(target_path)
         if not dest_dir:
             dest_dir = os.path.join(ROMS_BASE_DIR, "eglantine/games")
+            clean_rel = "eglantine/games"
         os.makedirs(dest_dir, exist_ok=True)
 
         final_dest = os.path.join(dest_dir, safe_name)
 
-        # Atomic move across the same filesystem (0 ms overhead)
+        if os.path.exists(final_dest):
+            try:
+                os.remove(final_dest)
+            except Exception:
+                pass
+
         shutil.move(part_file, final_dest)
         shutil.rmtree(temp_session_dir, ignore_errors=True)
 
@@ -273,8 +431,9 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
             for kdir in ["/home/gamer/.local/share/eglantine/keys", "/home/gamer/.local/share/eden/keys"]:
                 try:
                     os.makedirs(kdir, exist_ok=True)
-                    shutil.copy2(final_dest, os.path.join(kdir, safe_name))
-                    shutil.chown(os.path.join(kdir, safe_name), user="gamer", group="gamer")
+                    target_kfile = os.path.join(kdir, safe_name)
+                    shutil.copy2(final_dest, target_kfile)
+                    shutil.chown(target_kfile, user="gamer", group="gamer")
                 except Exception:
                     pass
 
@@ -288,7 +447,8 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
         )
         if auto_extract:
             try:
-                extract_archive(final_dest, delete_archive=False)
+                dest_rel_archive = f"{clean_rel}/{safe_name}".lstrip("/")
+                extract_archive(dest_rel_archive, delete_archive=False)
             except Exception as e:
                 print(f"[kyber-control] Auto-extract notice for {safe_name}: {e}", file=sys.stderr)
 
@@ -297,6 +457,7 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
             "status": "completed",
             "filename": safe_name,
             "path": final_dest,
+            "rel_path": f"{clean_rel}/{safe_name}".lstrip("/"),
             "size": file_stat.st_size,
             "size_formatted": format_bytes(file_stat.st_size),
             "is_archive": is_archive
@@ -410,24 +571,42 @@ def extract_archive(rel_path, delete_archive=False):
     except Exception as e:
         return {"error": f"Extraction failure: {str(e)}", "status": "error"}
 
+def handle_remove_readonly(func, path, exc_info):
+    """Clear readonly permissions and retry deletion."""
+    try:
+        os.chmod(path, stat.S_IWRITE | stat.S_IWUSR)
+        func(path)
+    except Exception:
+        pass
+
 def delete_storage_item(rel_path):
+    if rel_path is None or str(rel_path).strip() == "":
+        return {"error": "Path parameter is required", "status": "error"}
+
     full_path, clean_rel = resolve_safe_storage_path(rel_path)
-    if not full_path or not os.path.exists(full_path):
+    if not full_path or not os.path.lexists(full_path):
         return {"error": "Item not found", "status": "error"}
 
     if os.path.abspath(full_path) in [os.path.abspath(ROMS_BASE_DIR), os.path.abspath(BIOS_BASE_DIR)]:
         return {"error": "Cannot delete root directory", "status": "error"}
 
     try:
-        if os.path.isdir(full_path):
-            shutil.rmtree(full_path)
+        if os.path.islink(full_path):
+            os.unlink(full_path)
+        elif os.path.isdir(full_path):
+            shutil.rmtree(full_path, onerror=handle_remove_readonly)
         else:
-            os.remove(full_path)
+            try:
+                os.remove(full_path)
+            except PermissionError:
+                os.chmod(full_path, stat.S_IWRITE | stat.S_IWUSR)
+                os.remove(full_path)
+
             safe_name = os.path.basename(full_path)
             if safe_name.endswith(".keys") or "key" in safe_name.lower():
                 for kdir in ["/home/gamer/.local/share/eglantine/keys", "/home/gamer/.local/share/eden/keys"]:
                     kp = os.path.join(kdir, safe_name)
-                    if os.path.exists(kp):
+                    if os.path.lexists(kp):
                         try:
                             os.remove(kp)
                         except Exception:
@@ -929,7 +1108,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
 
-        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/upload_chunk", "/api/roms/create_folder", "/api/roms/delete", "/api/roms/extract"]:
+        if parsed.path in ["/api/resize", "/api/launcher", "/api/roms/upload", "/api/roms/upload_chunk", "/api/roms/cancel_upload", "/api/roms/create_folder", "/api/roms/delete", "/api/roms/extract"]:
             if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
@@ -967,8 +1146,8 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 data = json.loads(body.decode("utf-8"))
             except Exception:
                 data = {}
-            target_path = data.get("path", "")
-            folder_name = data.get("folder_name", "")
+            target_path = data.get("path", params.get("path", [""])[0])
+            folder_name = data.get("folder_name", params.get("folder_name", [""])[0])
             result = create_directory(target_path, folder_name)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/upload_chunk":
@@ -988,6 +1167,16 @@ class ResizeHandler(BaseHTTPRequestHandler):
             chunk_data = self.rfile.read(content_length)
             result = save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data, chunk_offset)
             self._send_json_response(result)
+        elif parsed.path == "/api/roms/cancel_upload":
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = {}
+            upload_id = data.get("upload_id", params.get("upload_id", [""])[0])
+            result = cancel_uploaded_session(upload_id)
+            self._send_json_response(result)
         elif parsed.path == "/api/roms/upload":
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length <= 0:
@@ -1006,7 +1195,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 data = json.loads(body.decode("utf-8"))
             except Exception:
                 data = {}
-            path = data.get("path", "")
+            path = data.get("path", params.get("path", [""])[0])
             if not path and "filename" in data:
                 sys_id = data.get("system", "switch")
                 path = f"{sys_id}/{data['filename']}" if sys_id != "bios" else f"bios/{data['filename']}"
@@ -1022,6 +1211,31 @@ class ResizeHandler(BaseHTTPRequestHandler):
             target_path = data.get("path", params.get("path", [""])[0])
             delete_archive = data.get("delete_archive", params.get("delete_archive", ["false"])[0].lower() == "true")
             result = extract_archive(target_path, delete_archive=delete_archive)
+            self._send_json_response(result)
+        else:
+            self.send_response(404)
+            self._send_cors_headers()
+            self.end_headers()
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        if parsed.path == "/api/roms/delete":
+            if not is_authenticated(self.client_address, self.headers, params):
+                self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
+                return
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            try:
+                data = json.loads(body.decode("utf-8"))
+            except Exception:
+                data = {}
+            path = data.get("path", params.get("path", [""])[0])
+            if not path and "filename" in data:
+                sys_id = data.get("system", "switch")
+                path = f"{sys_id}/{data['filename']}" if sys_id != "bios" else f"bios/{data['filename']}"
+            result = delete_storage_item(path)
             self._send_json_response(result)
         else:
             self.send_response(404)

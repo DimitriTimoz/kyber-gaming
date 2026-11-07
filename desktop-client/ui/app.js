@@ -434,9 +434,123 @@
             });
             probeServer(server);
         } catch (err) {
-            alert(`Launch error: ${err}`);
+            showToast(`Launch error: ${err}`);
         }
     };
+
+    // ==========================================================================
+    // Interactive Dialog Modals (Zero-Emoji, WebKit/Tauri Safe)
+    // ==========================================================================
+    function showConfirmDialog(title, message, confirmText = 'Confirm', isDanger = true) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('confirmModal');
+            const titleEl = document.getElementById('confirmModalTitle');
+            const msgEl = document.getElementById('confirmModalMessage');
+            const btnOk = document.getElementById('btnConfirmOk');
+            const btnCancel = document.getElementById('btnConfirmCancel');
+            const btnClose = document.getElementById('btnConfirmClose');
+
+            if (!modal || !btnOk || !btnCancel) {
+                resolve(true);
+                return;
+            }
+
+            titleEl.textContent = title || 'Confirm Action';
+            msgEl.textContent = message || 'Are you sure?';
+            btnOk.textContent = confirmText;
+            if (isDanger) {
+                btnOk.style.background = '#ef4444';
+            } else {
+                btnOk.style.background = 'var(--primary-color, #3b82f6)';
+            }
+
+            function cleanup() {
+                modal.classList.remove('active');
+                btnOk.removeEventListener('click', onOk);
+                btnCancel.removeEventListener('click', onCancel);
+                if (btnClose) btnClose.removeEventListener('click', onCancel);
+                document.removeEventListener('keydown', onKeyDown);
+            }
+
+            function onOk() {
+                cleanup();
+                resolve(true);
+            }
+
+            function onCancel() {
+                cleanup();
+                resolve(false);
+            }
+
+            function onKeyDown(e) {
+                if (e.key === 'Escape') onCancel();
+                if (e.key === 'Enter') onOk();
+            }
+
+            btnOk.addEventListener('click', onOk);
+            btnCancel.addEventListener('click', onCancel);
+            if (btnClose) btnClose.addEventListener('click', onCancel);
+            document.addEventListener('keydown', onKeyDown);
+
+            modal.classList.add('active');
+            btnOk.focus();
+        });
+    }
+
+    function showPromptDialog(title, message, placeholder = '', confirmText = 'Create') {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('promptModal');
+            const titleEl = document.getElementById('promptModalTitle');
+            const msgEl = document.getElementById('promptModalMessage');
+            const inputEl = document.getElementById('promptModalInput');
+            const btnOk = document.getElementById('btnPromptOk');
+            const btnCancel = document.getElementById('btnPromptCancel');
+            const btnClose = document.getElementById('btnPromptClose');
+
+            if (!modal || !inputEl || !btnOk) {
+                resolve(null);
+                return;
+            }
+
+            titleEl.textContent = title || 'Input';
+            msgEl.textContent = message || '';
+            inputEl.placeholder = placeholder || '';
+            inputEl.value = '';
+            btnOk.textContent = confirmText;
+
+            function cleanup() {
+                modal.classList.remove('active');
+                btnOk.removeEventListener('click', onOk);
+                btnCancel.removeEventListener('click', onCancel);
+                if (btnClose) btnClose.removeEventListener('click', onCancel);
+                inputEl.removeEventListener('keydown', onInputKeyDown);
+            }
+
+            function onOk() {
+                const val = inputEl.value;
+                cleanup();
+                resolve(val);
+            }
+
+            function onCancel() {
+                cleanup();
+                resolve(null);
+            }
+
+            function onInputKeyDown(e) {
+                if (e.key === 'Enter') onOk();
+                if (e.key === 'Escape') onCancel();
+            }
+
+            btnOk.addEventListener('click', onOk);
+            btnCancel.addEventListener('click', onCancel);
+            if (btnClose) btnClose.addEventListener('click', onCancel);
+            inputEl.addEventListener('keydown', onInputKeyDown);
+
+            modal.classList.add('active');
+            setTimeout(() => inputEl.focus(), 50);
+        });
+    }
 
     // ==========================================================================
     // Server Modal
@@ -467,7 +581,8 @@
         };
 
         window.deleteServer = async function (serverId) {
-            if (confirm('Remove this server from the list?')) {
+            const confirmed = await showConfirmDialog('Remove Server', 'Remove this server from the list?', 'Remove', true);
+            if (confirmed) {
                 servers = servers.filter(s => s.id !== serverId);
                 renderServers();
                 await saveCurrentConfig();
@@ -489,7 +604,7 @@
             const auth_password = serverPassInput.value;
 
             if (!host) {
-                alert('Please provide an IP address or hostname.');
+                showToast('Please provide an IP address or hostname.');
                 return;
             }
 
@@ -916,16 +1031,25 @@
     }
 
     async function promptDesktopCreateFolder() {
-        const folderName = window.prompt(`Create new folder inside "${currentDesktopBrowsePath || 'root'}":`);
+        const folderName = await showPromptDialog(
+            'New Folder',
+            `Create new folder inside "${currentDesktopBrowsePath || 'root'}":`,
+            'Folder name (e.g. Updates, Mods)...',
+            'Create'
+        );
         if (!folderName || !folderName.trim()) return;
 
         const server = getSelectedRomServer();
-        if (!server) return;
+        if (!server) {
+            showToast('No active server selected');
+            return;
+        }
         const controlPort = 8081;
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
 
         try {
+            console.log('[kyber-storage] Creating directory:', folderName.trim(), 'at path:', currentDesktopBrowsePath);
             const data = await tauriInvoke('rom_create_folder', {
                 host: server.host,
                 port: controlPort,
@@ -934,6 +1058,7 @@
                 authUser: authUser,
                 authPassword: authPassword
             });
+            console.log('[kyber-storage] Create folder response:', data);
             if (data && data.status === 'ok') {
                 showToast(`Created folder "${data.folder_name}"`);
                 loadDesktopDirectory(data.created_path);
@@ -947,16 +1072,23 @@
 
     async function deleteDesktopStorageItem(relPath, displayName, isFolder) {
         const server = getSelectedRomServer();
-        if (!server) return;
+        if (!server) {
+            showToast('No active server selected');
+            return;
+        }
 
         const label = isFolder ? `folder "${displayName}" and all its contents` : `file "${displayName}"`;
-        if (!confirm(`Are you sure you want to delete ${label}?`)) return;
+        const confirmed = await showConfirmDialog('Delete Item', `Are you sure you want to delete ${label}?`, 'Delete', true);
+        if (!confirmed) return;
 
         const controlPort = 8081;
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
 
+        showToast(`Deleting ${displayName}...`);
+
         try {
+            console.log('[kyber-storage] Sending delete request for:', relPath);
             const data = await tauriInvoke('rom_delete', {
                 host: server.host,
                 port: controlPort,
@@ -964,11 +1096,12 @@
                 authUser: authUser,
                 authPassword: authPassword
             });
+            console.log('[kyber-storage] Delete response:', data);
             if (data && data.status === 'ok') {
                 showToast(`Deleted ${displayName}`);
                 loadDesktopDirectory(currentDesktopBrowsePath);
             } else {
-                showToast((data && data.error) || 'Failed to delete item');
+                showToast((data && data.error) ? `Delete failed: ${data.error}` : 'Failed to delete item');
             }
         } catch (err) {
             showToast(`Error deleting item: ${err}`);
@@ -1033,24 +1166,42 @@
                 const chunkSize = end - start;
 
                 try {
-                    const chunkBase64 = await readBlobAsBase64(chunkBlob);
-                    const res = await tauriInvoke('rom_upload_chunk', {
-                        host: server.host,
-                        port: controlPort,
-                        uploadId: uploadId,
-                        filename: file.name,
-                        targetPath: currentDesktopBrowsePath,
-                        chunkIndex: chunkIdx,
-                        chunkOffset: start,
-                        totalChunks: totalChunks,
-                        totalSize: file.size,
-                        chunkBase64: chunkBase64,
-                        authUser: authUser,
-                        authPassword: authPassword
-                    });
+                    let res = null;
+                    let lastChunkErr = null;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        if (isDesktopUploadCancelled) break;
+                        try {
+                            const chunkBase64 = await readBlobAsBase64(chunkBlob);
+                            res = await tauriInvoke('rom_upload_chunk', {
+                                host: server.host,
+                                port: controlPort,
+                                uploadId: uploadId,
+                                filename: file.name,
+                                targetPath: currentDesktopBrowsePath,
+                                chunkIndex: chunkIdx,
+                                chunkOffset: start,
+                                totalChunks: totalChunks,
+                                totalSize: file.size,
+                                chunkBase64: chunkBase64,
+                                authUser: authUser,
+                                authPassword: authPassword
+                            });
 
-                    if (res && res.status === 'error') {
-                        throw new Error(res.error || 'Server rejected chunk');
+                            if (res && res.status === 'error') {
+                                throw new Error(res.error || 'Server rejected chunk');
+                            }
+                            lastChunkErr = null;
+                            break;
+                        } catch (attemptErr) {
+                            lastChunkErr = attemptErr;
+                            if (attempt < 2 && !isDesktopUploadCancelled) {
+                                await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+                            }
+                        }
+                    }
+
+                    if (lastChunkErr) {
+                        throw lastChunkErr;
                     }
 
                     uploadedBytes += chunkSize;
@@ -1068,9 +1219,26 @@
                 } catch (err) {
                     desktopRomUploadCard.style.display = 'none';
                     showToast(`Error uploading ${file.name}: ${err.message || err}`);
+                    tauriInvoke('rom_cancel_upload', {
+                        host: server.host,
+                        port: controlPort,
+                        uploadId: uploadId,
+                        authUser: authUser,
+                        authPassword: authPassword
+                    }).catch(() => {});
                     loadDesktopDirectory(currentDesktopBrowsePath);
                     return;
                 }
+            }
+
+            if (isDesktopUploadCancelled) {
+                tauriInvoke('rom_cancel_upload', {
+                    host: server.host,
+                    port: controlPort,
+                    uploadId: uploadId,
+                    authUser: authUser,
+                    authPassword: authPassword
+                }).catch(() => {});
             }
         }
 

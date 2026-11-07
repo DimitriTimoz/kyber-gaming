@@ -480,6 +480,43 @@
         </div>
     </div>
 
+    <!-- Generic Confirmation Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title" id="confirmModalTitle">Confirm Action</h3>
+                <button class="modal-close" id="btnConfirmClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalMessage" style="color: var(--text-color); font-size: 0.9rem; line-height: 1.5; margin: 0;"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnConfirmCancel">Cancel</button>
+                <button class="btn btn-danger" id="btnConfirmOk" style="background:#ef4444; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-weight:600; cursor:pointer;">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Prompt Modal -->
+    <div class="modal-overlay" id="promptModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title" id="promptModalTitle">Input</h3>
+                <button class="modal-close" id="btnPromptClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="promptModalMessage" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;"></p>
+                <div class="form-group" style="margin: 0;">
+                    <input type="text" id="promptModalInput" class="form-control" placeholder="" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnPromptCancel">Cancel</button>
+                <button class="btn btn-primary" id="btnPromptOk">Create</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast">Notification</div>
 
     <script src="app.js"></script>

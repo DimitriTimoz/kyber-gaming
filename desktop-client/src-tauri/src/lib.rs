@@ -438,6 +438,24 @@ async fn launch_session(
     Ok(())
 }
 
+fn clean_host(host: &str) -> String {
+    let mut h = host.trim();
+    if let Some(stripped) = h.strip_prefix("https://") {
+        h = stripped;
+    } else if let Some(stripped) = h.strip_prefix("http://") {
+        h = stripped;
+    }
+    if let Some(idx) = h.find('/') {
+        h = &h[..idx];
+    }
+    if let Some(idx) = h.rfind(':') {
+        if !h.starts_with('[') || h.contains("]:") {
+            h = &h[..idx];
+        }
+    }
+    h.to_string()
+}
+
 #[tauri::command]
 async fn rom_browse(
     host: String,
@@ -446,6 +464,7 @@ async fn rom_browse(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let host = clean_host(&host);
     let client = get_http_client();
 
     let mut query = vec![("path", path)];
@@ -499,6 +518,7 @@ async fn rom_create_folder(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let host = clean_host(&host);
     let client = get_http_client();
 
     let mut query = Vec::new();
@@ -560,9 +580,10 @@ async fn rom_delete(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let host = clean_host(&host);
     let client = get_http_client();
 
-    let mut query = Vec::new();
+    let mut query = vec![("path", path.clone())];
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
         if !u.is_empty() && !p.is_empty() {
             query.push(("auth_user", u.clone()));
@@ -611,35 +632,17 @@ async fn rom_delete(
 }
 
 #[tauri::command]
-async fn rom_upload_chunk(
+async fn rom_cancel_upload(
     host: String,
     port: u16,
     upload_id: String,
-    filename: String,
-    target_path: String,
-    chunk_index: u32,
-    chunk_offset: u64,
-    total_chunks: u32,
-    total_size: u64,
-    chunk_base64: String,
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let host = clean_host(&host);
     let client = get_http_client();
 
-    let binary_data = BASE64_STANDARD
-        .decode(chunk_base64.trim())
-        .map_err(|e| format!("Base64 decode error: {}", e))?;
-
-    let mut query = vec![
-        ("upload_id", upload_id),
-        ("filename", filename),
-        ("target_path", target_path),
-        ("chunk_index", chunk_index.to_string()),
-        ("chunk_offset", chunk_offset.to_string()),
-        ("total_chunks", total_chunks.to_string()),
-        ("total_size", total_size.to_string()),
-    ];
+    let mut query = vec![("upload_id", upload_id.clone())];
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
         if !u.is_empty() && !p.is_empty() {
             query.push(("auth_user", u.clone()));
@@ -647,12 +650,10 @@ async fn rom_upload_chunk(
         }
     }
 
-    let https_url = format!("https://{}:{}/api/roms/upload_chunk", host, port);
-    let mut req = client
-        .post(&https_url)
-        .query(&query)
-        .header("Content-Type", "application/octet-stream")
-        .body(binary_data.clone());
+    let payload = serde_json::json!({ "upload_id": upload_id });
+
+    let https_url = format!("https://{}:{}/api/roms/cancel_upload", host, port);
+    let mut req = client.post(&https_url).query(&query).json(&payload);
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
         if !u.is_empty() && !p.is_empty() {
             req = req.basic_auth(u, Some(p));
@@ -670,12 +671,8 @@ async fn rom_upload_chunk(
             }
         }
         Err(_) => {
-            let http_url = format!("http://{}:{}/api/roms/upload_chunk", host, port);
-            let mut req2 = client
-                .post(&http_url)
-                .query(&query)
-                .header("Content-Type", "application/octet-stream")
-                .body(binary_data);
+            let http_url = format!("http://{}:{}/api/roms/cancel_upload", host, port);
+            let mut req2 = client.post(&http_url).query(&query).json(&payload);
             if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
                 if !u.is_empty() && !p.is_empty() {
                     req2 = req2.basic_auth(u, Some(p));
@@ -694,6 +691,111 @@ async fn rom_upload_chunk(
 }
 
 #[tauri::command]
+async fn rom_upload_chunk(
+    host: String,
+    port: u16,
+    upload_id: String,
+    filename: String,
+    target_path: String,
+    chunk_index: u32,
+    chunk_offset: u64,
+    total_chunks: u32,
+    total_size: u64,
+    chunk_base64: String,
+    auth_user: Option<String>,
+    auth_password: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let host = clean_host(&host);
+    let client = get_http_client();
+
+    let binary_data = BASE64_STANDARD
+        .decode(chunk_base64.trim())
+        .map_err(|e| format!("Base64 decode error: {}", e))?;
+
+    let max_retries = 3;
+    let mut last_err = String::from("Upload chunk failed");
+
+    for attempt in 0..max_retries {
+        if attempt > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(300 * (1 << (attempt - 1)))).await;
+        }
+
+        let mut full_query = vec![
+            ("upload_id", upload_id.clone()),
+            ("filename", filename.clone()),
+            ("target_path", target_path.clone()),
+            ("chunk_index", chunk_index.to_string()),
+            ("chunk_offset", chunk_offset.to_string()),
+            ("total_chunks", total_chunks.to_string()),
+            ("total_size", total_size.to_string()),
+        ];
+        if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+            if !u.is_empty() && !p.is_empty() {
+                full_query.push(("auth_user", u.clone()));
+                full_query.push(("auth_pass", p.clone()));
+            }
+        }
+
+        let https_url = format!("https://{}:{}/api/roms/upload_chunk", host, port);
+        let mut req = client
+            .post(&https_url)
+            .query(&full_query)
+            .header("Content-Type", "application/octet-stream")
+            .body(binary_data.clone());
+        if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+            if !u.is_empty() && !p.is_empty() {
+                req = req.basic_auth(u, Some(p));
+            }
+        }
+
+        match req.send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_success() {
+                    return resp.json::<serde_json::Value>().await.map_err(|e| e.to_string());
+                } else if status.is_client_error() {
+                    let err_text = resp.text().await.unwrap_or_else(|_| "Client error".to_string());
+                    return Err(format!("Server returned HTTP {}: {}", status, err_text));
+                } else {
+                    last_err = format!("Server returned HTTP {}", status);
+                }
+            }
+            Err(e) => {
+                let http_url = format!("http://{}:{}/api/roms/upload_chunk", host, port);
+                let mut req2 = client
+                    .post(&http_url)
+                    .query(&full_query)
+                    .header("Content-Type", "application/octet-stream")
+                    .body(binary_data.clone());
+                if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
+                    if !u.is_empty() && !p.is_empty() {
+                        req2 = req2.basic_auth(u, Some(p));
+                    }
+                }
+                match req2.send().await {
+                    Ok(resp2) => {
+                        let status2 = resp2.status();
+                        if status2.is_success() {
+                            return resp2.json::<serde_json::Value>().await.map_err(|e| e.to_string());
+                        } else if status2.is_client_error() {
+                            let err_text2 = resp2.text().await.unwrap_or_else(|_| "Client error".to_string());
+                            return Err(format!("Server returned HTTP {}: {}", status2, err_text2));
+                        } else {
+                            last_err = format!("Server returned HTTP {}", status2);
+                        }
+                    }
+                    Err(e2) => {
+                        last_err = format!("Network error: {} / {}", e, e2);
+                    }
+                }
+            }
+        }
+    }
+
+    Err(last_err)
+}
+
+#[tauri::command]
 async fn rom_download_file(
     host: String,
     port: u16,
@@ -702,6 +804,7 @@ async fn rom_download_file(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<String, String> {
+    let host = clean_host(&host);
     let client = get_http_client();
 
     let download_dir = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -761,6 +864,7 @@ async fn rom_extract(
     auth_user: Option<String>,
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let host = clean_host(&host);
     let client = get_http_client();
 
     let mut query = vec![("path", path.clone())];
@@ -829,6 +933,7 @@ pub fn run() {
             rom_browse,
             rom_create_folder,
             rom_delete,
+            rom_cancel_upload,
             rom_upload_chunk,
             rom_download_file,
             rom_extract
