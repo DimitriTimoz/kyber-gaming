@@ -30,8 +30,16 @@ DISCOVERY_PORT = int(os.environ.get("KYBER_DISCOVERY_PORT", "8082"))
 DISPLAY = os.environ.get("DISPLAY", ":0")
 AUTH_USER = os.environ.get("AUTH_USER", "gamer")
 AUTH_PASSWORD = os.environ.get("AUTH_PASSWORD", "kybergaming")
-ROMS_BASE_DIR = os.environ.get("ROMS_DIR", "/home/gamer/roms")
-BIOS_BASE_DIR = os.environ.get("BIOS_DIR", "/home/gamer/bios")
+def _resolve_storage_dir(env_var, candidates):
+    if env_var in os.environ:
+        return os.environ[env_var]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return candidates[-1]
+
+ROMS_BASE_DIR = _resolve_storage_dir("ROMS_DIR", ["/games/roms", "/home/gamer/roms"])
+BIOS_BASE_DIR = _resolve_storage_dir("BIOS_DIR", ["/games/bios", "/home/gamer/bios"])
 UPLOAD_TEMP_DIR = os.environ.get("UPLOAD_TEMP_DIR", "/home/gamer/.kyber_uploads")
 try:
     os.makedirs(UPLOAD_TEMP_DIR, exist_ok=True)

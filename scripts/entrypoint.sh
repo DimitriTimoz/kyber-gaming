@@ -29,19 +29,81 @@ chmod 0700 "$XDG_DIR"
 # Ensure home directory ownership
 chown gamer:gamer /home/gamer
 
-# Setup structured emulator directories
+# Setup unified games storage volume (/games)
+GAMES_ROOT="${GAMES_DIR:-/games}"
 mkdir -p \
-    /home/gamer/roms/eglantine/games \
-    /home/gamer/roms/eglantine/updates \
-    /home/gamer/roms/eglantine/dlc \
-    /home/gamer/roms/eglantine/keys \
-    /home/gamer/roms/eglantine/firmware \
-    /home/gamer/roms/eglantine/mods \
-    /home/gamer/roms/saves \
-    /home/gamer/bios \
-    /home/gamer/.local/share/eglantine/keys \
-    /home/gamer/.local/share/eden/keys \
-    /home/gamer/.config/eden
+    "$GAMES_ROOT/steam/steamapps" \
+    "$GAMES_ROOT/heroic/prefixes" \
+    "$GAMES_ROOT/roms/eglantine/games" \
+    "$GAMES_ROOT/roms/eglantine/updates" \
+    "$GAMES_ROOT/roms/eglantine/dlc" \
+    "$GAMES_ROOT/roms/eglantine/keys" \
+    "$GAMES_ROOT/roms/eglantine/firmware" \
+    "$GAMES_ROOT/roms/eglantine/mods" \
+    "$GAMES_ROOT/roms/saves" \
+    "$GAMES_ROOT/bios" \
+    "$GAMES_ROOT/saves"
+
+# Auto-migrate existing ROMs/BIOS/Steam files from legacy /home/gamer volume into /games
+if [ -d /home/gamer/roms ] && [ ! -L /home/gamer/roms ]; then
+    echo "[entrypoint] Migrating existing ROMs to $GAMES_ROOT/roms..."
+    cp -rn /home/gamer/roms/* "$GAMES_ROOT/roms/" 2>/dev/null || true
+    rm -rf /home/gamer/roms
+fi
+ln -sfn "$GAMES_ROOT/roms" /home/gamer/roms
+
+if [ -d /home/gamer/bios ] && [ ! -L /home/gamer/bios ]; then
+    echo "[entrypoint] Migrating existing BIOS to $GAMES_ROOT/bios..."
+    cp -rn /home/gamer/bios/* "$GAMES_ROOT/bios/" 2>/dev/null || true
+    rm -rf /home/gamer/bios
+fi
+ln -sfn "$GAMES_ROOT/bios" /home/gamer/bios
+
+if [ -d /home/gamer/saves ] && [ ! -L /home/gamer/saves ]; then
+    echo "[entrypoint] Migrating existing saves to $GAMES_ROOT/saves..."
+    cp -rn /home/gamer/saves/* "$GAMES_ROOT/saves/" 2>/dev/null || true
+    rm -rf /home/gamer/saves
+fi
+ln -sfn "$GAMES_ROOT/saves" /home/gamer/saves
+
+# Decouple Steam library: point steamapps directly into /games/steam/steamapps
+mkdir -p /home/gamer/.local/share/Steam /home/gamer/.steam/debian-installation
+if [ -d /home/gamer/.local/share/Steam/steamapps ] && [ ! -L /home/gamer/.local/share/Steam/steamapps ]; then
+    echo "[entrypoint] Migrating existing Steam games to $GAMES_ROOT/steam/steamapps..."
+    cp -rn /home/gamer/.local/share/Steam/steamapps/* "$GAMES_ROOT/steam/steamapps/" 2>/dev/null || true
+    rm -rf /home/gamer/.local/share/Steam/steamapps
+fi
+ln -sfn "$GAMES_ROOT/steam/steamapps" /home/gamer/.local/share/Steam/steamapps
+ln -sfn "$GAMES_ROOT/steam/steamapps" /home/gamer/.steam/debian-installation/steamapps
+ln -sfn "$GAMES_ROOT" /home/gamer/Games
+
+# Self-healing Steam lock and cache cleaner
+clean_steam_locks() {
+    rm -rf \
+        /home/gamer/.local/share/Steam/config/htmlcache/Singleton* \
+        /home/gamer/.steam/debian-installation/config/htmlcache/Singleton* \
+        /home/gamer/.steam/steam/config/htmlcache/Singleton* \
+        /home/gamer/.steam/debian-installation/.steam_exec_test.sh \
+        /home/gamer/.steam/debian-installation/steam.pid \
+        /tmp/steam* \
+        /tmp/.X11-unix/X0-lock \
+        /tmp/.X0-lock 2>/dev/null || true
+}
+clean_steam_locks
+
+# Configure Heroic Games Launcher to use /games/heroic by default
+mkdir -p /home/gamer/.config/heroic
+HEROIC_CONF="/home/gamer/.config/heroic/config.json"
+if [ ! -f "$HEROIC_CONF" ]; then
+    cat << 'EOF' > "$HEROIC_CONF"
+{
+  "defaultInstallPath": "/games/heroic",
+  "winePrefix": "/games/heroic/prefixes",
+  "minimizeOnLaunch": false,
+  "exitToTray": false
+}
+EOF
+fi
 
 # Compatibility symlink for AppImages or emulators referencing /home/user
 if [ ! -e /home/user ]; then
@@ -49,12 +111,13 @@ if [ ! -e /home/user ]; then
 fi
 
 # Backwards compatibility symlink: roms/switch -> roms/eglantine/games
-if [ ! -e /home/gamer/roms/switch ]; then
-    ln -s /home/gamer/roms/eglantine/games /home/gamer/roms/switch 2>/dev/null || true
+if [ ! -e "$GAMES_ROOT/roms/switch" ]; then
+    ln -s "$GAMES_ROOT/roms/eglantine/games" "$GAMES_ROOT/roms/switch" 2>/dev/null || true
 fi
 
 # Auto-link any uploaded Switch keys from eglantine/keys or bios to Eglantine/Eden keys directory
-for keydir in /home/gamer/roms/eglantine/keys /home/gamer/bios; do
+mkdir -p /home/gamer/.local/share/eglantine/keys /home/gamer/.local/share/eden/keys /home/gamer/.config/eden
+for keydir in "$GAMES_ROOT/roms/eglantine/keys" "$GAMES_ROOT/bios"; do
     if [ -d "$keydir" ]; then
         for keyfile in "$keydir"/*.keys; do
             if [ -f "$keyfile" ]; then
@@ -74,30 +137,39 @@ if [ ! -f "$EDEN_CONF" ]; then
 fullscreen=true
 singleWindowMode=true
 Paths\gamedirs\size=2
-Paths\gamedirs\1\path=/home/gamer/roms/eglantine/games
+Paths\gamedirs\1\path=/games/roms/eglantine/games
 Paths\gamedirs\1\deep_scan=true
 Paths\gamedirs\1\expanded=true
-Paths\gamedirs\2\path=/home/gamer/roms/switch
+Paths\gamedirs\2\path=/games/roms/switch
 Paths\gamedirs\2\deep_scan=true
 Paths\gamedirs\2\expanded=true
 EOF
 fi
 
+# System configuration version sync: automatically update Openbox/Tint2 configs on image upgrade
+IMAGE_VER=$(cat /etc/kyber/version 2>/dev/null || echo "1.0.2")
+USER_VER=$(cat /home/gamer/.config/kyber_version 2>/dev/null || echo "0.0.0")
+
 mkdir -p /home/gamer/.config/openbox /home/gamer/.config/tint2 /home/gamer/.themes /home/gamer/.local/share/applications
-if [ -d /etc/kyber/openbox ]; then
-    cp -f /etc/kyber/openbox/* /home/gamer/.config/openbox/ 2>/dev/null || true
-fi
-if [ -f /etc/kyber/tint2/tint2rc ]; then
-    cp -f /etc/kyber/tint2/tint2rc /home/gamer/.config/tint2/tint2rc 2>/dev/null || true
-fi
-if [ -d /usr/share/themes/KyberDark ]; then
-    cp -rf /usr/share/themes/KyberDark /home/gamer/.themes/ 2>/dev/null || true
-fi
-if [ -f /usr/share/applications/kyber-hub.desktop ]; then
-    cp -f /usr/share/applications/kyber-hub.desktop /home/gamer/.local/share/applications/ 2>/dev/null || true
+
+if [ "$IMAGE_VER" != "$USER_VER" ] || [ ! -f /home/gamer/.config/openbox/rc.xml ]; then
+    echo "[entrypoint] Synchronizing container system configs (v$IMAGE_VER)..."
+    if [ -d /etc/kyber/openbox ]; then
+        cp -f /etc/kyber/openbox/* /home/gamer/.config/openbox/ 2>/dev/null || true
+    fi
+    if [ -f /etc/kyber/tint2/tint2rc ]; then
+        cp -f /etc/kyber/tint2/tint2rc /home/gamer/.config/tint2/tint2rc 2>/dev/null || true
+    fi
+    if [ -d /usr/share/themes/KyberDark ]; then
+        cp -rf /usr/share/themes/KyberDark /home/gamer/.themes/ 2>/dev/null || true
+    fi
+    if [ -f /usr/share/applications/kyber-hub.desktop ]; then
+        cp -f /usr/share/applications/kyber-hub.desktop /home/gamer/.local/share/applications/ 2>/dev/null || true
+    fi
+    echo "$IMAGE_VER" > /home/gamer/.config/kyber_version
 fi
 
-chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes 2>/dev/null || true
+chown -R gamer:gamer "$GAMES_ROOT" /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes 2>/dev/null || true
 
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then

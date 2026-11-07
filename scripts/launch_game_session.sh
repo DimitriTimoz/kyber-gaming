@@ -54,6 +54,16 @@ enforce_window_maximized() {
 
 # Pre-bootstrap Steam if not yet initialized
 STEAMDIR="$HOME/.steam/debian-installation"
+
+clean_steam_locks() {
+    rm -rf \
+        "$STEAMDIR/config/htmlcache/Singleton"* \
+        "$HOME/.local/share/Steam/config/htmlcache/Singleton"* \
+        "$STEAMDIR/.steam_exec_test.sh" \
+        "$STEAMDIR/steam.pid" \
+        /tmp/steam* 2>/dev/null || true
+}
+
 if [ ! -f "$STEAMDIR/steam.sh" ]; then
     echo "[session] Steam bootstrap not detected. Initializing headless bootstrap..."
     mkdir -p "$STEAMDIR/deb-installer"
@@ -78,7 +88,7 @@ while true; do
     case "$CURRENT_ACTION" in
         steam)
             echo "[session] Starting Steam..."
-            rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
+            clean_steam_locks
             steam -no-cef-sandbox >/dev/null 2>&1 &
 
             STEAM_WIN_SEEN=0
@@ -209,7 +219,7 @@ while true; do
 
         steam-bigpicture)
             echo "[session] Starting Steam Big Picture..."
-            rm -f "$STEAMDIR/config/htmlcache/Singleton"* 2>/dev/null || true
+            clean_steam_locks
             steam -bigpicture -no-cef-sandbox >/dev/null 2>&1 &
             STEAM_BP_SEEN=0
             LOADING_DISMISSED=0

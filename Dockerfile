@@ -221,7 +221,10 @@ RUN echo -e "/opt/kyber/lib\n/opt/kyber/lib/x86_64-linux-gnu\n/opt/kyber/lib64" 
 RUN mkdir -p /etc/kyber/tls /etc/kyber/openbox /etc/kyber/tint2 /etc/X11 /var/log/supervisor /run/user/1000 \
     /home/gamer/.config/openbox /home/gamer/.config/tint2 /home/gamer/.config/pipewire/pipewire.conf.d \
     /home/gamer/.themes /usr/share/themes /usr/share/applications \
-    /home/gamer/.local/share/Steam
+    /home/gamer/.local/share/Steam \
+    /games/steam /games/heroic /games/roms /games/bios /games/saves && \
+    echo "1.0.2" > /etc/kyber/version && \
+    chown -R gamer:gamer /games
 
 COPY config/xorg/xorg.nvidia.conf /etc/kyber/xorg.nvidia.conf
 COPY config/xorg/xorg.dummy.conf /etc/kyber/xorg.dummy.conf

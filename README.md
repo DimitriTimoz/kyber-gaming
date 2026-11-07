@@ -126,17 +126,20 @@ services:
       - AUTH_USER=gamer
       - AUTH_PASSWORD=kybergaming
     volumes:
-      # Main persistent user data (Steam, Heroic, configs, saves, ROMs)
-      - gamer_home:/home/gamer
-      # Optional: Direct host/NAS mount for your existing ROM collection
-      # - /mnt/storage/roms:/home/gamer/roms
+      # 1. Dedicated Games Library (Steam, Heroic, ROMs, BIOS, Saves)
+      - kyber_games:/games
+      # 2. Persistent User Configuration (Steam login, tokens, emulator configs)
+      - kyber_config:/home/gamer
+      # Optional: Direct host/NAS mount for your existing games & ROMs
+      # - /mnt/storage/games:/games
     devices:
-      # Required for hardware acceleration
+      # Required for hardware acceleration & virtual inputs
       - /dev/dri:/dev/dri
       - /dev/uinput:/dev/uinput
 
 volumes:
-  gamer_home:
+  kyber_games:
+  kyber_config:
 ```
 
 Start the container:

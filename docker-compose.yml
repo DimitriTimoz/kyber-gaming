@@ -61,16 +61,22 @@ services:
               capabilities: [gpu, video, display]
 
     volumes:
-      # Main persistent user data (Steam, Heroic, emulators, configs, saves, ROMs)
-      - gamer_home:/home/gamer
+      # 1. Dedicated Games Library (Steam, Heroic, ROMs, BIOS, Saves)
+      # All game downloads and ROMs are stored here. Decoupled from container image and configuration.
+      # Survives all updates, container recreations, and config resets without redownloading.
+      - kyber_games:/games
       
-      # Optional: Bind-mount local/NAS ROM collections directly:
-      # - /mnt/nas/roms:/home/gamer/roms
+      # Optional: Bind-mount host games directory or NAS directly:
+      # - /mnt/games:/games
+      # - /mnt/nas/roms:/games/roms
+
+      # 2. Persistent User Configuration (Steam login session, Heroic tokens, emulator settings)
+      - kyber_config:/home/gamer
       
-      # TLS certificates for WebTransport / HTTPS (auto-generated if missing)
+      # 3. TLS certificates for WebTransport / HTTPS (auto-generated if missing)
       - ./kyber_tls:/etc/kyber/tls
       
-      # Customizable Launchers & Emulators list for homelab configuration
+      # 4. Customizable Launchers & Emulators list for homelab configuration
       - ./config/launchers.json:/etc/kyber/launchers.json:ro
       
       # Direct access to host controllers if plugged into the host
@@ -86,4 +92,5 @@ services:
       start_period: 25s
 
 volumes:
-  gamer_home:
+  kyber_games:
+  kyber_config:
