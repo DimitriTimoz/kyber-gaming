@@ -469,9 +469,17 @@
             }
         });
 
-        const isInstalled = currentItem.installed !== false;
-        headerStatusEl.textContent = isInstalled ? 'READY TO PLAY' : 'NOT INSTALLED';
-        headerStatusEl.className = `header-status-badge ${!isInstalled ? 'missing' : ''}`;
+        if (headerStatusEl) {
+            const isInstalled = currentItem.installed !== false;
+            if (!isInstalled) {
+                headerStatusEl.textContent = 'NOT INSTALLED';
+                headerStatusEl.className = 'header-status-badge missing';
+                headerStatusEl.style.display = '';
+            } else {
+                headerStatusEl.textContent = '';
+                headerStatusEl.style.display = 'none';
+            }
+        }
 
         // Monumental Watermark Text & Emblem Swap
         const watermarkEl = document.getElementById('heroWatermark');
@@ -1731,18 +1739,12 @@
             if (id === 'browser' && currentRunningApps.browser) isRunning = true;
             if (id === 'eglantine' && currentRunningApps.eglantine) isRunning = true;
 
-            const cover = card.querySelector('.card-cover');
             let badge = card.querySelector('.running-badge');
             if (isRunning) {
                 activeTitle = card.querySelector('.meta-title')?.textContent || id;
                 activeId = id;
-                if (!badge && cover) {
-                    badge = document.createElement('div');
-                    badge.className = 'running-badge';
-                    badge.innerHTML = '<span class="pulse-dot"></span> RUNNING';
-                    cover.appendChild(badge);
-                }
-            } else if (badge) {
+            }
+            if (badge) {
                 badge.remove();
             }
         });
