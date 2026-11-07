@@ -408,24 +408,54 @@ while true; do
         heroic)
             echo "[session] Starting Heroic Games Launcher..."
             get_screen_dims
-            # Configure Heroic to open at full display dimensions and disable exitToTray so [X] closes it cleanly
-            SCREEN_W="$SCREEN_W" SCREEN_H="$SCREEN_H" python3 -c '
-import json, os
+            # Configure Heroic to open at full display dimensions, set /games/heroic paths, and disable exitToTray
+            SCREEN_W="$SCREEN_W" SCREEN_H="$SCREEN_H" GAMES_ROOT="${GAMES_ROOT:-/games}" python3 - << 'PYEOF' 2>/dev/null || true
+import json, os, configparser
+
 p = "/home/gamer/.config/heroic/config.json"
 w = int(os.environ.get("SCREEN_W", "1920"))
 h = int(os.environ.get("SCREEN_H", "1080"))
+games_root = os.environ.get("GAMES_ROOT", "/games")
+heroic_dir = f"{games_root}/heroic"
+heroic_prefixes = f"{games_root}/heroic/prefixes"
+
 os.makedirs(os.path.dirname(p), exist_ok=True)
 data = {}
 if os.path.exists(p):
-    try: data = json.load(open(p))
-    except Exception: pass
-data.setdefault("defaultSettings", {})["exitToTray"] = False
-data.setdefault("defaultSettings", {})["startInTray"] = False
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        pass
+
+data["defaultInstallPath"] = heroic_dir
+data["winePrefix"] = heroic_prefixes
+ds = data.setdefault("defaultSettings", {})
+ds["defaultInstallPath"] = heroic_dir
+ds["defaultWinePrefix"] = heroic_prefixes
+ds["winePrefix"] = heroic_prefixes
+ds["exitToTray"] = False
+ds["startInTray"] = False
 data["exitToTray"] = False
 data["windowBounds"] = {"x": 0, "y": 0, "width": w, "height": h, "maximized": True}
-try: json.dump(data, open(p, "w"))
-except Exception: pass
-' 2>/dev/null || true
+
+with open(p, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+
+leg_p = "/home/gamer/.config/legendary/config.ini"
+os.makedirs(os.path.dirname(leg_p), exist_ok=True)
+cfg = configparser.ConfigParser()
+if os.path.exists(leg_p):
+    try:
+        cfg.read(leg_p)
+    except Exception:
+        pass
+if not cfg.has_section("Legendary"):
+    cfg.add_section("Legendary")
+cfg.set("Legendary", "install_dir", heroic_dir)
+with open(leg_p, "w", encoding="utf-8") as f:
+    cfg.write(f)
+PYEOF
 
             HEROIC_BIN="/opt/Heroic/heroic"
             [ -x "$HEROIC_BIN" ] || HEROIC_BIN="$(command -v heroic || echo /usr/bin/heroic)"

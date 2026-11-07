@@ -170,19 +170,61 @@ clean_steam_locks() {
 }
 clean_steam_locks
 
-# Configure Heroic Games Launcher to use /games/heroic by default
-mkdir -p /home/gamer/.config/heroic
-HEROIC_CONF="/home/gamer/.config/heroic/config.json"
-if [ ! -f "$HEROIC_CONF" ]; then
-    cat << 'EOF' > "$HEROIC_CONF"
-{
-  "defaultInstallPath": "/games/heroic",
-  "winePrefix": "/games/heroic/prefixes",
-  "minimizeOnLaunch": false,
-  "exitToTray": false
-}
-EOF
-fi
+# Setup unified Heroic Games Launcher directories and configuration (/games/heroic)
+mkdir -p "$GAMES_ROOT/heroic/prefixes" "$GAMES_ROOT/heroic/tools"
+ln -sfn "$GAMES_ROOT/heroic" "$GAMES_ROOT/Heroic"
+mkdir -p /home/gamer/.config/heroic /home/gamer/.config/legendary
+ln -sfn "$GAMES_ROOT/heroic/tools" /home/gamer/.config/heroic/tools 2>/dev/null || true
+mkdir -p /home/gamer/Games
+ln -sfn "$GAMES_ROOT/heroic" /home/gamer/Games/Heroic 2>/dev/null || true
+ln -sfn "$GAMES_ROOT/heroic" /home/gamer/Games/heroic 2>/dev/null || true
+
+python3 - << 'PYEOF' 2>/dev/null || true
+import json, os, configparser
+
+games_root = os.environ.get("GAMES_ROOT", "/games")
+heroic_dir = f"{games_root}/heroic"
+heroic_prefixes = f"{games_root}/heroic/prefixes"
+
+# 1. Configure Heroic GUI config.json
+p = "/home/gamer/.config/heroic/config.json"
+os.makedirs(os.path.dirname(p), exist_ok=True)
+data = {}
+if os.path.exists(p):
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        pass
+
+data["defaultInstallPath"] = heroic_dir
+data["winePrefix"] = heroic_prefixes
+ds = data.setdefault("defaultSettings", {})
+ds["defaultInstallPath"] = heroic_dir
+ds["defaultWinePrefix"] = heroic_prefixes
+ds["winePrefix"] = heroic_prefixes
+ds["exitToTray"] = False
+ds["startInTray"] = False
+data["exitToTray"] = False
+
+with open(p, "w", encoding="utf-8") as f:
+    json.dump(data, f, indent=2)
+
+# 2. Configure Legendary CLI config.ini
+leg_p = "/home/gamer/.config/legendary/config.ini"
+os.makedirs(os.path.dirname(leg_p), exist_ok=True)
+cfg = configparser.ConfigParser()
+if os.path.exists(leg_p):
+    try:
+        cfg.read(leg_p)
+    except Exception:
+        pass
+if not cfg.has_section("Legendary"):
+    cfg.add_section("Legendary")
+cfg.set("Legendary", "install_dir", heroic_dir)
+with open(leg_p, "w", encoding="utf-8") as f:
+    cfg.write(f)
+PYEOF
 
 # Compatibility symlink for AppImages or emulators referencing /home/user
 if [ ! -e /home/user ]; then
