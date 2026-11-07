@@ -206,6 +206,15 @@ html, body {
 	border: var(--input-border);
 	border-radius: 4px;
 	box-sizing: border-box;
+	user-select: text !important;
+	-webkit-user-select: text !important;
+	pointer-events: auto !important;
+}
+
+.params-section input[type=text],
+.params-section input[type=number],
+.params-section input[type=password] {
+	cursor: text !important;
 }
 
 .params-section input[type=checkbox] {

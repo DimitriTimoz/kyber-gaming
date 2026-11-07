@@ -27,6 +27,8 @@
         gamepads: []
     };
 
+    const urlParams = new URLSearchParams(window.location.search);
+
     // Load persisted settings & auth
     try {
         const savedSettings = localStorage.getItem('kyber_web_settings');
@@ -39,6 +41,13 @@
         if (savedUser && savedPass) {
             state.authUser = savedUser;
             state.authPass = savedPass;
+        }
+
+        if (urlParams.get('auth_user')) {
+            state.authUser = urlParams.get('auth_user');
+        }
+        if (urlParams.get('auth_pass')) {
+            state.authPass = urlParams.get('auth_pass');
         }
     } catch (e) {}
 
@@ -117,6 +126,22 @@
         checkAuthOnBoot();
     }
 
+    // Helper to stop all events from bubbling up to Kyber WASM / Canvas listener
+    function isolateUiEvents(element) {
+        if (!element) return;
+        const stopProp = (e) => {
+            e.stopPropagation();
+        };
+        const events = [
+            'mousedown', 'mouseup', 'pointerdown', 'pointerup',
+            'click', 'dblclick', 'keydown', 'keyup', 'keypress',
+            'touchstart', 'touchend', 'touchmove', 'contextmenu', 'wheel'
+        ];
+        events.forEach(evt => {
+            element.addEventListener(evt, stopProp, false);
+        });
+    }
+
     // ==========================================================================
     // Authentication Gate Handling
     // ==========================================================================
@@ -140,7 +165,10 @@
 
                 <div class="setting-group">
                     <label class="setting-label">Password</label>
-                    <input type="password" class="setting-input" id="hub-input-pass" value="${state.authPass || ''}" placeholder="Password">
+                    <div style="position: relative; display: flex; align-items: center; width: 100%;">
+                        <input type="password" class="setting-input" id="hub-input-pass" value="${state.authPass || ''}" placeholder="Password" autocomplete="current-password" style="padding-right: 4.5rem; width: 100%;">
+                        <button type="button" id="hub-btn-toggle-pass" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: #161b26; border: 1px solid var(--kh-border); color: var(--kh-text-dim); padding: 4px 8px; font-size: 0.72rem; border-radius: 3px; cursor: pointer;">Show</button>
+                    </div>
                 </div>
 
                 <label style="display:flex; align-items:center; gap:0.5rem; font-size:0.76rem; color:var(--kh-text-muted); cursor:pointer;">
@@ -152,12 +180,52 @@
             </div>
         `;
         document.body.appendChild(authGateEl);
+        isolateUiEvents(authGateEl);
 
         inputAuthUser = document.getElementById('hub-input-user');
         inputAuthPass = document.getElementById('hub-input-pass');
         checkRememberAuth = document.getElementById('hub-check-remember');
         btnAuthSubmit = document.getElementById('hub-btn-login');
         authErrorBanner = document.getElementById('hub-auth-error');
+
+        const btnTogglePass = document.getElementById('hub-btn-toggle-pass');
+        if (btnTogglePass && inputAuthPass) {
+            btnTogglePass.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (inputAuthPass.type === 'password') {
+                    inputAuthPass.type = 'text';
+                    btnTogglePass.textContent = 'Hide';
+                } else {
+                    inputAuthPass.type = 'password';
+                    btnTogglePass.textContent = 'Show';
+                }
+                inputAuthPass.focus();
+            });
+        }
+
+        [inputAuthUser, inputAuthPass].forEach(input => {
+            if (!input) return;
+            isolateUiEvents(input);
+            input.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                input.focus();
+            });
+            input.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                input.focus();
+            });
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+                input.focus();
+            });
+        });
+
+        inputAuthUser.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                if (inputAuthPass) inputAuthPass.focus();
+            }
+        });
 
         btnAuthSubmit.addEventListener('click', performLogin);
         inputAuthPass.addEventListener('keydown', e => {
@@ -237,6 +305,15 @@
         authGateEl.classList.add('active');
         if (userAuthBadge) userAuthBadge.style.display = 'none';
         if (btnPlayStream) btnPlayStream.disabled = true;
+        setTimeout(() => {
+            if (inputAuthUser) {
+                if (!inputAuthUser.value) {
+                    inputAuthUser.focus();
+                } else if (inputAuthPass) {
+                    inputAuthPass.focus();
+                }
+            }
+        }, 80);
     }
 
     function unlockConsole(user, pass) {
@@ -549,6 +626,7 @@
             </footer>
         `;
         document.body.appendChild(lobbyEl);
+        isolateUiEvents(lobbyEl);
 
         // In-game top control bar
         inGameBarEl = document.createElement('div');
@@ -566,6 +644,7 @@
             <button class="in-game-btn btn-quit-danger" id="ingame-btn-quit">Quit Session</button>
         `;
         document.body.appendChild(inGameBarEl);
+        isolateUiEvents(inGameBarEl);
 
         // Loading Overlay
         loadingEl = document.createElement('div');
@@ -598,6 +677,11 @@
         launcherButtons = lobbyEl.querySelectorAll('.launcher-btn');
 
         document.getElementById('hub-btn-logout').addEventListener('click', performLogout);
+
+        [inputCustomW, inputCustomH].forEach(inp => {
+            if (!inp) return;
+            inp.addEventListener('click', () => inp.focus());
+        });
     }
 
     function updateFormValues() {

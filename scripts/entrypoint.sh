@@ -169,7 +169,7 @@ if [ "$IMAGE_VER" != "$USER_VER" ] || [ ! -f /home/gamer/.config/openbox/rc.xml 
     echo "$IMAGE_VER" > /home/gamer/.config/kyber_version
 fi
 
-chown -R gamer:gamer "$GAMES_ROOT" /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes 2>/dev/null || true
+chown -R gamer:gamer "$GAMES_ROOT" /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes /home/gamer/.steam /home/gamer/.cache 2>/dev/null || true
 
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then

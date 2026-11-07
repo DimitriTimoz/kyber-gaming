@@ -12,7 +12,7 @@ echo "[hub-launcher] Launching Kyber Gaming Console OS Kiosk on $DISPLAY..." >&2
 # Clean any existing profile lock or stale action
 rm -f /tmp/kyber_next_action 2>/dev/null || true
 : > /tmp/kyber_next_action 2>/dev/null || true
-rm -f /tmp/kyber-hub-profile/Singleton* 2>/dev/null || true
+rm -rf /tmp/kyber-hub-profile 2>/dev/null || true
 mkdir -p /tmp/kyber-hub-profile/Default
 
 # Suppress Google Translate and first-run prompts
@@ -61,7 +61,7 @@ else
         --ignore-certificate-errors \
         --allow-file-access-from-files \
         --user-data-dir=/tmp/kyber-hub-profile \
-        "$HUB_URL" >/dev/null 2>&1 &
+        "$HUB_URL" >/tmp/chrome_hub.log 2>&1 &
 fi
 
 # Wait up to 4s for the Hub window to map, then enforce fullscreen, 0,0 geometry, and active focus
@@ -104,13 +104,9 @@ if [ -s /tmp/kyber_next_action ]; then
     echo "[hub-launcher] Selection registered: $CHOICE" >&2
 fi
 
-# If the user closed the Hub on purpose, drop to the desktop instead of relaunching the Hub forever
+# If no action was selected or Chrome was closed/interrupted, default to menu
 if [ -z "$CHOICE" ]; then
-    if [ "${EXTERNAL_CLOSE:-0}" = "1" ]; then
-        CHOICE="desktop"
-    else
-        CHOICE="menu"
-    fi
+    CHOICE="menu"
 fi
 
 # Only close the Hub immediately when dropping to desktop; for game launchers, keep the Hub

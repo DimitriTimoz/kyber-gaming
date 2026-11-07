@@ -28,9 +28,23 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    letter-spacing: -0.012em;
+}
+
+body {
     user-select: none;
     -webkit-user-select: none;
-    letter-spacing: -0.012em;
+}
+
+input, textarea, select, .form-control {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    pointer-events: auto !important;
+    cursor: text !important;
+}
+
+select {
+    cursor: pointer !important;
 }
 
 html, body {
@@ -415,6 +429,10 @@ html, body {
     font-size: 0.82rem;
     font-family: var(--font-mono);
     outline: none;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    pointer-events: auto !important;
+    cursor: text;
 }
 
 .form-control:focus {
@@ -500,6 +518,9 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    pointer-events: auto;
+    position: relative;
+    z-index: 5001;
 }
 
 .modal-header {

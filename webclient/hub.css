@@ -288,8 +288,18 @@
     font-size: 0.84rem;
     font-family: var(--kh-font);
     outline: none;
-    cursor: pointer;
     box-sizing: border-box;
+    pointer-events: auto !important;
+}
+
+.setting-input {
+    cursor: text !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+}
+
+.setting-select {
+    cursor: pointer;
 }
 
 .setting-select:focus, .setting-input:focus {
@@ -482,10 +492,12 @@
     height: 100vh;
     background: rgba(9, 10, 14, 0.95);
     backdrop-filter: blur(12px);
-    z-index: 5000;
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 25000;
     display: none;
     align-items: center;
     justify-content: center;
+    pointer-events: auto;
 }
 
 .auth-gate-overlay.active {
@@ -502,6 +514,9 @@
     flex-direction: column;
     gap: 1.25rem;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    position: relative;
+    z-index: 25001;
+    pointer-events: auto;
 }
 
 .auth-gate-title {

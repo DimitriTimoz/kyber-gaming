@@ -594,9 +594,10 @@
             serverNameInput.value = '';
             serverHostInput.value = '';
             serverPortInput.value = '8080';
-            serverUserInput.value = 'gamer';
+            serverUserInput.value = '';
             serverPassInput.value = '';
             serverModal.classList.add('active');
+            setTimeout(() => serverNameInput.focus(), 60);
         });
 
         window.editServer = function (serverId) {
@@ -607,9 +608,10 @@
             serverNameInput.value = s.name;
             serverHostInput.value = s.host;
             serverPortInput.value = s.port;
-            serverUserInput.value = s.auth_user || 'gamer';
+            serverUserInput.value = s.auth_user || '';
             serverPassInput.value = s.auth_password || '';
             serverModal.classList.add('active');
+            setTimeout(() => serverNameInput.focus(), 60);
         };
 
         window.deleteServer = async function (serverId) {
@@ -627,6 +629,42 @@
 
         btnModalClose.addEventListener('click', closeModal);
         btnModalCancel.addEventListener('click', closeModal);
+        serverModal.addEventListener('click', (e) => {
+            if (e.target === serverModal) closeModal();
+        });
+
+        const btnToggleServerPass = document.getElementById('btnToggleServerPass');
+        if (btnToggleServerPass && serverPassInput) {
+            btnToggleServerPass.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (serverPassInput.type === 'password') {
+                    serverPassInput.type = 'text';
+                    btnToggleServerPass.textContent = 'Hide';
+                } else {
+                    serverPassInput.type = 'password';
+                    btnToggleServerPass.textContent = 'Show';
+                }
+                serverPassInput.focus();
+            });
+        }
+
+        [serverNameInput, serverHostInput, serverPortInput, serverUserInput, serverPassInput].forEach(inp => {
+            if (!inp) return;
+            inp.addEventListener('click', () => inp.focus());
+            inp.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (inp === serverUserInput && serverPassInput) {
+                        e.preventDefault();
+                        serverPassInput.focus();
+                    } else {
+                        btnModalSave.click();
+                    }
+                } else if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
 
         btnModalSave.addEventListener('click', async () => {
             const name = serverNameInput.value.trim() || 'Game Server';
@@ -1518,6 +1556,12 @@
             gamepadSelect.addEventListener('change', () => {
                 selectedGamepadIndex = gamepadSelect.value !== '' ? parseInt(gamepadSelect.value, 10) : null;
             });
+        }
+
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+        const macOSBadge = document.getElementById('macOSBadge');
+        if (isMac && macOSBadge) {
+            macOSBadge.style.display = 'inline-flex';
         }
 
         refreshGamepadList();

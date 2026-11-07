@@ -42,6 +42,20 @@ case "$TARGET" in
             ACTIVE_WID=$(xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | awk '{print $NF}')
         fi
 
+        # Verify ACTIVE_WID is a valid hexadecimal or decimal window ID
+        if ! echo "$ACTIVE_WID" | grep -qE "^(0x[0-9a-fA-F]+|[0-9]+)$"; then
+            ACTIVE_WID=""
+        fi
+
+        # If no active window exists to close, return directly to the Console Hub menu
+        if [ -z "$ACTIVE_WID" ]; then
+            echo "[switch_launcher] No active window found. Returning to Console Hub menu..."
+            kill_all_launchers
+            echo "menu" > /tmp/kyber_next_action
+            chmod 666 /tmp/kyber_next_action 2>/dev/null || true
+            exit 0
+        fi
+
         WIN_CLASS=""
         WIN_NAME=""
         WIN_PID=""

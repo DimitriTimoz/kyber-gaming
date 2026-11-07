@@ -275,6 +275,56 @@
                             </p>
                         </div>
                     </div>
+
+                    <!-- macOS Controller Architecture & Troubleshooting Guide -->
+                    <div class="settings-card" id="macOSControllerGuide">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.4rem;">
+                            <h2 class="settings-card-title" style="border-bottom: none; padding-bottom: 0; margin: 0;">macOS Controller Compatibility &amp; Setup Guide</h2>
+                            <span class="server-status-pill status-online" id="macOSBadge" style="display: none;">macOS Environment</span>
+                        </div>
+                        
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; display: flex; flex-direction: column; gap: 0.85rem;">
+                            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.85rem 1rem;">
+                                <div style="font-family: var(--font-mono); font-size: 0.74rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem; text-transform: uppercase;">Architecture &amp; How Controllers Function on macOS</div>
+                                <p style="margin: 0 0 0.5rem 0; color: var(--text-muted);">
+                                    macOS manages game controllers through Apple's native Game Controller framework. Bluetooth controllers (Xbox Wireless Controller Model 1708/1914, PlayStation DualShock 4 / DualSense, Nintendo Switch Pro) communicate via standard Bluetooth HID and work automatically once paired.
+                                </p>
+                                <p style="margin: 0; color: var(--text-muted);">
+                                    Wired USB Xbox controllers (Xbox One and Series X|S) use Microsoft's proprietary GIP protocol rather than standard USB HID. Because Apple does not include a GIP driver and has deprecated third-party kernel extensions (kexts), wired Xbox controllers will illuminate their power LED but will not register in Apple's Game Controller framework or Safari / WKWebView.
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.85rem 1rem;">
+                                <div style="font-family: var(--font-mono); font-size: 0.74rem; font-weight: 700; color: #fff; margin-bottom: 0.45rem; text-transform: uppercase;">Troubleshooting &amp; Configuration by Scenario</div>
+                                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
+                                    <div style="border-left: 2px solid var(--accent-blue); padding-left: 0.75rem;">
+                                        <div style="color: #fff; font-size: 0.78rem; font-weight: 600;">Scenario A: Wired Xbox One / Series Controller Connected via USB</div>
+                                        <p style="margin: 0.2rem 0 0 0; color: var(--text-muted);">
+                                            Go to <strong>Settings &gt; Stream Settings &gt; Player Mode</strong> and select <strong>Dedicated Game Window (Brave / Chrome App)</strong>. Chromium includes a built-in user-space IOKit driver that communicates directly with wired Xbox controllers without requiring system kernel extensions.
+                                        </p>
+                                    </div>
+                                    <div style="border-left: 2px solid var(--accent-blue); padding-left: 0.75rem;">
+                                        <div style="color: #fff; font-size: 0.78rem; font-weight: 600;">Scenario B: Bluetooth Controller Paired in macOS but Not Showing in Kyber</div>
+                                        <p style="margin: 0.2rem 0 0 0; color: var(--text-muted);">
+                                            Browser engines require physical user interaction before exposing gamepad telemetry. Click anywhere inside the Kyber window and press <strong>A, B, X, or Y</strong> on your controller to wake the Gamepad API. If it still does not respond, toggle Bluetooth off and on in <strong>System Settings &gt; Bluetooth</strong>.
+                                        </p>
+                                    </div>
+                                    <div style="border-left: 2px solid var(--accent-blue); padding-left: 0.75rem;">
+                                        <div style="color: #fff; font-size: 0.78rem; font-weight: 600;">Scenario C: Controller Detected Locally but Remote Linux Games Ignore Input</div>
+                                        <p style="margin: 0.2rem 0 0 0; color: var(--text-muted);">
+                                            Go to <strong>Settings &gt; Virtual Hardware</strong> and ensure <strong>Force Xbox 360 Controller Emulation</strong> is checked. Kyber translates all incoming controller packets into an emulated Xbox 360 device via Linux uinput on the host, ensuring seamless compatibility with Steam, Heroic, and emulators.
+                                        </p>
+                                    </div>
+                                    <div style="border-left: 2px solid var(--accent-blue); padding-left: 0.75rem;">
+                                        <div style="color: #fff; font-size: 0.78rem; font-weight: 600;">Scenario D: PlayStation DualSense / DualShock 4 or Nintendo Switch Pro</div>
+                                        <p style="margin: 0.2rem 0 0 0; color: var(--text-muted);">
+                                            PlayStation controllers use standard HID and work natively in both wired (USB-C) and wireless modes. To pair wirelessly, hold <strong>PS + Create/Share</strong> until the light bar flashes. For Switch Pro, hold the top sync button until the lower LEDs cycle, then connect via Bluetooth.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -466,11 +516,14 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="serverUserInput">Username</label>
-                        <input type="text" id="serverUserInput" class="form-control" placeholder="e.g. gamer">
+                        <input type="text" id="serverUserInput" class="form-control" placeholder="e.g. gamer" autocomplete="username">
                     </div>
                     <div class="form-group">
                         <label for="serverPassInput">Password</label>
-                        <input type="password" id="serverPassInput" class="form-control" placeholder="Password">
+                        <div style="position: relative; display: flex; align-items: center; width: 100%;">
+                            <input type="password" id="serverPassInput" class="form-control" placeholder="Password" autocomplete="current-password" style="padding-right: 4.5rem; width: 100%;">
+                            <button type="button" id="btnToggleServerPass" class="btn-pass-toggle" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: #1a202c; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 4px 8px; font-size: 0.72rem; border-radius: 3px; cursor: pointer;">Show</button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -66,16 +66,18 @@ clean_steam_locks() {
 
 if [ ! -f "$STEAMDIR/steam.sh" ]; then
     echo "[session] Steam bootstrap not detected. Initializing headless bootstrap..."
-    mkdir -p "$STEAMDIR/deb-installer"
+    mkdir -p "$STEAMDIR/deb-installer" 2>/dev/null || true
     version="1.0.0.79"
     url="https://repo.steampowered.com/steam/archive/beta/steam_${version}.tar.gz"
-    if curl -sSL "$url" -o "$STEAMDIR/deb-installer/steam_${version}.tar.gz"; then
+    if curl -sSL "$url" -o "$STEAMDIR/deb-installer/steam_${version}.tar.gz" 2>/dev/null; then
         tar -C "$STEAMDIR/deb-installer" -zxf "$STEAMDIR/deb-installer/steam_${version}.tar.gz" steam-launcher/bootstraplinux_ubuntu12_32.tar.xz 2>/dev/null || true
         if [ -f "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz" ]; then
-            tar -C "$STEAMDIR" -xf "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz"
-            echo "$version" > "$STEAMDIR/deb-installer/version"
+            tar -C "$STEAMDIR" -xf "$STEAMDIR/deb-installer/steam-launcher/bootstraplinux_ubuntu12_32.tar.xz" 2>/dev/null || true
+            echo "$version" > "$STEAMDIR/deb-installer/version" 2>/dev/null || true
             echo "[session] Steam bootstrap installed successfully."
         fi
+    else
+        echo "[session] Warning: Could not download Steam bootstrap. Proceeding..."
     fi
 fi
 
