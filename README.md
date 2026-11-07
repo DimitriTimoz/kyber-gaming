@@ -38,23 +38,23 @@ Low-latency WebTransport/QUIC streaming, virtual display emulation, Steam Big Pi
 
 <div align="center">
 
-### Steam Big Picture & Theater Mode
-<img src="docs/images/steam_theater.png" alt="Steam Big Picture Theater" width="95%" style="border-radius: 6px; margin-bottom: 20px;" />
+### Console OS Hub & Switch 2 Emulation (Eglantine NX2)
+<img src="docs/images/console_hub.png" alt="Kyber Console OS Hub with Eglantine NX2" width="95%" style="border-radius: 6px; margin-bottom: 24px;" />
 
 <br/>
 
-### Built-in ROM & Emulator File Manager
-<img src="docs/images/rom_manager.png" alt="ROM and Game Storage Manager" width="95%" style="border-radius: 6px; margin-bottom: 20px;" />
+### Native Tauri v2 Desktop Client (Multi-Server Fleet & Live Latency)
+<img src="docs/images/desktop_client.png" alt="Kyber Native Desktop Client" width="95%" style="border-radius: 6px; margin-bottom: 24px;" />
 
 <br/>
 
-### Console OS Dashboard & Telemetry
-<img src="docs/images/console_hub.png" alt="Console OS Dashboard" width="95%" style="border-radius: 6px; margin-bottom: 20px;" />
+### Desktop ROM & Game Library Explorer (Multi-Gigabyte Streaming)
+<img src="docs/images/rom_manager.png" alt="Desktop ROM and Game Storage Explorer" width="95%" style="border-radius: 6px; margin-bottom: 24px;" />
 
 <br/>
 
-### Native Desktop Client (macOS, Windows, Linux)
-<img src="docs/images/desktop_client.png" alt="Kyber Native Desktop Client" width="95%" style="border-radius: 6px;" />
+### In-Session Console Storage Overlay (Fast Keys & Game Sync)
+<img src="docs/images/hub_rom_explorer.png" alt="In-Session ROM Explorer Overlay" width="95%" style="border-radius: 6px;" />
 
 </div>
 

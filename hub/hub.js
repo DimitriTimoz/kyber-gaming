@@ -235,12 +235,24 @@
         }
 
         if (config) {
-            categories = config.categories || [{ id: 'all', name: 'Tous' }];
+            categories = config.categories || [{ id: 'all', name: 'All Experiences' }];
             allItems = config.items || [];
         }
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const reqApp = urlParams.get('app');
+        let initialIdx = 0;
+        if (reqApp) {
+            const foundIdx = allItems.findIndex(i => i.id === reqApp);
+            if (foundIdx !== -1) initialIdx = foundIdx;
+        }
+
         renderCategoryTabs();
-        filterAndRenderCards(0);
+        filterAndRenderCards(initialIdx);
+
+        if (urlParams.get('open_roms') === '1') {
+            setTimeout(openRomModal, 250);
+        }
     }
 
     // ==========================================================================

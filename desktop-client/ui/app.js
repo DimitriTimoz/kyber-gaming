@@ -13,6 +13,20 @@
         } else if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
             return await window.__TAURI_INTERNALS__.invoke(cmd, args);
         }
+        if (cmd === 'ping_server') {
+            return { online: true, latency_ms: args.host === '192.168.2.3' ? 4 : 18 };
+        }
+        if (cmd === 'rom_browse') {
+            try {
+                const url = `/api/roms/browse?path=${encodeURIComponent(args.path || '')}`;
+                const resp = await fetch(url, {
+                    headers: { 'Authorization': 'Basic ' + btoa(`${args.authUser || 'gamer'}:${args.authPassword || 'kybergaming'}`) }
+                });
+                if (resp.ok) return await resp.json();
+            } catch (e) {
+                console.warn('Mock rom_browse error:', e);
+            }
+        }
         console.warn(`[mock-tauri] invoke('${cmd}')`, args);
         return null;
     }
@@ -123,7 +137,15 @@
 
         // Load config from Rust backend
         await loadConfig();
-        probeAllServers();
+        await probeAllServers();
+
+        // Check URL parameters for tab switching
+        const urlParams = new URLSearchParams(window.location.search);
+        const reqTab = urlParams.get('tab') || window.location.hash.replace('#', '');
+        if (reqTab) {
+            const nav = document.querySelector(`.nav-item[data-view="${reqTab}"]`);
+            if (nav) nav.click();
+        }
     }
 
     // ==========================================================================
@@ -251,7 +273,7 @@
             const { physW, physH } = getDisplayResolutionProfiles();
             servers = [
                 { id: 'lan-main', name: 'Homelab Gaming (LAN)', host: '192.168.2.3', port: 8080 },
-                { id: 'tailscale-remote', name: 'Serveur Distant (Tailscale)', host: '100.73.113.43', port: 8080 }
+                { id: 'tailscale-remote', name: 'Cloud Gaming Rig (Tailscale)', host: '100.73.113.43', port: 8080 }
             ];
             settings = {
                 resolution: 'native',
@@ -377,8 +399,8 @@
         updateServerPill(server.id);
     }
 
-    function probeAllServers() {
-        servers.forEach(s => probeServer(s));
+    async function probeAllServers() {
+        await Promise.all(servers.map(s => probeServer(s)));
     }
 
     function updateServerPill(serverId) {
