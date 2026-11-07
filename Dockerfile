@@ -223,7 +223,7 @@ RUN mkdir -p /etc/kyber/tls /etc/kyber/openbox /etc/kyber/tint2 /etc/X11 /var/lo
     /home/gamer/.themes /usr/share/themes /usr/share/applications \
     /home/gamer/.local/share/Steam \
     /games/steam /games/heroic /games/roms /games/bios /games/saves && \
-    echo "1.0.2" > /etc/kyber/version && \
+    echo "1.0.3" > /etc/kyber/version && \
     chown -R gamer:gamer /games
 
 COPY config/xorg/xorg.nvidia.conf /etc/kyber/xorg.nvidia.conf

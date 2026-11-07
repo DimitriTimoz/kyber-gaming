@@ -1,6 +1,6 @@
 {
   "productName": "Kyber Gaming",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "identifier": "com.kyber.gaming",
   "build": {
     "frontendDist": "../ui"

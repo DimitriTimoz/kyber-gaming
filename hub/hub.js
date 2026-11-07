@@ -495,7 +495,6 @@
         }
 
         updateTrackPosition();
-        setDroneNote(currentItemIndex);
 
         if (playSound) playFocusSound();
     }
@@ -762,9 +761,8 @@
         playTabSound();
     }
 
-    // Generative drone: three soft oscillators through a breathing low-pass filter
+    // Generative ambient pad: soothing, ethereal console atmosphere (pure sine chord with breathing lowpass)
     let drone = null;
-    const DRONE_NOTES = [110, 123.47, 146.83, 164.81, 196, 220, 246.94, 293.66];
 
     function startDrone() {
         initAudio();
@@ -772,30 +770,48 @@
         const t = audioCtx.currentTime;
         const master = audioCtx.createGain();
         master.gain.setValueAtTime(0, t);
-        master.gain.linearRampToValueAtTime(0.035, t + 3);
+        master.gain.linearRampToValueAtTime(0.025, t + 2.5);
+
         const filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = 520;
+        filter.frequency.value = 240;
+
+        // Subtle, ultra-slow breathing LFO (0.04 Hz)
         const lfo = audioCtx.createOscillator();
         const lfoGain = audioCtx.createGain();
-        lfo.frequency.value = 0.07;
-        lfoGain.gain.value = 260;
+        lfo.type = 'sine';
+        lfo.frequency.value = 0.04;
+        lfoGain.gain.value = 80;
         lfo.connect(lfoGain);
         lfoGain.connect(filter.frequency);
-        const oscs = [1, 1.5, 2].map((mul, i) => {
+
+        // Peaceful harmonic console chord: A1 (55Hz), E2 (82.4Hz), A2 (110Hz), C#3 (138.6Hz)
+        // 100% pure sine waves with subtle detune for warm, analog stereo shimmer
+        const PADS = [
+            { freq: 55.00, gain: 0.9, detune: 0 },
+            { freq: 82.41, gain: 0.6, detune: 2 },
+            { freq: 110.0, gain: 0.5, detune: -2 },
+            { freq: 138.59, gain: 0.35, detune: 3 },
+            { freq: 220.0, gain: 0.2, detune: -1.5 },
+        ];
+
+        const oscs = PADS.map((p) => {
             const o = audioCtx.createOscillator();
-            o.type = i === 0 ? 'sine' : 'triangle';
-            o.frequency.value = DRONE_NOTES[0] * mul;
-            o.detune.value = (i - 1) * 6;
-            o.connect(filter);
+            const g = audioCtx.createGain();
+            o.type = 'sine';
+            o.frequency.value = p.freq;
+            o.detune.value = p.detune;
+            g.gain.value = p.gain;
+            o.connect(g);
+            g.connect(filter);
             o.start();
-            return { o, mul };
+            return { o, g };
         });
+
         filter.connect(master);
         master.connect(audioCtx.destination);
         lfo.start();
         drone = { master, oscs, lfo };
-        setDroneNote(currentItemIndex);
     }
 
     function stopDrone() {
@@ -806,14 +822,10 @@
         d.master.gain.cancelScheduledValues(t);
         d.master.gain.setValueAtTime(d.master.gain.value, t);
         d.master.gain.linearRampToValueAtTime(0, t + 1);
-        setTimeout(() => { d.oscs.forEach(x => x.o.stop()); d.lfo.stop(); }, 1200);
-    }
-
-    function setDroneNote(idx) {
-        if (!drone || !audioCtx) return;
-        const f = DRONE_NOTES[((idx % DRONE_NOTES.length) + DRONE_NOTES.length) % DRONE_NOTES.length];
-        const t = audioCtx.currentTime;
-        drone.oscs.forEach(x => x.o.frequency.setTargetAtTime(f * x.mul, t, 0.9));
+        setTimeout(() => {
+            d.oscs.forEach(x => { try { x.o.stop(); } catch (_) {} });
+            try { d.lfo.stop(); } catch (_) {}
+        }, 1200);
     }
 
     function applySound() {

@@ -268,7 +268,7 @@ EOF
 fi
 
 # System configuration version sync: automatically update Openbox/Tint2 configs on image upgrade
-IMAGE_VER=$(cat /etc/kyber/version 2>/dev/null || echo "1.0.2")
+IMAGE_VER=$(cat /etc/kyber/version 2>/dev/null || echo "1.0.3")
 USER_VER=$(cat /home/gamer/.config/kyber_version 2>/dev/null || echo "0.0.0")
 
 mkdir -p /home/gamer/.config/openbox /home/gamer/.config/tint2 /home/gamer/.themes /home/gamer/.local/share/applications
