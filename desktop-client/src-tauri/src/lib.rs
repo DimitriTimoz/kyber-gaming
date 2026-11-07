@@ -300,7 +300,26 @@ async fn launch_session(
         );
 
         #[cfg(target_os = "macos")]
-        let _ = std::process::Command::new("open").arg(&stream_url).spawn();
+        {
+            let candidates = [
+                "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            ];
+            let mut launched = false;
+            for bin in candidates {
+                if std::path::Path::new(bin).exists() {
+                    let _ = std::process::Command::new(bin)
+                        .arg(format!("--app={}", stream_url))
+                        .spawn();
+                    launched = true;
+                    break;
+                }
+            }
+            if !launched {
+                let _ = std::process::Command::new("open").arg(&stream_url).spawn();
+            }
+        }
         #[cfg(target_os = "windows")]
         let _ = std::process::Command::new("cmd").args(["/c", "start", &stream_url]).spawn();
         #[cfg(target_os = "linux")]
