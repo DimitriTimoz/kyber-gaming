@@ -7,6 +7,7 @@ Supports mouse clicks, arrow key navigation + Enter, and hotkeys (1, 2, 3, 4, Es
 
 import sys
 import os
+import json
 import subprocess
 import tkinter as tk
 
@@ -25,7 +26,7 @@ COLOR_EGLANTINE = "#e11d48"
 COLOR_DESKTOP = "#cbd5e1"
 COLOR_RELOAD = "#f43f5e"
 
-ITEMS = [
+DEFAULT_ITEMS = [
     {
         "id": "steam",
         "key": "1",
@@ -67,6 +68,38 @@ ITEMS = [
         "color": COLOR_DESKTOP,
     },
 ]
+
+def load_launchers_items():
+    paths = [
+        "/etc/kyber/launchers.json",
+        "/opt/kyber/hub/launchers.json",
+        os.path.join(os.path.dirname(__file__), "../config/launchers.json"),
+        os.path.join(os.path.dirname(__file__), "../hub/launchers.json"),
+    ]
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    items_raw = cfg.get("items", [])
+                    if items_raw:
+                        result = []
+                        for idx, it in enumerate(items_raw, 1):
+                            key_char = str(it.get("badge_key", str(idx)))
+                            result.append({
+                                "id": it.get("id", f"launcher_{idx}"),
+                                "key": key_char,
+                                "badge": f"[ KEY {key_char} ]",
+                                "title": it.get("name", "Launcher").upper(),
+                                "desc": it.get("desc", ""),
+                                "color": it.get("color", "#38bdf8"),
+                            })
+                        return result
+            except Exception:
+                pass
+    return DEFAULT_ITEMS
+
+ITEMS = load_launchers_items()
 
 class ModernLauncherHub:
     def __init__(self, root, wait_mode=False):
@@ -262,11 +295,12 @@ class ModernLauncherHub:
         self.root.bind("<Return>", lambda e: self.launch(ITEMS[self.current_idx]["id"]))
         self.root.bind("<space>", lambda e: self.launch(ITEMS[self.current_idx]["id"]))
 
-        self.root.bind("<Key-1>", lambda e: self.launch("steam"))
-        self.root.bind("<Key-2>", lambda e: self.launch("steam-bigpicture"))
-        self.root.bind("<Key-3>", lambda e: self.launch("heroic"))
-        self.root.bind("<Key-4>", lambda e: self.launch("eglantine"))
-        self.root.bind("<Key-5>", lambda e: self.launch("desktop"))
+        for item in ITEMS:
+            k = item.get("key", "").strip()
+            if k:
+                target_id = item["id"]
+                self.root.bind(f"<Key-{k}>", lambda e, tid=target_id: self.launch(tid))
+
         self.root.bind("<Escape>", lambda e: self.launch("desktop"))
 
     def launch(self, target):

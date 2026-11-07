@@ -432,7 +432,7 @@
         const server = servers.find(s => s.id === serverId);
         if (!server) return;
 
-        showToast(`Connexion a ${server.name}...`);
+        showToast(`Connecting to ${server.name}...`);
 
         let chosenResolution = settingResolution.value;
         if (chosenResolution === 'native' || !chosenResolution) {
@@ -827,6 +827,14 @@
         });
     }
 
+    function getControlPort(server) {
+        if (server) {
+            if (server.control_port) return parseInt(server.control_port, 10);
+            if (server.controlPort) return parseInt(server.controlPort, 10);
+        }
+        return 8081;
+    }
+
     async function loadDesktopDirectory(relPath) {
         const server = getSelectedRomServer();
         if (!server) {
@@ -837,7 +845,7 @@
         }
 
         currentDesktopBrowsePath = relPath !== undefined ? relPath : currentDesktopBrowsePath;
-        const controlPort = 8081;
+        const controlPort = getControlPort(server);
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
         desktopRomEmpty.style.display = 'none';
@@ -980,7 +988,7 @@
 
             // Render files
             const server = getSelectedRomServer();
-            const controlPort = 8081;
+            const controlPort = getControlPort(server);
             const authUser = (server && (server.auth_user || server.user)) || 'gamer';
             const authPassword = (server && (server.auth_password || server.password)) || 'kybergaming';
             const authParams = `&auth_user=${encodeURIComponent(authUser)}&auth_pass=${encodeURIComponent(authPassword)}`;
@@ -1054,7 +1062,7 @@
     async function extractDesktopStorageArchive(relPath, filename) {
         const server = getSelectedRomServer();
         if (!server) return;
-        const controlPort = 8081;
+        const controlPort = getControlPort(server);
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
         showToast(`Extraction: ${filename}...`);
@@ -1068,20 +1076,20 @@
                 authPassword: authPassword
             });
             if (res && res.status === 'ok') {
-                showToast(`Extraction terminee: ${filename}`);
+                showToast(`Extraction completed: ${filename}`);
                 loadDesktopDirectory(currentDesktopBrowsePath);
             } else {
-                showToast(`Echec d'extraction: ${(res && res.error) || 'Erreur'}`);
+                showToast(`Extraction failed: ${(res && res.error) || 'Error'}`);
             }
         } catch (err) {
-            showToast(`Erreur d'extraction: ${err}`);
+            showToast(`Extraction error: ${err}`);
         }
     }
 
     async function downloadDesktopStorageFile(relPath, filename) {
         const server = getSelectedRomServer();
         if (!server) return;
-        const controlPort = 8081;
+        const controlPort = getControlPort(server);
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
         showToast(`Downloading "${filename}"...`);
@@ -1114,7 +1122,7 @@
             showToast('No active server selected');
             return;
         }
-        const controlPort = 8081;
+        const controlPort = getControlPort(server);
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
 
@@ -1151,7 +1159,7 @@
         const confirmed = await showConfirmDialog('Delete Item', `Are you sure you want to delete ${label}?`, 'Delete', true);
         if (!confirmed) return;
 
-        const controlPort = 8081;
+        const controlPort = getControlPort(server);
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
 
@@ -1210,7 +1218,7 @@
         let uploadedBytes = 0;
         let overallStartTime = performance.now();
 
-        const controlPort = 8081;
+        const controlPort = getControlPort(server);
         const authUser = server.auth_user || server.user || 'gamer';
         const authPassword = server.auth_password || server.password || 'kybergaming';
 

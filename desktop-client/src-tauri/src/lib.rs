@@ -27,6 +27,7 @@ pub struct ServerEntry {
     pub name: String,
     pub host: String,
     pub port: u16,
+    pub control_port: Option<u16>,
     pub icon: Option<String>,
     pub auth_user: Option<String>,
     pub auth_password: Option<String>,
@@ -280,9 +281,10 @@ async fn launch_session(
     let client = get_http_client();
     let u = server.auth_user.as_deref().unwrap_or("gamer");
     let p = server.auth_password.as_deref().unwrap_or("kybergaming");
+    let control_port = server.control_port.unwrap_or(8081);
     let resize_url = format!(
-        "https://{}:8081/api/resize?width={}&height={}&rate={}&auth_user={}&auth_pass={}",
-        server.host, w, h, settings.refresh_rate, u, p
+        "https://{}:{}/api/resize?width={}&height={}&rate={}&auth_user={}&auth_pass={}",
+        server.host, control_port, w, h, settings.refresh_rate, u, p
     );
     let _ = client.get(&resize_url).send().await;
 
@@ -1029,6 +1031,7 @@ mod tests {
             name: "Homelab Rig".into(),
             host: "10.0.0.50".into(),
             port: 8080,
+            control_port: Some(8081),
             icon: None,
             auth_user: Some("gamer".into()),
             auth_password: Some("secret".into()),
@@ -1041,6 +1044,7 @@ mod tests {
         assert_eq!(deserialized.servers[0].name, "Homelab Rig");
         assert_eq!(deserialized.servers[0].host, "10.0.0.50");
         assert_eq!(deserialized.servers[0].port, 8080);
+        assert_eq!(deserialized.servers[0].control_port, Some(8081));
     }
 
     #[test]

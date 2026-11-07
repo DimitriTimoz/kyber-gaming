@@ -340,6 +340,18 @@ def cleanup_stale_upload_sessions(max_age_secs=3600):
             except Exception:
                 pass
 
+def run_upload_cleanup_loop(interval_secs=600, max_age_secs=3600):
+    while True:
+        try:
+            time.sleep(interval_secs)
+            cleanup_stale_upload_sessions(max_age_secs=max_age_secs)
+        except Exception:
+            pass
+
+def start_upload_cleanup_thread():
+    t = threading.Thread(target=run_upload_cleanup_loop, daemon=True, name="UploadCleanup")
+    t.start()
+
 def cancel_uploaded_session(upload_id):
     upload_id = re.sub(r'[^a-zA-Z0-9_\-]', '', str(upload_id))
     if not upload_id:
@@ -376,10 +388,14 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
 
     file_lock = get_upload_file_lock(upload_id)
     with file_lock:
-        if chunk_index == 0 and total_size > 0:
+        with UPLOAD_SESSIONS_LOCK:
+            is_new_session = upload_id not in UPLOAD_SESSIONS
+
+        if is_new_session and total_size > 0:
             try:
                 statvfs = shutil.disk_usage(temp_session_dir)
                 if statvfs.free < (total_size + 50 * 1024 * 1024):
+                    shutil.rmtree(temp_session_dir, ignore_errors=True)
                     return {"error": "Insufficient disk space on server for upload", "status": "error"}
             except Exception:
                 pass
@@ -904,7 +920,7 @@ def get_launchers_config():
                 print(f"[resizer] Error reading {p}: {e}", file=sys.stderr)
 
     if not config:
-        config = {"categories": [{"id": "all", "name": "Tous"}], "items": []}
+        config = {"categories": [{"id": "all", "name": "All"}], "items": []}
 
     # Annotate items with installed status based on container PATH
     for item in config.get("items", []):
@@ -1031,7 +1047,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
             if is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"authenticated": True, "user": AUTH_USER})
             else:
-                self._send_json_response({"authenticated": False, "error": "Identifiants invalides"}, code=401)
+                self._send_json_response({"authenticated": False, "error": "Invalid credentials"}, code=401)
             return
 
         # Protect sensitive execution endpoints
@@ -1301,6 +1317,7 @@ class DualProtocolHTTPServer(ThreadingHTTPServer):
 def main():
     print(f"[kyber-control] Starting Kyber Gaming Control Service on port {PORT} for display {DISPLAY}...")
     start_discovery_responder()
+    start_upload_cleanup_thread()
     tls_cert = os.environ.get("TLS_CERT", "/etc/kyber/tls/cert.pem")
     tls_key = os.environ.get("TLS_KEY", "/etc/kyber/tls/key.pem")
     ssl_ctx = None

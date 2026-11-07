@@ -539,10 +539,18 @@ except Exception: pass
                         if [ -n "$NEXT" ] && [ "$NEXT" != "$CURRENT_ACTION" ]; then
                             echo "[session] Action switch requested: $NEXT"
                             kill -TERM "$APP_PID" 2>/dev/null || true
-                            pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            if [ "$CURRENT_ACTION" = "eglantine" ]; then
+                                pkill -TERM -u gamer -f "eglantine|eden|ryujinx" 2>/dev/null || true
+                            else
+                                pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            fi
                             sleep 0.3
                             kill -9 "$APP_PID" 2>/dev/null || true
-                            pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            if [ "$CURRENT_ACTION" = "eglantine" ]; then
+                                pkill -9 -u gamer -f "eglantine|eden|ryujinx" 2>/dev/null || true
+                            else
+                                pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            fi
                             CURRENT_ACTION="$NEXT"
                             break
                         fi
@@ -550,6 +558,8 @@ except Exception: pass
 
                     IS_ALIVE=0
                     if kill -0 "$APP_PID" 2>/dev/null; then
+                        IS_ALIVE=1
+                    elif [ "$CURRENT_ACTION" = "eglantine" ] && pgrep -u gamer -f "eglantine|eden|ryujinx" >/dev/null 2>&1; then
                         IS_ALIVE=1
                     elif pgrep -u gamer -f "$CURRENT_ACTION" >/dev/null 2>&1; then
                         IS_ALIVE=1
@@ -561,7 +571,11 @@ except Exception: pass
                     fi
 
                     APP_WID=""
-                    for wid in $(wmctrl -lx 2>/dev/null | grep -i "$CURRENT_ACTION" | awk '{print $1}'); do
+                    MATCH_QUERY="$CURRENT_ACTION"
+                    if [ "$CURRENT_ACTION" = "eglantine" ]; then
+                        MATCH_QUERY="eglantine|eden|ryujinx"
+                    fi
+                    for wid in $(wmctrl -lx 2>/dev/null | grep -iE "$MATCH_QUERY" | awk '{print $1}'); do
                         if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
                             APP_WID="$wid"
                             break
