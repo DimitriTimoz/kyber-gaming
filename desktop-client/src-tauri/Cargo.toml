@@ -1,6 +1,6 @@
 [package]
 name = "kyber-desktop"
-version = "1.0.1"
+version = "1.0.2"
 description = "Kyber Homelab Cloud Gaming Cross-Platform Desktop Client"
 authors = ["Kyber Contributors"]
 edition = "2021"

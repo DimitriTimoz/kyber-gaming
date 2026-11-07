@@ -61,7 +61,7 @@ def run_discovery_responder():
                         "name": server_name,
                         "port": int(os.environ.get("KYBER_PORT", "8080")),
                         "control_port": PORT,
-                        "version": "1.0.0"
+                        "version": "1.0.2"
                     }).encode("utf-8")
                     sock.sendto(payload, addr)
             except Exception:
