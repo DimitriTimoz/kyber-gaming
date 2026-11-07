@@ -258,11 +258,6 @@ COPY scripts/install_nvidia_xorg.sh /usr/local/bin/install_nvidia_xorg.sh
 COPY scripts/client_autoresize.js /opt/kyber/webclient/autoresize.js
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# Configure ld.so for Kyber shared libraries
-RUN echo "/opt/kyber/lib/x86_64-linux-gnu" > /etc/ld.so.conf.d/kyber.conf && \
-    echo "/opt/kyber/lib" >> /etc/ld.so.conf.d/kyber.conf && \
-    ldconfig
-
 RUN chmod +x /usr/local/bin/*.sh /usr/local/bin/*.py /home/gamer/.config/openbox/autostart && \
     chown -R gamer:gamer /home/gamer /etc/kyber /opt/kyber
 

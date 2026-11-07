@@ -321,7 +321,9 @@ async fn launch_session(
             }
         }
         #[cfg(target_os = "windows")]
-        let _ = std::process::Command::new("cmd").args(["/c", "start", &stream_url]).spawn();
+        let _ = std::process::Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", &stream_url])
+            .spawn();
         #[cfg(target_os = "linux")]
         let _ = std::process::Command::new("xdg-open").arg(&stream_url).spawn();
 
@@ -837,8 +839,17 @@ async fn rom_download_file(
     let host = clean_host(&host);
     let client = get_http_client();
 
+    let raw_name = std::path::Path::new(&filename)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| "Invalid filename".to_string())?;
+    let safe_name = raw_name.replace("..", "").replace(['/', '\\'], "_");
+    if safe_name.is_empty() {
+        return Err("Invalid filename".to_string());
+    }
+
     let download_dir = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
-    let target_file_path = download_dir.join(&filename);
+    let target_file_path = download_dir.join(&safe_name);
 
     let mut query = vec![("path", path)];
     if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
@@ -979,4 +990,80 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clean_host_variants() {
+        assert_eq!(clean_host("192.168.1.100"), "192.168.1.100");
+        assert_eq!(clean_host("http://192.168.1.100"), "192.168.1.100");
+        assert_eq!(clean_host("https://192.168.1.100"), "192.168.1.100");
+        assert_eq!(clean_host("https://192.168.1.100:8080"), "192.168.1.100");
+        assert_eq!(clean_host("https://192.168.1.100:8080/webclient"), "192.168.1.100");
+        assert_eq!(clean_host("gaming.local:8081"), "gaming.local");
+        assert_eq!(clean_host("  gaming.local  "), "gaming.local");
+        assert_eq!(clean_host("http://gaming.local/api/system"), "gaming.local");
+    }
+
+    #[test]
+    fn test_default_app_config() {
+        let config = AppConfig::default();
+        assert!(config.servers.is_empty());
+        assert_eq!(config.settings.resolution, "native");
+        assert_eq!(config.settings.refresh_rate, "60");
+        assert_eq!(config.settings.codec, "h264");
+        assert_eq!(config.settings.audio_buffer, "80");
+        assert!(config.settings.tls_skip);
+        assert!(config.settings.force_xbox);
+        assert!(config.settings.keyboard_grab);
+    }
+
+    #[test]
+    fn test_config_json_roundtrip() {
+        let mut config = AppConfig::default();
+        config.servers.push(ServerEntry {
+            id: "srv1".into(),
+            name: "Homelab Rig".into(),
+            host: "10.0.0.50".into(),
+            port: 8080,
+            icon: None,
+            auth_user: Some("gamer".into()),
+            auth_password: Some("secret".into()),
+        });
+
+        let serialized = serde_json::to_string(&config).expect("serialization failed");
+        let deserialized: AppConfig = serde_json::from_str(&serialized).expect("deserialization failed");
+
+        assert_eq!(deserialized.servers.len(), 1);
+        assert_eq!(deserialized.servers[0].name, "Homelab Rig");
+        assert_eq!(deserialized.servers[0].host, "10.0.0.50");
+        assert_eq!(deserialized.servers[0].port, 8080);
+    }
+
+    #[test]
+    fn test_filename_sanitization_defense() {
+        let malicious_inputs = [
+            "../../etc/passwd",
+            "/etc/shadow",
+            "..\\..\\Windows\\System32\\calc.exe",
+            "../../../games/roms/secret.nsp",
+            "/absolute/path/game.xci",
+        ];
+
+        for input in malicious_inputs {
+            let raw_name = std::path::Path::new(input)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+            let safe_name = raw_name.replace("..", "").replace(['/', '\\'], "_");
+
+            assert!(!safe_name.contains("/"));
+            assert!(!safe_name.contains('\\'));
+            assert!(!safe_name.contains(".."));
+            assert!(!safe_name.is_empty());
+        }
+    }
 }

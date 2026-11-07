@@ -17,12 +17,12 @@
     }
 
     # Reverse proxy Kyber Control Plane (API, display resizer & ROM manager)
-    handle_path /api/* {
+    handle /api/* {
         reverse_proxy 127.0.0.1:8081
     }
 
     # Reverse proxy Hub kiosk static files
-    handle_path /hub/* {
+    handle /hub/* {
         reverse_proxy 127.0.0.1:8081
     }
 

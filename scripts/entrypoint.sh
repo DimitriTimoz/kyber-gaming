@@ -288,32 +288,38 @@ AUTH_HASH=$(echo -n "$AUTH_PASSWORD" | sha256sum | awk '{print $1}')
 
 echo "[entrypoint] Configuring Kyber controller authentication for user: $AUTH_USER"
 if [ -f "$KYBER_CONF" ]; then
-    python3 -c "
-conf_path = '$KYBER_CONF'
-with open(conf_path, 'r') as f:
-    lines = f.readlines()
+    AUTH_USER="$AUTH_USER" AUTH_HASH="$AUTH_HASH" KYBER_CONF="$KYBER_CONF" python3 - << 'PYEOF'
+import os
 
-new_lines = []
-in_auth = False
-for line in lines:
-    if line.strip().startswith('[kycontroller.auth.basic]'):
-        in_auth = True
-        new_lines.append(line)
-        new_lines.append('enabled = true\n\n')
-        new_lines.append('[[kycontroller.auth.basic.logins]]\n')
-        new_lines.append('username = \"$AUTH_USER\"\n')
-        new_lines.append('password = \"$AUTH_HASH\"\n\n')
-        continue
-    if in_auth:
-        if line.strip().startswith('[') and not line.strip().startswith('[[kycontroller.auth'):
-            in_auth = False
+conf_path = os.environ.get("KYBER_CONF")
+auth_user = os.environ.get("AUTH_USER", "gamer")
+auth_hash = os.environ.get("AUTH_HASH", "")
+
+if conf_path and os.path.exists(conf_path):
+    with open(conf_path, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    new_lines = []
+    in_auth = False
+    for line in lines:
+        if line.strip().startswith("[kycontroller.auth.basic]"):
+            in_auth = True
             new_lines.append(line)
-        continue
-    new_lines.append(line)
+            new_lines.append("enabled = true\n\n")
+            new_lines.append("[[kycontroller.auth.basic.logins]]\n")
+            new_lines.append(f"username = \"{auth_user}\"\n")
+            new_lines.append(f"password = \"{auth_hash}\"\n\n")
+            continue
+        if in_auth:
+            if line.strip().startswith("[") and not line.strip().startswith("[[kycontroller.auth"):
+                in_auth = False
+                new_lines.append(line)
+            continue
+        new_lines.append(line)
 
-with open(conf_path, 'w') as f:
-    f.writelines(new_lines)
-" || true
+    with open(conf_path, "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+PYEOF
     chown gamer:gamer "$KYBER_CONF"
 fi
 

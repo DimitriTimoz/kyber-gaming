@@ -103,13 +103,22 @@
                   </div>
                   <script>
                     function switchLauncher(app) {
-                      const port = 8081;
-                      const proto = window.location.protocol;
-                      const host = window.location.hostname;
+                      const loc = window.location;
+                      const host = loc.hostname || '127.0.0.1';
+                      let baseUrl = `${loc.protocol}//${host}`;
+                      if (loc.port === '8080') {
+                        baseUrl = `${loc.protocol}//${host}:8081`;
+                      } else if (loc.port && loc.port !== '443' && loc.port !== '80') {
+                        baseUrl = `${loc.protocol}//${loc.host}`;
+                      }
                       const user = localStorage.getItem('kyber_auth_user') || '';
                       const pass = localStorage.getItem('kyber_auth_pass') || '';
                       const authParams = (user && pass) ? `&auth_user=${encodeURIComponent(user)}&auth_pass=${encodeURIComponent(pass)}` : '';
-                      fetch(`${proto}//${host}:${port}/api/launcher?app=${encodeURIComponent(app)}${authParams}`)
+                      const headers = {};
+                      if (user && pass) {
+                        try { headers['Authorization'] = 'Basic ' + btoa(user + ':' + pass); } catch (e) {}
+                      }
+                      fetch(`${baseUrl}/api/launcher?app=${encodeURIComponent(app)}${authParams}`, { headers })
                         .then(r => r.json())
                         .then(d => console.log('Switched launcher:', d))
                         .catch(e => console.error('Error switching launcher:', e));

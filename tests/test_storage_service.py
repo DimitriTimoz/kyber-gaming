@@ -337,5 +337,64 @@ class TestStorageService(unittest.TestCase):
         self.assertEqual(res_query["status"], "ok")
         self.assertFalse(os.path.exists(test_file))
 
+    # -------------------------------------------------------------
+    # 7. Authentication & Reverse Proxy Security Tests
+    # -------------------------------------------------------------
+
+    def test_local_direct_request_authenticated(self):
+        # Direct local request from container/host without proxy headers should be trusted
+        headers = {}
+        params = {}
+        self.assertTrue(kcs.is_authenticated(("127.0.0.1", 54321), headers, params))
+        self.assertTrue(kcs.is_authenticated(("::1", 54321), headers, params))
+        self.assertTrue(kcs.is_authenticated(("localhost", 0), headers, params))
+
+    def test_reverse_proxy_blocks_unauthenticated_request(self):
+        # External request forwarded through Caddy/reverse proxy arrives from 127.0.0.1
+        # but contains X-Forwarded-For or X-Real-IP. MUST NOT be trusted without credentials.
+        proxy_headers_1 = {"X-Forwarded-For": "203.0.113.195"}
+        proxy_headers_2 = {"X-Real-IP": "198.51.100.4"}
+        proxy_headers_3 = {"Forwarded": "for=203.0.113.195;proto=https"}
+        params = {}
+
+        self.assertFalse(kcs.is_authenticated(("127.0.0.1", 8081), proxy_headers_1, params))
+        self.assertFalse(kcs.is_authenticated(("127.0.0.1", 8081), proxy_headers_2, params))
+        self.assertFalse(kcs.is_authenticated(("127.0.0.1", 8081), proxy_headers_3, params))
+
+    def test_authenticated_with_valid_basic_auth(self):
+        # Valid Basic auth must succeed even through reverse proxy
+        import base64
+        valid_b64 = base64.b64encode(f"{kcs.AUTH_USER}:{kcs.AUTH_PASSWORD}".encode()).decode()
+        headers = {
+            "Authorization": f"Basic {valid_b64}",
+            "X-Forwarded-For": "203.0.113.50"
+        }
+        self.assertTrue(kcs.is_authenticated(("127.0.0.1", 8081), headers, {}))
+
+    def test_authenticated_with_invalid_basic_auth(self):
+        import base64
+        invalid_b64 = base64.b64encode(b"gamer:wrongpassword").decode()
+        headers = {
+            "Authorization": f"Basic {invalid_b64}",
+            "X-Forwarded-For": "203.0.113.50"
+        }
+        self.assertFalse(kcs.is_authenticated(("127.0.0.1", 8081), headers, {}))
+
+    def test_authenticated_with_query_parameters(self):
+        params_valid = {"auth_user": [kcs.AUTH_USER], "auth_pass": [kcs.AUTH_PASSWORD]}
+        headers = {"X-Forwarded-For": "203.0.113.50"}
+        self.assertTrue(kcs.is_authenticated(("127.0.0.1", 8081), headers, params_valid))
+
+        params_invalid = {"auth_user": [kcs.AUTH_USER], "auth_pass": ["badpass"]}
+        self.assertFalse(kcs.is_authenticated(("127.0.0.1", 8081), headers, params_invalid))
+
+    def test_authenticated_with_custom_headers(self):
+        headers_valid = {
+            "X-Forwarded-For": "203.0.113.50",
+            "X-Auth-User": kcs.AUTH_USER,
+            "X-Auth-Password": kcs.AUTH_PASSWORD
+        }
+        self.assertTrue(kcs.is_authenticated(("127.0.0.1", 8081), headers_valid, {}))
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,7 @@ Unified control plane daemon for:
 - Web server for Kyber Console OS Hub and Web Client
 """
 
+import hmac
 import os
 import sys
 import json
@@ -482,6 +483,7 @@ def post_process_extracted_content(search_dir):
     keys_dirs = [
         "/home/gamer/.local/share/eglantine/keys",
         "/home/gamer/.local/share/eden/keys",
+        os.path.join(ROMS_BASE_DIR, "eglantine/keys"),
         "/home/gamer/roms/eglantine/keys"
     ]
     for root, _, files in os.walk(search_dir):
@@ -503,6 +505,7 @@ def post_process_extracted_content(search_dir):
             if lower.endswith(".nca"):
                 firmware_targets = [
                     "/home/gamer/.local/share/eden/nand/system/Contents/registered",
+                    os.path.join(ROMS_BASE_DIR, "eglantine/firmware"),
                     "/home/gamer/roms/eglantine/firmware"
                 ]
                 for ftarget in firmware_targets:
@@ -757,27 +760,48 @@ def delete_rom_file(system_id, filename):
         return {"status": "ok", "deleted": safe_name}
     return {"error": "File not found", "status": "error"}
 
-def is_authenticated(client_address, headers, params):
-    # Local requests originating from container/host localhost (e.g. Console Hub kiosk) are trusted
-    client_ip = client_address[0] if client_address else ""
-    if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
-        return True
+def _check_credentials(u, p):
+    if not u or not p:
+        return False
+    return hmac.compare_digest(str(u), AUTH_USER) and hmac.compare_digest(str(p), AUTH_PASSWORD)
 
+def is_authenticated(client_address, headers, params):
+    # 1. Check HTTP Basic Authentication
     auth_header = headers.get("Authorization", "")
     if auth_header.startswith("Basic "):
         try:
             decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
             if ":" in decoded:
                 u, p = decoded.split(":", 1)
-                if u == AUTH_USER and p == AUTH_PASSWORD:
+                if _check_credentials(u, p):
                     return True
         except Exception:
             pass
 
+    # 2. Check query or form parameters
     u = params.get("auth_user", [None])[0]
     p = params.get("auth_pass", [None])[0]
-    if u == AUTH_USER and p == AUTH_PASSWORD:
+    if _check_credentials(u, p):
         return True
+
+    # 3. Check custom authentication headers
+    hu = headers.get("X-Auth-User")
+    hp = headers.get("X-Auth-Password")
+    if hu and hp and _check_credentials(hu, hp):
+        return True
+
+    # 4. Local kiosk / internal trust
+    # Requests with proxy headers (X-Forwarded-For, X-Real-IP, Forwarded) are external requests
+    # forwarded through Caddy or another reverse proxy and MUST NOT be auto-trusted as localhost.
+    has_proxy_headers = bool(
+        headers.get("X-Forwarded-For") or
+        headers.get("X-Real-IP") or
+        headers.get("Forwarded")
+    )
+    if not has_proxy_headers:
+        client_ip = client_address[0] if client_address else ""
+        if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return True
 
     return False
 

@@ -244,11 +244,36 @@
         lockConsole();
     }
 
+    function getApiEndpoint(endpointPath) {
+        const cleanPath = endpointPath.startsWith('/') ? endpointPath : `/${endpointPath}`;
+        const loc = window.location;
+        const host = state.host || loc.hostname || '127.0.0.1';
+        if (!loc.port || loc.port === '443' || loc.port === '80') {
+            return `${loc.protocol}//${host}${cleanPath}`;
+        }
+        if (loc.port === '8080' || state.port === '8080') {
+            return `${loc.protocol}//${host}:${state.resizerPort || 8081}${cleanPath}`;
+        }
+        return `${loc.protocol}//${loc.host}${cleanPath}`;
+    }
+
+    function getAuthHeaders(user, pass) {
+        const u = user || state.authUser;
+        const p = pass || state.authPass;
+        const headers = {};
+        if (u && p) {
+            try {
+                headers['Authorization'] = 'Basic ' + btoa(u + ':' + p);
+            } catch (e) {}
+        }
+        return headers;
+    }
+
     async function verifyCredentials(user, pass) {
-        const proto = window.location.protocol;
-        const url = `${proto}//${state.host}:${state.resizerPort}/api/auth/verify?auth_user=${encodeURIComponent(user)}&auth_pass=${encodeURIComponent(pass)}`;
+        const base = getApiEndpoint('/api/auth/verify');
+        const url = `${base}?auth_user=${encodeURIComponent(user)}&auth_pass=${encodeURIComponent(pass)}`;
         try {
-            const res = await fetch(url);
+            const res = await fetch(url, { headers: getAuthHeaders(user, pass) });
             if (res.ok) {
                 const data = await res.json();
                 return data.authenticated === true;
@@ -782,12 +807,10 @@
     // Host Communication & Dynamic Resizing
     // ==========================================================================
     function fetchSystemStatus() {
-        const proto = window.location.protocol;
-        const host = state.host;
-        const resizerUrl = `${proto}//${host}:${state.resizerPort}/api/system`;
+        const resizerUrl = getApiEndpoint('/api/system');
 
         const start = performance.now();
-        fetch(resizerUrl)
+        fetch(resizerUrl, { headers: getAuthHeaders() })
             .then(r => r.json())
             .then(data => {
                 const latency = Math.round(performance.now() - start);
@@ -814,11 +837,11 @@
     }
 
     function switchHostLauncher(launcher) {
-        const proto = window.location.protocol;
-        const url = `${proto}//${state.host}:${state.resizerPort}/api/launcher?app=${encodeURIComponent(launcher)}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
+        const base = getApiEndpoint('/api/launcher');
+        const url = `${base}?app=${encodeURIComponent(launcher)}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
         const name = LAUNCHER_DISPLAY_NAMES[launcher] || launcher;
         showLoadingScreen('SWITCHING ENVIRONMENT', `Launching ${name}...`, 3000);
-        fetch(url).catch(e => console.warn('Failed to switch launcher:', e));
+        fetch(url, { headers: getAuthHeaders() }).catch(e => console.warn('Failed to switch launcher:', e));
     }
 
     function getTargetResolutionDimensions() {
@@ -836,9 +859,9 @@
     }
 
     function resizeHostScreen(w, h, fps) {
-        const proto = window.location.protocol;
-        const url = `${proto}//${state.host}:${state.resizerPort}/api/resize?width=${w}&height=${h}&rate=${fps}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
-        return fetch(url).catch(e => console.warn('Failed to resize display:', e));
+        const base = getApiEndpoint('/api/resize');
+        const url = `${base}?width=${w}&height=${h}&rate=${fps}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
+        return fetch(url, { headers: getAuthHeaders() }).catch(e => console.warn('Failed to resize display:', e));
     }
 
     // ==========================================================================
