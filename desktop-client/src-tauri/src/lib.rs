@@ -63,17 +63,7 @@ pub struct PingResult {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            servers: vec![
-                ServerEntry {
-                    id: "lan-main".into(),
-                    name: "Homelab Gaming (LAN)".into(),
-                    host: "192.168.2.3".into(),
-                    port: 8080,
-                    icon: None,
-                    auth_user: Some("gamer".into()),
-                    auth_password: Some("kybergaming".into()),
-                },
-            ],
+            servers: Vec::new(),
             settings: StreamSettings {
                 resolution: "native".into(),
                 refresh_rate: "60".into(),

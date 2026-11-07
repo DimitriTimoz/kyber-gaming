@@ -14,7 +14,7 @@
             return await window.__TAURI_INTERNALS__.invoke(cmd, args);
         }
         if (cmd === 'ping_server') {
-            return { online: true, latency_ms: args.host === '192.168.2.3' ? 4 : 18 };
+            return { online: true, latency_ms: 12 };
         }
         if (cmd === 'rom_browse') {
             try {
@@ -270,11 +270,7 @@
                 settings.resolution = 'native';
             }
         } else {
-            const { physW, physH } = getDisplayResolutionProfiles();
-            servers = [
-                { id: 'lan-main', name: 'Homelab Gaming (LAN)', host: '192.168.2.3', port: 8080 },
-                { id: 'tailscale-remote', name: 'Cloud Gaming Rig (Tailscale)', host: '100.73.113.43', port: 8080 }
-            ];
+            servers = [];
             settings = {
                 resolution: 'native',
                 refresh_rate: '60',
@@ -337,6 +333,20 @@
     function renderServers() {
         serversGrid.innerHTML = '';
         quickServerCount.textContent = `${servers.length} server${servers.length > 1 ? 's' : ''}`;
+
+        if (servers.length === 0) {
+            serversGrid.innerHTML = `
+                <div class="empty-servers-card" style="grid-column: 1 / -1; padding: 40px 20px; text-align: center; background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px;">
+                    <div style="font-weight: 600; font-size: 1.05rem; margin-bottom: 8px; color: var(--text-primary, #fff);">No servers configured</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted, #888); margin-bottom: 18px;">Add your gaming host IP or scan your local network to discover Kyber nodes.</div>
+                    <div style="display: flex; justify-content: center; gap: 10px;">
+                        <button class="btn btn-primary" onclick="document.getElementById('btnAddServer').click()">Add Server</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('btnScanServers').click()">Scan Network</button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
 
         servers.forEach(server => {
             const card = document.createElement('div');

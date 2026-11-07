@@ -261,9 +261,9 @@ Tailscale provides an encrypted, zero-configuration peer-to-peer connection:
    sudo tailscale up
    ```
 2. Install Tailscale on your client device (Mac, PC, Linux).
-3. Connect using your server's Tailscale 100.x.x.x IP:
-   - Server: `100.73.113.43:8080`
-   - Control API: `100.73.113.43:8081`
+3. Connect using your server's Tailscale IP:
+   - Server: `<tailscale-ip>:8080` (e.g. `100.64.0.1:8080`)
+   - Control API: `<tailscale-ip>:8081` (e.g. `100.64.0.1:8081`)
 4. No router port forwarding or public IP exposure required.
 
 ### Production HTTPS & HTTP/3 via Caddy

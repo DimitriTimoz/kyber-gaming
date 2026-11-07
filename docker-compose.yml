@@ -24,8 +24,8 @@ services:
       - LAUNCHER=menu           # Options: menu (default), steam, steam-bigpicture, heroic, browser, desktop
       
       # Authentication (secures streaming controller & Kyber Control Plane API)
-      - AUTH_USER=gamer
-      - AUTH_PASSWORD=kybergaming
+      - AUTH_USER=${AUTH_USER:-gamer}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-kybergaming}
       
       # NVIDIA Container Toolkit flags
       - NVIDIA_VISIBLE_DEVICES=all
