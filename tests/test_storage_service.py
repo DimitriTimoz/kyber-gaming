@@ -411,5 +411,21 @@ class TestStorageService(unittest.TestCase):
         self.assertIn("vram_used", telemetry["gpu"])
         self.assertIn("vram_total", telemetry["gpu"])
 
+    def test_retroarch_and_multi_systems_definition(self):
+        system_ids = [s["id"] for s in kcs.ROM_SYSTEMS_DEF]
+        self.assertIn("switch", system_ids)
+        self.assertIn("ps1", system_ids)
+        self.assertIn("ps2", system_ids)
+        self.assertIn("n64", system_ids)
+        self.assertIn("snes", system_ids)
+        self.assertIn("gba", system_ids)
+        self.assertIn("arcade", system_ids)
+
+        inventory = kcs.list_roms_inventory()
+        self.assertIn("systems", inventory)
+        inv_ids = [s["id"] for s in inventory["systems"]]
+        self.assertIn("ps1", inv_ids)
+        self.assertIn("snes", inv_ids)
+
 if __name__ == "__main__":
     unittest.main()

@@ -1230,6 +1230,10 @@
     // ==========================================================================
     const PRESET_FOLDERS = [
         { id: 'switch_games', name: 'Switch Games', path: 'eglantine/games' },
+        { id: 'ps1', name: 'PlayStation 1', path: 'ps1' },
+        { id: 'ps2', name: 'PlayStation 2', path: 'ps2' },
+        { id: 'n64', name: 'Nintendo 64', path: 'n64' },
+        { id: 'snes', name: 'SNES / GBA', path: 'snes' },
         { id: 'switch_updates', name: 'Updates', path: 'eglantine/updates' },
         { id: 'switch_dlc', name: 'DLC Packs', path: 'eglantine/dlc' },
         { id: 'switch_keys', name: 'Keys', path: 'eglantine/keys' },
@@ -1738,6 +1742,7 @@
             if (id === 'heroic' && currentRunningApps.heroic) isRunning = true;
             if (id === 'browser' && currentRunningApps.browser) isRunning = true;
             if (id === 'eglantine' && currentRunningApps.eglantine) isRunning = true;
+            if (id === 'retroarch' && currentRunningApps.retroarch) isRunning = true;
 
             let badge = card.querySelector('.running-badge');
             if (isRunning) {

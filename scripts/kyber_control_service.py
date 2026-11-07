@@ -84,6 +84,14 @@ def start_discovery_responder():
 
 ROM_SYSTEMS_DEF = [
     {"id": "switch", "name": "Nintendo Switch & NX2 (Eglantine)", "extensions": [".nsp", ".xci", ".nsz", ".zip"]},
+    {"id": "ps1", "name": "PlayStation 1 (RetroArch)", "extensions": [".chd", ".cue", ".bin", ".iso", ".pbp", ".zip", ".7z"]},
+    {"id": "ps2", "name": "PlayStation 2 (RetroArch)", "extensions": [".iso", ".chd", ".cso", ".gz", ".bin"]},
+    {"id": "n64", "name": "Nintendo 64 (RetroArch)", "extensions": [".z64", ".n64", ".v64", ".zip", ".7z"]},
+    {"id": "snes", "name": "Super Nintendo (RetroArch)", "extensions": [".sfc", ".smc", ".zip", ".7z"]},
+    {"id": "nes", "name": "Nintendo Entertainment System (RetroArch)", "extensions": [".nes", ".zip", ".7z"]},
+    {"id": "gba", "name": "Game Boy Advance (RetroArch)", "extensions": [".gba", ".zip", ".7z"]},
+    {"id": "megadrive", "name": "Sega Mega Drive (RetroArch)", "extensions": [".md", ".bin", ".gen", ".smd", ".zip", ".7z"]},
+    {"id": "arcade", "name": "Arcade & MAME (RetroArch)", "extensions": [".zip", ".7z", ".chd"]}
 ]
 
 def format_bytes(num_bytes):
@@ -1019,6 +1027,8 @@ def get_telemetry_info():
                 active_app = "steam"
             elif subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0:
                 active_app = "heroic"
+            elif subprocess.run("pgrep -u gamer -f 'retroarch' >/dev/null 2>&1", shell=True).returncode == 0:
+                active_app = "retroarch"
             elif subprocess.run("pgrep -u gamer -f 'eglantine' >/dev/null 2>&1", shell=True).returncode == 0:
                 active_app = "eglantine"
             elif subprocess.run("pgrep -u gamer -f 'chrome' >/dev/null 2>&1", shell=True).returncode == 0:
@@ -1256,12 +1266,14 @@ class ResizeHandler(BaseHTTPRequestHandler):
             menu_running = subprocess.run("pgrep -u gamer -f 'kyber-hub-profile|kyber_console_hub' >/dev/null 2>&1", shell=True).returncode == 0
             browser_running = subprocess.run("pgrep -u gamer -f 'chrome' | while read p; do tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null | grep -v 'kyber-hub-profile' | grep -q 'chrome' && exit 0; done; exit 1", shell=True).returncode == 0
             eglantine_running = subprocess.run("pgrep -u gamer -f 'eglantine' >/dev/null 2>&1", shell=True).returncode == 0
+            retroarch_running = subprocess.run("pgrep -u gamer -f 'retroarch' >/dev/null 2>&1", shell=True).returncode == 0
             self._send_json_response({
                 "steam": steam_running,
                 "heroic": heroic_running,
                 "menu": menu_running,
                 "browser": browser_running,
-                "eglantine": eglantine_running
+                "eglantine": eglantine_running,
+                "retroarch": retroarch_running
             })
         elif parsed.path == "/" or parsed.path == "/hub" or parsed.path.startswith("/hub/"):
             hub_dir = "/opt/kyber/hub"

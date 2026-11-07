@@ -449,6 +449,7 @@ html, body {
 .cover-bigpicture { background: linear-gradient(145deg, #1b0f2e, #311650, #541970); }
 .cover-heroic { background: linear-gradient(145deg, #0a2115, #0f3d23, #125732); }
 .cover-eglantine, .cover-switch { background: linear-gradient(145deg, #2b0b14, #4c0f20, #73122c); }
+.cover-retroarch { background: linear-gradient(145deg, #1e1b4b, #312e81, #4f46e5); }
 .cover-browser { background: linear-gradient(145deg, #0d1e2e, #133954, #195b85); }
 .cover-desktop { background: linear-gradient(145deg, #151c27, #222d3b, #334155); }
 

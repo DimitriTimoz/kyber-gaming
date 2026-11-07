@@ -83,6 +83,22 @@
       "badge_pad": "RT"
     },
     {
+      "id": "retroarch",
+      "category": "emulators",
+      "name": "RetroArch",
+      "watermark": "RETROARCH",
+      "tag": "MULTI-SYSTEM RETRO CONSOLE",
+      "specs": ["PS1/PS2", "N64/GC", "SHADERS"],
+      "desc": "Universal emulation frontend supporting PlayStation 1 & 2, Nintendo 64, GameCube, SNES, GBA, and Arcade with Vulkan shaders and netplay.",
+      "command": "retroarch",
+      "icon": "retroarch",
+      "color": "#6366f1",
+      "color_secondary": "#4338ca",
+      "color_glow": "rgba(99, 102, 241, 0.52)",
+      "badge_key": "6",
+      "badge_pad": "LT"
+    },
+    {
       "id": "rom-manager",
       "category": "emulators",
       "name": "ROM Library",

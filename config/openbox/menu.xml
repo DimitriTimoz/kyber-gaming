@@ -27,6 +27,11 @@
         <command>/usr/local/bin/switch_launcher.sh eglantine</command>
       </action>
     </item>
+    <item label="RetroArch (Multi-System Emulator)">
+      <action name="Execute">
+        <command>/usr/local/bin/switch_launcher.sh retroarch</command>
+      </action>
+    </item>
     <item label="Web Browser (Google Chrome)">
       <action name="Execute">
         <command>/usr/local/bin/switch_launcher.sh browser</command>

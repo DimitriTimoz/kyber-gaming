@@ -286,6 +286,12 @@
       <maximized>yes</maximized>
       <focus>yes</focus>
     </application>
+    <application class="*retroarch*">
+      <decor>no</decor>
+      <fullscreen>yes</fullscreen>
+      <maximized>yes</maximized>
+      <focus>yes</focus>
+    </application>
 
     <!-- Steam windows: Do not force-maximize hidden helper or login dialogs -->
     <application class="*steam*">

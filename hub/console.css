@@ -754,6 +754,7 @@ button, .card, .cc-item, .tab-btn, .btn-action, .cta-primary-btn, .cta-secondary
 .cover-bigpicture { background: linear-gradient(155deg, #160d2e 0%, #3b1d6e 55%, #a855f7 165%) !important; }
 .cover-heroic     { background: linear-gradient(155deg, #071914 0%, #0d3b2e 55%, #10b981 165%) !important; }
 .cover-switch, .cover-eglantine { background: linear-gradient(155deg, #240810 0%, #6e0f23 55%, #f43f5e 165%) !important; }
+.cover-retroarch  { background: linear-gradient(155deg, #18153b 0%, #312e81 55%, #6366f1 165%) !important; }
 .cover-browser    { background: linear-gradient(155deg, #0d172a 0%, #1d3a78 55%, #3b82f6 165%) !important; }
 .cover-desktop    { background: linear-gradient(155deg, #11151c 0%, #262f3d 55%, #94a3b8 175%) !important; }
 .cover-rom        { background: linear-gradient(155deg, #1b0f30 0%, #441c7a 55%, #c084fc 165%) !important; }

@@ -206,9 +206,15 @@ RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || tr
     echo "gamer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gamer && \
     chmod 0440 /etc/sudoers.d/gamer
 
-# 8. Install Eglantine Nintendo Switch & Switch 2 (NX2) Emulator
+# 8. Install Eglantine Nintendo Switch & Switch 2 (NX2) Emulator and RetroArch multi-system frontend
 COPY scripts/install_eglantine.sh /tmp/install_eglantine.sh
-RUN chmod +x /tmp/install_eglantine.sh && /tmp/install_eglantine.sh && rm -f /tmp/install_eglantine.sh
+RUN chmod +x /tmp/install_eglantine.sh && /tmp/install_eglantine.sh && rm -f /tmp/install_eglantine.sh && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        retroarch \
+        retroarch-assets \
+        libretro-core-info \
+    && rm -rf /var/lib/apt/lists/*
 
 # 9. Copy Kyber from builder stage
 COPY --from=kyber-builder /opt/kyber /opt/kyber

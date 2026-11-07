@@ -94,6 +94,8 @@
         'steam': 'Steam',
         'steam-bigpicture': 'Steam Big Picture',
         'heroic': 'Heroic Games Launcher',
+        'retroarch': 'RetroArch Multi-System',
+        'eglantine': 'Eglantine Switch NX2',
         'browser': 'Web Browser',
         'desktop': 'XFCE Desktop'
     };

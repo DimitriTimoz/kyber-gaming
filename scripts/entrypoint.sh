@@ -34,12 +34,27 @@ GAMES_ROOT="${GAMES_DIR:-/games}"
 mkdir -p \
     "$GAMES_ROOT/steam/steamapps" \
     "$GAMES_ROOT/heroic/prefixes" \
+    "$GAMES_ROOT/retroarch/cores" \
+    "$GAMES_ROOT/retroarch/system" \
+    "$GAMES_ROOT/retroarch/saves" \
+    "$GAMES_ROOT/retroarch/states" \
+    "$GAMES_ROOT/retroarch/config" \
+    "$GAMES_ROOT/retroarch/playlists" \
+    "$GAMES_ROOT/retroarch/thumbnails" \
     "$GAMES_ROOT/roms/eglantine/games" \
     "$GAMES_ROOT/roms/eglantine/updates" \
     "$GAMES_ROOT/roms/eglantine/dlc" \
     "$GAMES_ROOT/roms/eglantine/keys" \
     "$GAMES_ROOT/roms/eglantine/firmware" \
     "$GAMES_ROOT/roms/eglantine/mods" \
+    "$GAMES_ROOT/roms/ps1" \
+    "$GAMES_ROOT/roms/ps2" \
+    "$GAMES_ROOT/roms/n64" \
+    "$GAMES_ROOT/roms/snes" \
+    "$GAMES_ROOT/roms/nes" \
+    "$GAMES_ROOT/roms/gba" \
+    "$GAMES_ROOT/roms/megadrive" \
+    "$GAMES_ROOT/roms/arcade" \
     "$GAMES_ROOT/roms/saves" \
     "$GAMES_ROOT/bios" \
     "$GAMES_ROOT/saves"
@@ -265,6 +280,52 @@ Paths\gamedirs\2\path=/games/roms/switch
 Paths\gamedirs\2\deep_scan=true
 Paths\gamedirs\2\expanded=true
 EOF
+fi
+
+# Setup persistent RetroArch environment & config
+mkdir -p "$GAMES_ROOT/retroarch/config" "$GAMES_ROOT/retroarch/system" "$GAMES_ROOT/retroarch/saves" "$GAMES_ROOT/retroarch/states" "$GAMES_ROOT/retroarch/cores"
+mkdir -p /home/gamer/.config
+
+if [ -d /home/gamer/.config/retroarch ] && [ ! -L /home/gamer/.config/retroarch ]; then
+    cp -rn /home/gamer/.config/retroarch/* "$GAMES_ROOT/retroarch/config/" 2>/dev/null || true
+    rm -rf /home/gamer/.config/retroarch
+fi
+ln -sfn "$GAMES_ROOT/retroarch/config" /home/gamer/.config/retroarch
+
+RETROARCH_CFG="$GAMES_ROOT/retroarch/config/retroarch.cfg"
+if [ ! -f "$RETROARCH_CFG" ]; then
+    cat << 'EOF' > "$RETROARCH_CFG"
+video_fullscreen = "true"
+video_windowed_fullscreen = "true"
+video_driver = "vulkan"
+audio_driver = "pulse"
+menu_driver = "ozone"
+rgui_browser_directory = "/games/roms"
+content_directory = "/games/roms"
+libretro_directory = "/games/retroarch/cores"
+libretro_info_path = "/usr/share/libretro/info"
+system_directory = "/games/retroarch/system"
+savefile_directory = "/games/retroarch/saves"
+savestate_directory = "/games/retroarch/states"
+playlist_directory = "/games/retroarch/playlists"
+thumbnails_directory = "/games/retroarch/thumbnails"
+input_menu_toggle_gamepad_combo = "2"
+input_enable_hotkey_btn = "8"
+input_exit_emulator_btn = "9"
+quit_press_twice = "false"
+pause_nonactive = "false"
+video_vsync = "true"
+video_max_swapchain_images = "3"
+EOF
+    chown -R gamer:gamer "$RETROARCH_CFG" 2>/dev/null || true
+fi
+
+if [ -d "$GAMES_ROOT/bios" ]; then
+    for bf in "$GAMES_ROOT/bios"/*; do
+        if [ -f "$bf" ]; then
+            ln -sf "$bf" "$GAMES_ROOT/retroarch/system/$(basename "$bf")" 2>/dev/null || true
+        fi
+    done
 fi
 
 # System configuration version sync: automatically update Openbox/Tint2 configs on image upgrade
