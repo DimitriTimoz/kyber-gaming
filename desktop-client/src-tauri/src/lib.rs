@@ -288,6 +288,27 @@ async fn launch_session(
 
     // 2. Determine player mode: check if user requested in-app or if native kyclient is unavailable
     let mode = settings.player_mode.as_deref().unwrap_or("auto");
+
+    if mode == "browser" {
+        println!("[kyber-desktop] Opening external browser streaming session for {}", server.name);
+        let u = server.auth_user.as_deref().unwrap_or("gamer");
+        let p = server.auth_password.as_deref().unwrap_or("kybergaming");
+        let hud = if settings.hud_overlay.unwrap_or(true) { "1" } else { "0" };
+        let stream_url = format!(
+            "https://{}:{}/webclient/?auto_connect=true&host={}&port={}&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&video_codec={}&hud={}&gamepad_force_xbox360=true",
+            server.host, server.port, server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
+        );
+
+        #[cfg(target_os = "macos")]
+        let _ = std::process::Command::new("open").arg(&stream_url).spawn();
+        #[cfg(target_os = "windows")]
+        let _ = std::process::Command::new("cmd").args(["/c", "start", &stream_url]).spawn();
+        #[cfg(target_os = "linux")]
+        let _ = std::process::Command::new("xdg-open").arg(&stream_url).spawn();
+
+        return Ok(());
+    }
+
     let is_native_usable = if mode == "in_app" {
         false
     } else {
@@ -309,7 +330,7 @@ async fn launch_session(
         let p = server.auth_password.as_deref().unwrap_or("kybergaming");
         let hud = if settings.hud_overlay.unwrap_or(true) { "1" } else { "0" };
         let stream_url = format!(
-            "https://{}:{}/webclient/?auto_connect=true&host={}&port={}&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&video_codec={}&hud={}",
+            "https://{}:{}/webclient/?auto_connect=true&host={}&port={}&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&video_codec={}&hud={}&gamepad_force_xbox360=true",
             server.host, server.port, server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
         );
 

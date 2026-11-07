@@ -307,7 +307,7 @@ export const StreamingConfigParameters = {
         name: "Force XBox360 gamepad",
         type: Boolean,
         description: "Force xbox360 gamepad management.",
-        default: false},
+        default: true},
     clipboard: {
         name: "Enable clipboard",
         type: Boolean,
