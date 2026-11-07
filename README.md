@@ -1,57 +1,122 @@
-# Kyber Cloud Gaming (Headless)
+<div align="center">
 
-A containerized headless cloud gaming infrastructure based on Ubuntu 24.04 LTS, powered by the low-latency streaming protocol Kyber (VideoLAN / VLC team), with virtual display emulation, Steam Big Picture, Heroic Games Launcher, console emulators, and an integrated ROM & game manager.
+# KYBER CLOUD GAMING
 
----
+**Next-Generation Headless Cloud Gaming & Emulation Infrastructure**
 
-## Features
+Low-latency WebTransport/QUIC streaming, virtual display emulation, Steam Big Picture, modern console emulators, and integrated game storage management.
 
-- Headless Virtual Display: Runs on headless servers without a physical monitor or HDMI dummy plug. Virtual display and EDID are fully simulated with hardware 3D acceleration.
-- Kyber Streaming Engine:
-  - Ultra-low latency QUIC / WebTransport streaming on a unified port (8080 TCP/UDP).
-  - Web client served directly from the container (`/webclient`).
-  - Hardware-accelerated video capture via X11/NVFBC or DRM/VA-API with NVENC/VA-API encoding.
-- Gaming Launchers & Emulators:
-  - Steam (Desktop and Big Picture console modes).
-  - Heroic Games Launcher (Epic Games Store and GOG).
-  - Eglantine (Nintendo Switch & Switch 2 / NX2 experimental emulator with Vulkan rendering).
-  - Google Chrome for game wikis, mod downloads, and web browsing.
-  - Openbox window manager with custom keyboard shortcuts.
-- ROM & Game Installation Manager:
-  - Integrated REST API (`/api/roms/browse`, `/api/roms/upload_chunk`) and 100% native Web/Desktop management interface (no third-party file managers).
-  - Dedicated hierarchical subfolder structure per emulator: `eglantine/games`, `eglantine/updates`, `eglantine/dlc`, `eglantine/keys`, `eglantine/firmware`, `eglantine/mods`, `saves`.
-  - High-performance chunked file uploader (10 MB slices) with real-time throughput telemetry (MB/s), ETA calculation, and progress tracking.
-  - Interactive breadcrumbs navigation, real-time client search filter, folder creation, and safe deletion.
-  - Automatic synchronization of uploaded `prod.keys` and `title.keys` to Eglantine key storage (`/home/gamer/.local/share/eglantine/keys`).
-  - Persistent volume support for `/home/gamer/roms` with host/NAS mount options.
-- Controller & Peripheral Support: Virtual `/dev/uinput` injection (Xbox 360, DualShock/DualSense) and remote mouse/keyboard input.
-- Virtual Audio: PipeWire audio routing to Kyber Opus/AAC stream without a physical sound card.
-- Dynamic Display Resizing: Automatically adapts to the client browser or desktop window dimensions via REST API (`port 8081`).
-- Secure Authentication: Password-protected streaming controller and Kyber Control Plane API.
+[![GitHub Release](https://img.shields.io/github/v/release/DimitriTimoz/kyber-gaming?style=for-the-badge&color=3b82f6)](https://github.com/DimitriTimoz/kyber-gaming/releases/latest)
+[![Docker Image](https://img.shields.io/badge/Docker-ghcr.io-2563eb?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/DimitriTimoz/kyber-gaming/pkgs/container/kyber-gaming)
+[![Protocol](https://img.shields.io/badge/Protocol-WebTransport%20%2F%20QUIC-6366f1?style=for-the-badge)](https://github.com/DimitriTimoz/kyber-gaming)
+[![Client](https://img.shields.io/badge/Desktop%20Client-Tauri%20v2%20(Rust)-10b981?style=for-the-badge&logo=tauri&logoColor=white)](https://github.com/DimitriTimoz/kyber-gaming/releases/latest)
+[![GPU Support](https://img.shields.io/badge/GPU-NVIDIA%20%7C%20AMD%20%7C%20Intel-f59e0b?style=for-the-badge)](https://github.com/DimitriTimoz/kyber-gaming)
+
+<br/>
+
+<img src="docs/images/hero.png" alt="Kyber Cloud Gaming Console OS Hub" width="100%" style="border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
+
+</div>
 
 ---
 
-## Installation & Setup
+## Overview
 
-For a detailed walkthrough covering GPU pass-through (NVIDIA, AMD, Intel), Tailscale networking, ROM library setup, archive extraction, and client builds, consult the dedicated [Installation Guide](docs/INSTALLATION.md).
+**Kyber Cloud Gaming** turns any Linux workstation, homelab server, or cloud VM into a high-performance personal cloud gaming platform. Powered by the ultra-low latency **Kyber protocol** (developed by VideoLAN / VLC engineers) and built on **Ubuntu 24.04 LTS**, it delivers buttery-smooth remote gameplay directly to web browsers and native desktop apps with zero HDMI dummy plugs required.
+
+### Core Highlights
+
+- **Headless Virtual Display**: Full hardware 3D acceleration without a physical monitor. Dynamically scales resolution and refresh rate (up to 4K @ 144Hz) to match your client viewport in real time.
+- **WebTransport & QUIC Streaming**: Single-port UDP multiplexing for sub-frame video delivery, bidirectional gamepad/keyboard/mouse input, and PipeWire stereo audio.
+- **Console OS Launcher Suite**: Built-in launcher interface featuring Steam Big Picture, Heroic Games Launcher (Epic Games & GOG), and Eglantine (Nintendo Switch & NX2 emulator with Vulkan backend).
+- **Integrated Storage & ROM Manager**: Dedicated Web and Desktop file explorer with chunked upload engine (10+ GB ROMs), automatic encryption key synchronization (`prod.keys`, `title.keys`), archive extraction, and directory management.
+- **Cross-Platform Clients**: Play instantly in any modern web browser or use the native Rust/Tauri v2 desktop client for macOS, Windows, and Linux.
+
+---
+
+## Visual Tour
+
+<div align="center">
+
+### Steam Big Picture & Theater Mode
+<img src="docs/images/steam_theater.png" alt="Steam Big Picture Theater" width="95%" style="border-radius: 6px; margin-bottom: 20px;" />
+
+<br/>
+
+### Built-in ROM & Emulator File Manager
+<img src="docs/images/rom_manager.png" alt="ROM and Game Storage Manager" width="95%" style="border-radius: 6px; margin-bottom: 20px;" />
+
+<br/>
+
+### Console OS Dashboard & Telemetry
+<img src="docs/images/console_hub.png" alt="Console OS Dashboard" width="95%" style="border-radius: 6px; margin-bottom: 20px;" />
+
+<br/>
+
+### Native Desktop Client (macOS, Windows, Linux)
+<img src="docs/images/desktop_client.png" alt="Kyber Native Desktop Client" width="95%" style="border-radius: 6px;" />
+
+</div>
+
+---
+
+## Architecture
+
+```
++---------------------------------------------------------------------------------+
+|                               HOST SERVER (Linux)                               |
+|                                                                                 |
+|  +---------------------------+       +---------------------------------------+  |
+|  | GPU Hardware Acceleration |       | PipeWire Virtual Audio Subsystem      |  |
+|  | NVIDIA (NVENC/NvFBC)      |       | Low-latency PCM / Opus capture        |  |
+|  | AMD (RADV/VA-API) / Intel |       +---------------------------------------+  |
+|  +-------------+-------------+                           |                      |
+|                |                                         |                      |
+|  +-------------v-----------------------------------------v-------------------+  |
+|  | Virtual Display Engine (X11 Virtual Screen + Auto Dynamic EDID)           |  |
+|  | Steam Big Picture  |  Heroic Games Launcher  |  Eglantine (Switch/NX2)    |  |
+|  +-----------------------------------+---------------------------------------+  |
+|                                      |                                          |
+|  +-----------------------------------v---------------------------------------+  |
+|  | Kyber Streaming Server (VideoLAN / VLC Engine)                            |  |
+|  | HTTP/3 WebTransport + QUIC Datagrams + Sub-frame Input Injection         |  |
+|  +-----------------------------------+---------------------------------------+  |
+|                                      | Port 8080 (Stream) & Port 8081 (Control) |
++--------------------------------------|------------------------------------------+
+                                       |
+                   +-------------------+-------------------+
+                   |                                       |
+                   v                                       v
+    +------------------------------+       +------------------------------+
+    |   Zero-Install Web Client    |       |   Native Tauri v2 Client     |
+    |   Chrome, Edge, Safari,      |       |   macOS (Apple Silicon/Intel)|
+    |   Firefox via WebTransport   |       |   Windows (MSI/EXE) & Linux  |
+    +------------------------------+       +------------------------------+
+```
+
+---
 
 ## Quick Start
 
-### Option 1: Docker Compose (Prebuilt or Local Build)
+### 1. Requirements
 
-1. Clone repository:
-```bash
-git clone https://github.com/DimitriTimoz/kyber-gaming.git
-cd kyber-gaming
-```
+- Host OS: Linux (Ubuntu, Debian, Fedora, Arch, or Proxmox VE)
+- Container Runtime: Docker and Docker Compose v2
+- GPU:
+  - **NVIDIA**: GeForce GTX 900+ / RTX series with NVIDIA Container Toolkit
+  - **AMD**: Radeon RX series with DRI `/dev/dri` access
+  - **Intel**: Iris Xe / Arc or UHD Graphics with DRI `/dev/dri` access
 
-2. Configure environment in `docker-compose.yml`:
+### 2. Launch with Docker Compose
+
+Create a `docker-compose.yml` file:
+
 ```yaml
 services:
   kyber-gaming:
     image: ghcr.io/dimitritimoz/kyber-gaming:latest
-    # Or build locally:
-    # build: .
+    container_name: kyber-gaming
+    restart: unless-stopped
     network_mode: host
     privileged: true
     environment:
@@ -63,141 +128,132 @@ services:
     volumes:
       # Main persistent user data (Steam, Heroic, configs, saves, ROMs)
       - gamer_home:/home/gamer
-      # Optional: Bind-mount your external drive or NAS ROM library directly:
-      # - /mnt/nas/roms:/home/gamer/roms
-```
+      # Optional: Direct host/NAS mount for your existing ROM collection
+      # - /mnt/storage/roms:/home/gamer/roms
+    devices:
+      # Required for hardware acceleration
+      - /dev/dri:/dev/dri
+      - /dev/uinput:/dev/uinput
 
 volumes:
   gamer_home:
 ```
 
-3. Launch container:
+Start the container:
+
 ```bash
 docker compose up -d
 ```
 
-4. View logs:
+Check startup logs:
+
 ```bash
 docker compose logs -f
 ```
 
-### Option 2: Production with Caddy Reverse Proxy (Automatic HTTPS & HTTP/3 QUIC)
+---
 
-For zero-warning browser streaming over the internet with automatic Let's Encrypt / ZeroSSL TLS certificates:
+## Client Applications
 
-```bash
-DOMAIN=gaming.yourdomain.com docker compose -f docker-compose.caddy.yml up -d
+### Option A: Zero-Install Web Client
+
+Open your browser and navigate to:
+```
+https://<SERVER_IP>:8080/webclient
 ```
 
-This starts Caddy on host ports 80 and 443 with native HTTP/3 QUIC proxying to Kyber's WebTransport server.
+1. Enter your credentials (default: `gamer` / `kybergaming`).
+2. Select your desired resolution (or use Auto-Detect).
+3. Connect and play immediately with full gamepad and keyboard/mouse capture.
+
+### Option B: Native Desktop Client (Tauri v2)
+
+Pre-built binaries are available on the [Latest GitHub Release](https://github.com/DimitriTimoz/kyber-gaming/releases/latest):
+
+| Platform | Format | Description |
+| :--- | :--- | :--- |
+| **macOS** | `.dmg` | Universal Binary (Apple Silicon M1/M2/M3/M4 and Intel) |
+| **Windows** | `.msi`, `.exe` | 64-bit installer and portable setup |
+| **Linux** | `.AppImage`, `.deb`, `.rpm` | Universal AppImage, Debian/Ubuntu, Fedora/RHEL |
+
+Features of the desktop client:
+- Multi-server manager with live ping and latency telemetry.
+- Built-in ROM & Storage Explorer with chunked multi-gigabyte upload and progress bar.
+- Automatic LAN server discovery via UDP beacon broadcast.
+- Low-latency hardware-accelerated video decoding.
 
 ---
 
-## Connecting to the Stream
+## ROM & Emulator File Management
 
-### 1. Browser Client (Zero Install)
-
-Navigate to:
-`https://<SERVER_IP>:8080/webclient`
-
-- Enter credentials (default: `gamer` / `kybergaming`).
-- Select target resolution (or use Detected Screen).
-- Click Connect to start the session.
-
-### 2. Desktop Client (Native Rust + Tauri v2)
-
-Native client installers are available in GitHub Releases for macOS, Linux, and Windows:
-- Multi-server manager with ping latency checks.
-- Dedicated ROM & Game Manager view.
-- Persistent configuration per OS standards (`~/.config/kyber`, `%APPDATA%\kyber`, or `~/Library/Application Support/kyber`).
-
-To run locally in development mode:
-```bash
-cd desktop-client
-cargo tauri dev
-```
-
----
-
-## ROM & Emulator Game Management
-
-The container organizes emulator storage in a clean hierarchical structure with dedicated subfolders per emulator:
+Kyber provides a unified file management engine designed for game preservation and seamless library synchronization:
 
 ```text
 /home/gamer/roms/
 |-- eglantine/
 |   |-- games/        # Base game ROMs (.nsp, .xci, .nsz)
-|   |-- updates/      # Game update patches (.nsp)
+|   |-- updates/      # Game updates and patches (.nsp)
 |   |-- dlc/          # Downloadable content packs (.nsp)
 |   |-- keys/         # Decryption keys (prod.keys, title.keys)
-|   |-- firmware/     # Switch system firmware archives (.zip, .bin)
-|   `-- mods/         # Game mods and custom content
+|   |-- firmware/     # Switch system firmware packages (.nca, .zip)
+|   `-- mods/         # Custom game mods
 |-- switch -> eglantine/games   # Backward-compatible symlink
-`-- saves/            # Emulator save files and memory states
+`-- saves/            # Emulator save states and user data
 ```
 
-When keys or firmware files (such as `prod.keys` or `title.keys`) are uploaded to `eglantine/keys/` or `/home/gamer/bios/`, they are automatically mirrored to Eglantine's internal key directories (`/home/gamer/.local/share/eglantine/keys/` and `/home/gamer/.local/share/eden/keys/`). Eglantine is configured with recursive directory discovery (`deep_scan=true`), so games in subfolders are detected automatically.
+### Key Capabilities
 
-### High-Performance Chunked Uploader
-
-The management interface features a built-in chunked upload engine:
-- Large Switch games (10GB–25GB) are sliced into 10 MB chunks via the browser/desktop client.
-- Uploads avoid HTTP gateway timeouts and can be monitored via live telemetry: speed in **MB/s**, remaining time (**ETA**), and dual progress bars.
-- Drag-and-drop is supported anywhere within the file explorer.
-
-### Accessing the Library Explorer
-
-- In Console Hub: Press `M` on keyboard, select the ROM Manager card in Emulators, or click the bottom bar button.
-- In Desktop Client: Select the `02 ROMS & GAMES` tab in the sidebar.
-- Via REST API:
-  - Directory Browsing: `GET /api/roms/browse?path=<rel_path>`
-  - File Download: `GET /api/roms/download?path=<rel_path>`
-  - Folder Creation: `POST /api/roms/create_folder` with JSON `{"path": "...", "folder_name": "..."}`
-  - Chunk Upload: `POST /api/roms/upload_chunk?upload_id=...&filename=...&target_path=...&chunk_index=...&total_chunks=...&total_size=...`
-  - Safe Item Deletion: `POST /api/roms/delete` with JSON `{"path": "..."}`
-  - Legacy Inventory: `GET /api/roms`
+- **Resilient Chunked Uploader**: Upload 15GB+ Switch ROMs reliably without HTTP gateway timeouts. Features real-time throughput metrics (MB/s), estimated time remaining (ETA), and automatic retries.
+- **Automatic Key & Firmware Provisioning**: Dropping `prod.keys` or `title.keys` into `eglantine/keys` automatically mirrors them to emulator directories (`/home/gamer/.local/share/eglantine/keys` and `/home/gamer/.local/share/eden/keys`).
+- **In-Place Archive Extraction**: Decompress ZIP, 7Z, RAR, and TAR archives on the server with ownership auto-assignment.
+- **Protected File Operations**: Safe path traversal defenses, broken symlink deletion support, and read-only permission overrides.
 
 ---
 
-## Hardware GPU Acceleration & Driver Compatibility
+## Hardware GPU Acceleration
 
-Kyber Gaming is engineered to handle heterogenous GPU architectures and host kernel driver updates automatically without rebuilding images:
-
-### 1. NVIDIA Acceleration & Automated Driver Synchronization
-- Multiarch 64-bit & 32-bit Acceleration:
-  - 64-bit GLX, NvFBC (`libnvidia-fbc.so`), and NVENC video encoding for host streaming.
-  - Complete 32-bit acceleration stack (`libGLX_nvidia`, `libnvidia-glcore`, `libcuda`, `libnvidia-encode`, `libnvidia-fbc`, 32-bit Vulkan ICD manifest) in `/usr/lib/i386-linux-gnu/`. This ensures seamless compatibility with 32-bit Steam titles and Wine / Proton 32-bit DirectX games.
-- Host Driver Upgrade Self-Healing:
-  - On startup, the container detects the exact host driver version (`/proc/driver/nvidia/version` or `nvidia-smi`).
-  - If the host kernel driver was updated (e.g., from `550.120` to `550.163` or `560.xx`), the container detects the ABI mismatch, removes stale libraries, downloads the matching official userspace suite to `/var/cache/nvidia-driver/`, extracts the missing components, updates `ldconfig`, and starts Xorg without segmentation faults.
+### 1. NVIDIA Self-Healing Userspace
+- **Automatic Driver Version Matching**: On boot, the container inspects `/proc/driver/nvidia/version` or `nvidia-smi`.
+- **Zero ABI Breakage**: If host drivers update (e.g. `550.xx` to `560.xx`), Kyber downloads and extracts matching userspace libraries to prevent Xorg or Vulkan crashes.
+- **Complete 32-bit & 64-bit Stack**: Full 32-bit GLX and Vulkan runtime for older Steam titles and Proton/Wine compatibility.
 
 ### 2. AMD Radeon & Intel GPU Support
-- Direct Rendering Infrastructure (DRI):
-  - Automatically identifies AMD Radeon vendor IDs (`0x1002`) and Intel GPU vendor IDs (`0x8086`) under `/dev/dri/`.
-  - Configures Xorg modesetting with Glamor 2D/3D hardware acceleration (`/etc/kyber/xorg.modesetting.conf`).
-  - Sets up environment profiles for Mesa RADV (`AMD_VULKAN_ICD=RADV`, `radeon_icd.x86_64.json`) and VA-API hardware video encoding (`LIBVA_DRIVER_NAME=radeonsi`).
-- Software Fallback:
-  - If no physical GPU or DRI device is detected, Kyber safely falls back to the virtual dummy display driver (`xorg.dummy.conf`).
-
----
-
-## Dynamic Display Resizing
-
-The virtual X11 screen adjusts on the fly via port 8081:
-
-1. Automatic: Injected client scripts detect the viewport and request the server to match the display dimensions.
-2. Manual REST API:
-```bash
-curl -k "https://<SERVER_IP>:8081/api/resize?width=2560&height=1440&rate=120&auth_user=gamer&auth_pass=kybergaming"
-```
+- Automated DRI modesetting with Glamor 2D/3D acceleration.
+- Built-in Mesa RADV Vulkan and VA-API hardware video encoding.
 
 ---
 
 ## Keyboard & Gamepad Shortcuts
 
-- `A` / `Enter`: Launch selected item
-- `B` / `Esc`: Minimize / Desktop Mode
-- `M`: Open ROM & Game Manager
-- `R`: Clean reload Steam cache and process
-- `Q` / `E` (or Bumpers): Switch category tabs
-- `Ctrl+Shift+Q` (Web Client) or `Ctrl+Q` (Desktop Client): Exit active session
+| Input | Action |
+| :--- | :--- |
+| `A` / `Enter` | Launch selected launcher or game |
+| `B` / `Escape` | Minimize active window / Return to Console OS Hub |
+| `M` | Open ROM & Game Manager |
+| `F11` | Toggle Fullscreen |
+| `Shift + Esc` | Close active game session and return to Hub |
+
+---
+
+## Detailed Documentation
+
+For advanced deployment topics, consult the comprehensive guides:
+- [Installation & GPU Passthrough Guide](docs/INSTALLATION.md) (NVIDIA, AMD, Intel, Tailscale, Proxmox)
+- [Caddy Reverse Proxy Setup](docker-compose.caddy.yml) (Automatic SSL & HTTP/3 QUIC)
+
+---
+
+## Contributing & Development
+
+Contributions, bug reports, and feature requests are welcome.
+
+To run the desktop client in development:
+```bash
+cd desktop-client
+cargo tauri dev
+```
+
+To run the control service test suite:
+```bash
+python3 -m unittest discover -s tests -p "test_*.py" -v
+```
