@@ -8,7 +8,8 @@
 (function () {
     'use strict';
 
-    let hudVisible = false;
+    // HUD Mode: 'off', 'bar' (compact MangoHud horizontal line), or 'card' (detailed stats window)
+    let hudMode = 'off';
     let frameCount = 0;
     let lastFpsTime = performance.now();
     let currentFps = 60;
@@ -19,21 +20,62 @@
     // Check URL parameters for default HUD state
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('hud') === '1' || urlParams.get('hud') === 'true') {
-        hudVisible = true;
+        hudMode = 'bar';
+    } else if (urlParams.get('hud') === 'card') {
+        hudMode = 'card';
     }
 
-    // 1. Create HUD Container
+    // 1. Create Compact MangoHud-style Top Bar (#kyberPerfBar)
+    const perfBar = document.createElement('div');
+    perfBar.id = 'kyberPerfBar';
+    perfBar.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 14px;
+        display: ${hudMode === 'bar' ? 'flex' : 'none'};
+        align-items: center;
+        gap: 12px;
+        background: rgba(10, 12, 16, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-family: 'Geist Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        color: #ededed;
+        z-index: 2147483647;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        user-select: none;
+        pointer-events: auto;
+        cursor: pointer;
+    `;
+    perfBar.title = 'Click to switch to detailed view (or Ctrl+Shift+S)';
+    perfBar.innerHTML = `
+        <span style="color:#38bdf8; font-weight:700;">KYBER</span>
+        <span>FPS <span id="barFpsVal" style="color:#22c55e;">60</span></span>
+        <span>RTT <span id="barPingVal" style="color:#eab308;">--ms</span></span>
+        <span id="barGpuItem" style="display:none;">GPU <span id="barGpuVal" style="color:#ededed;">--%</span> <span id="barGpuTempVal" style="color:#888;"></span></span>
+        <span id="barCpuItem" style="display:none;">CPU <span id="barCpuVal" style="color:#ededed;">--%</span></span>
+    `;
+    perfBar.addEventListener('click', () => {
+        cycleHudMode();
+    });
+    document.body.appendChild(perfBar);
+
+    // 2. Create Detailed HUD Container (#kyberPerfHud)
     const hudContainer = document.createElement('div');
     hudContainer.id = 'kyberPerfHud';
     hudContainer.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        width: 260px;
-        background: rgba(10, 10, 12, 0.88);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        width: 270px;
+        background: rgba(10, 10, 12, 0.90);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 6px;
         padding: 12px 14px;
         font-family: 'Geist Mono', monospace;
@@ -42,7 +84,7 @@
         z-index: 2147483647;
         box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
         user-select: none;
-        display: ${hudVisible ? 'block' : 'none'};
+        display: ${hudMode === 'card' ? 'block' : 'none'};
         cursor: move;
     `;
 
@@ -86,9 +128,24 @@
                 <span id="hudGpuVal" style="font-weight: 600; color: #ededed;">--%</span>
             </div>
 
+            <div id="hudGpuTempRow" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #888;">GPU TEMP</span>
+                <span id="hudGpuTempVal" style="font-weight: 500; color: #aaa;">-- °C</span>
+            </div>
+
             <div id="hudVramRow" style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #888;">VRAM USAGE</span>
                 <span id="hudVramVal" style="font-weight: 500; color: #aaa;">-- / --</span>
+            </div>
+
+            <div id="hudCpuRow" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #888;">HOST CPU LOAD</span>
+                <span id="hudCpuVal" style="font-weight: 500; color: #aaa;">--%</span>
+            </div>
+
+            <div id="hudRamRow" style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #888;">HOST RAM</span>
+                <span id="hudRamVal" style="font-weight: 500; color: #aaa;">-- / --</span>
             </div>
         </div>
     `;
@@ -98,7 +155,7 @@
     // Mini Toggle Badge in corner (discreet icon)
     const hudBadge = document.createElement('div');
     hudBadge.id = 'kyberPerfHudBadge';
-    hudBadge.title = 'Toggle Performance HUD (Ctrl+Shift+S / F10)';
+    hudBadge.title = 'Cycle Performance HUD (Ctrl+Shift+S / F10)';
     hudBadge.style.cssText = `
         position: fixed;
         bottom: 12px;
@@ -119,10 +176,10 @@
     hudBadge.textContent = 'HUD';
     hudBadge.addEventListener('mouseenter', () => { hudBadge.style.color = '#fff'; hudBadge.style.borderColor = 'rgba(255,255,255,0.4)'; });
     hudBadge.addEventListener('mouseleave', () => { hudBadge.style.color = '#aaa'; hudBadge.style.borderColor = 'rgba(255,255,255,0.15)'; });
-    hudBadge.addEventListener('click', toggleHud);
+    hudBadge.addEventListener('click', cycleHudMode);
     document.body.appendChild(hudBadge);
 
-    // Draggable behavior
+    // Draggable behavior for detailed card
     let isDragging = false;
     let startX = 0, startY = 0;
     let initialLeft = 0, initialTop = 0;
@@ -144,39 +201,53 @@
         if (!isDragging) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        hudContainer.style.left = Math.max(10, Math.min(window.innerWidth - 270, initialLeft + dx)) + 'px';
-        hudContainer.style.top = Math.max(10, Math.min(window.innerHeight - 150, initialTop + dy)) + 'px';
+        hudContainer.style.left = Math.max(10, Math.min(window.innerWidth - 280, initialLeft + dx)) + 'px';
+        hudContainer.style.top = Math.max(10, Math.min(window.innerHeight - 200, initialTop + dy)) + 'px';
     });
 
     window.addEventListener('mouseup', () => { isDragging = false; });
 
     document.getElementById('btnPerfHudClose').addEventListener('click', () => {
-        setHudVisible(false);
+        setHudMode('off');
     });
 
-    function setHudVisible(visible) {
-        hudVisible = visible;
-        hudContainer.style.display = hudVisible ? 'block' : 'none';
-        if (hudVisible) {
+    function setHudMode(mode) {
+        hudMode = mode;
+        if (hudMode === 'bar') {
+            perfBar.style.display = 'flex';
+            hudContainer.style.display = 'none';
+            startPolling();
+        } else if (hudMode === 'card') {
+            perfBar.style.display = 'none';
+            hudContainer.style.display = 'block';
             startPolling();
         } else {
+            hudMode = 'off';
+            perfBar.style.display = 'none';
+            hudContainer.style.display = 'none';
             stopPolling();
         }
     }
 
-    function toggleHud() {
-        setHudVisible(!hudVisible);
+    function cycleHudMode() {
+        if (hudMode === 'off') {
+            setHudMode('bar');
+        } else if (hudMode === 'bar') {
+            setHudMode('card');
+        } else {
+            setHudMode('off');
+        }
     }
 
     // Keyboard shortcut handler
     window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') || e.key === 'F10') {
+        if ((e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's')) {
             e.preventDefault();
-            toggleHud();
+            cycleHudMode();
         }
     });
 
-    // 2. Client Render FPS counter loop
+    // Client Render FPS counter loop
     function updateFpsLoop(now) {
         frameCount++;
         const delta = now - lastFpsTime;
@@ -186,29 +257,29 @@
             lastFpsTime = now;
 
             const fpsVal = document.getElementById('hudFpsVal');
+            const barFps = document.getElementById('barFpsVal');
+            const fpsColor = currentFps >= 55 ? '#22c55e' : (currentFps >= 30 ? '#eab308' : '#ef4444');
             if (fpsVal) {
                 fpsVal.textContent = `${currentFps} FPS`;
-                if (currentFps >= 55) {
-                    fpsVal.style.color = '#22c55e'; // Green
-                } else if (currentFps >= 30) {
-                    fpsVal.style.color = '#eab308'; // Amber
-                } else {
-                    fpsVal.style.color = '#ef4444'; // Red
-                }
+                fpsVal.style.color = fpsColor;
+            }
+            if (barFps) {
+                barFps.textContent = `${currentFps}`;
+                barFps.style.color = fpsColor;
             }
         }
         requestAnimationFrame(updateFpsLoop);
     }
     requestAnimationFrame(updateFpsLoop);
 
-    // 3. Telemetry Polling (Host RTT & GPU)
+    // Telemetry Polling (Host RTT & GPU via /api/telemetry)
     async function pollTelemetry() {
         const start = performance.now();
         const host = window.location.hostname || '127.0.0.1';
         const controlPort = 8081;
 
         try {
-            const resp = await fetch(`https://${host}:${controlPort}/api/system`, {
+            const resp = await fetch(`https://${host}:${controlPort}/api/telemetry`, {
                 cache: 'no-store',
                 mode: 'cors'
             });
@@ -219,9 +290,9 @@
                 serverTelemetry = await resp.json();
             }
         } catch (e) {
-            // Fallback ping to current port
+            // Fallback ping
             try {
-                await fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
+                await fetch(`https://${host}:${controlPort}/api/system`, { cache: 'no-store', mode: 'cors' });
                 pingLatency = Math.round(performance.now() - start);
             } catch (err) {
                 pingLatency = null;
@@ -234,24 +305,18 @@
     function renderTelemetryUI() {
         const pingVal = document.getElementById('hudPingVal');
         const pingDot = document.getElementById('hudPingDot');
+        const barPing = document.getElementById('barPingVal');
+        const rttText = pingLatency !== null ? `${pingLatency}ms` : '--';
+        const rttColor = (pingLatency !== null && pingLatency <= 25) ? '#22c55e' : ((pingLatency !== null && pingLatency <= 55) ? '#eab308' : '#ef4444');
+
         if (pingVal && pingDot) {
-            if (pingLatency !== null) {
-                pingVal.textContent = `${pingLatency} ms`;
-                if (pingLatency <= 25) {
-                    pingDot.style.background = '#22c55e';
-                    pingVal.style.color = '#22c55e';
-                } else if (pingLatency <= 55) {
-                    pingDot.style.background = '#eab308';
-                    pingVal.style.color = '#eab308';
-                } else {
-                    pingDot.style.background = '#ef4444';
-                    pingVal.style.color = '#ef4444';
-                }
-            } else {
-                pingVal.textContent = 'Disconnected';
-                pingDot.style.background = '#ef4444';
-                pingVal.style.color = '#888';
-            }
+            pingVal.textContent = rttText;
+            pingVal.style.color = rttColor;
+            pingDot.style.background = rttColor;
+        }
+        if (barPing) {
+            barPing.textContent = rttText;
+            barPing.style.color = rttColor;
         }
 
         const profileVal = document.getElementById('hudProfileVal');
@@ -262,18 +327,49 @@
             profileVal.textContent = `${res} @ ${fps}Hz (${codec})`;
         }
 
-        const gpuVal = document.getElementById('hudGpuVal');
-        const vramVal = document.getElementById('hudVramVal');
-        if (serverTelemetry && serverTelemetry.gpu) {
-            if (gpuVal) gpuVal.textContent = `${serverTelemetry.gpu.utilization_gpu_percent || 0}%`;
-            if (vramVal) vramVal.textContent = `${serverTelemetry.gpu.memory_used_mb || 0} / ${serverTelemetry.gpu.memory_total_mb || 0} MB`;
+        if (serverTelemetry) {
+            const gpu = serverTelemetry.gpu || {};
+            const gpuVal = document.getElementById('hudGpuVal');
+            const gpuTempVal = document.getElementById('hudGpuTempVal');
+            const vramVal = document.getElementById('hudVramVal');
+            const cpuVal = document.getElementById('hudCpuVal');
+            const ramVal = document.getElementById('hudRamVal');
+
+            const barGpuItem = document.getElementById('barGpuItem');
+            const barGpuVal = document.getElementById('barGpuVal');
+            const barGpuTempVal = document.getElementById('barGpuTempVal');
+            const barCpuItem = document.getElementById('barCpuItem');
+            const barCpuVal = document.getElementById('barCpuVal');
+
+            if (gpu.gpu_load !== null && gpu.gpu_load !== undefined) {
+                if (gpuVal) gpuVal.textContent = `${gpu.gpu_load}%`;
+                if (barGpuVal) barGpuVal.textContent = `${gpu.gpu_load}%`;
+                if (barGpuItem) barGpuItem.style.display = 'inline';
+            }
+            if (gpu.gpu_temp !== null && gpu.gpu_temp !== undefined) {
+                if (gpuTempVal) gpuTempVal.textContent = `${gpu.gpu_temp} °C`;
+                if (barGpuTempVal) barGpuTempVal.textContent = `(${gpu.gpu_temp}°C)`;
+            }
+            if (gpu.vram_used !== null && gpu.vram_total !== null) {
+                if (vramVal) vramVal.textContent = `${gpu.vram_used} / ${gpu.vram_total} MB`;
+            }
+
+            if (serverTelemetry.cpu_load !== null && serverTelemetry.cpu_load !== undefined) {
+                if (cpuVal) cpuVal.textContent = `${serverTelemetry.cpu_load}%`;
+                if (barCpuVal) barCpuVal.textContent = `${serverTelemetry.cpu_load}%`;
+                if (barCpuItem) barCpuItem.style.display = 'inline';
+            }
+
+            if (serverTelemetry.ram_used_mb && serverTelemetry.ram_total_mb) {
+                if (ramVal) ramVal.textContent = `${serverTelemetry.ram_used_mb} / ${serverTelemetry.ram_total_mb} MB`;
+            }
         }
     }
 
     function startPolling() {
         if (!pollInterval) {
             pollTelemetry();
-            pollInterval = setInterval(pollTelemetry, 2000);
+            pollInterval = setInterval(pollTelemetry, 1500);
         }
     }
 
@@ -284,9 +380,20 @@
         }
     }
 
-    if (hudVisible) {
+    if (hudMode !== 'off') {
         startPolling();
     }
+
+    // Expose global controller API for Quick Menu and Hub
+    window.KyberPerfHUD = {
+        getMode: () => hudMode,
+        setMode: (m) => setHudMode(m),
+        cycleMode: () => cycleHudMode(),
+        toggle: () => {
+            if (hudMode === 'off') setHudMode('bar');
+            else setHudMode('off');
+        }
+    };
 
     // Auto-connect assistance and native screen adaptation
     function initAutoConnectAndDisplay() {

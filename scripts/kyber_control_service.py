@@ -901,6 +901,145 @@ def get_system_info():
         "tls": get_tls_fingerprint()
     }
 
+_telemetry_cache = {"timestamp": 0, "data": {}}
+_telemetry_lock = threading.Lock()
+_cpu_last_stat = {"total": 0, "idle": 0}
+
+def get_telemetry_info():
+    """Retrieve real-time hardware telemetry: GPU, CPU, RAM, and active session."""
+    now = time.time()
+    with _telemetry_lock:
+        if now - _telemetry_cache["timestamp"] < 0.5:
+            return _telemetry_cache["data"]
+
+        gpu_telemetry = {
+            "gpu_load": None,
+            "gpu_temp": None,
+            "vram_used": None,
+            "vram_total": None,
+            "power_draw": None,
+            "fan_speed": None
+        }
+
+        # Query nvidia-smi if available
+        try:
+            res = subprocess.run(
+                [
+                    "nvidia-smi",
+                    "--query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total,power.draw,fan.speed",
+                    "--format=csv,noheader,nounits"
+                ],
+                capture_output=True, text=True, timeout=1
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                fields = [f.strip() for f in res.stdout.splitlines()[0].split(",")]
+                if len(fields) >= 4:
+                    try:
+                        gpu_telemetry["gpu_load"] = int(fields[0]) if fields[0].isdigit() else None
+                    except Exception:
+                        pass
+                    try:
+                        gpu_telemetry["gpu_temp"] = int(fields[1]) if fields[1].isdigit() else None
+                    except Exception:
+                        pass
+                    try:
+                        gpu_telemetry["vram_used"] = int(fields[2]) if fields[2].isdigit() else None
+                    except Exception:
+                        pass
+                    try:
+                        gpu_telemetry["vram_total"] = int(fields[3]) if fields[3].isdigit() else None
+                    except Exception:
+                        pass
+                    if len(fields) >= 5:
+                        try:
+                            gpu_telemetry["power_draw"] = float(fields[4])
+                        except Exception:
+                            pass
+                    if len(fields) >= 6:
+                        try:
+                            gpu_telemetry["fan_speed"] = int(fields[5]) if fields[5].isdigit() else None
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
+        # CPU utilization calculation via /proc/stat
+        cpu_load = None
+        try:
+            if os.path.exists("/proc/stat"):
+                with open("/proc/stat", "r") as f:
+                    first_line = f.readline()
+                parts = [int(p) for p in first_line.split()[1:]]
+                idle = parts[3] + (parts[4] if len(parts) > 4 else 0)
+                total = sum(parts)
+                prev_total = _cpu_last_stat.get("total", 0)
+                prev_idle = _cpu_last_stat.get("idle", 0)
+                if prev_total > 0 and total > prev_total:
+                    diff_total = total - prev_total
+                    diff_idle = idle - prev_idle
+                    if diff_total > 0:
+                        cpu_load = max(0, min(100, int(100 * (diff_total - diff_idle) / diff_total)))
+                _cpu_last_stat["total"] = total
+                _cpu_last_stat["idle"] = idle
+        except Exception:
+            pass
+
+        if cpu_load is None:
+            try:
+                load1, _, _ = os.getloadavg()
+                cpu_count = os.cpu_count() or 1
+                cpu_load = max(0, min(100, int((load1 / cpu_count) * 100)))
+            except Exception:
+                cpu_load = 0
+
+        # Memory utilization via /proc/meminfo
+        ram_used = None
+        ram_total = None
+        try:
+            if os.path.exists("/proc/meminfo"):
+                mem_dict = {}
+                with open("/proc/meminfo", "r") as f:
+                    for line in f:
+                        parts = line.split(":")
+                        if len(parts) == 2:
+                            key = parts[0].strip()
+                            val = parts[1].strip().split()[0]
+                            if val.isdigit():
+                                mem_dict[key] = int(val)
+                if "MemTotal" in mem_dict and "MemAvailable" in mem_dict:
+                    ram_total = mem_dict["MemTotal"] // 1024
+                    ram_used = (mem_dict["MemTotal"] - mem_dict["MemAvailable"]) // 1024
+        except Exception:
+            pass
+
+        # Active session detection
+        active_app = "menu"
+        try:
+            if subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0:
+                active_app = "steam"
+            elif subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0:
+                active_app = "heroic"
+            elif subprocess.run("pgrep -u gamer -f 'eglantine' >/dev/null 2>&1", shell=True).returncode == 0:
+                active_app = "eglantine"
+            elif subprocess.run("pgrep -u gamer -f 'chrome' >/dev/null 2>&1", shell=True).returncode == 0:
+                active_app = "browser"
+            else:
+                active_app = "menu"
+        except Exception:
+            pass
+
+        data = {
+            "gpu": gpu_telemetry,
+            "cpu_load": cpu_load,
+            "ram_used_mb": ram_used,
+            "ram_total_mb": ram_total,
+            "active_app": active_app,
+            "timestamp": now
+        }
+        _telemetry_cache["timestamp"] = now
+        _telemetry_cache["data"] = data
+        return data
+
 def get_launchers_config():
     """Read dynamic launchers & emulators registry and check availability."""
     paths = [
@@ -1074,6 +1213,13 @@ class ResizeHandler(BaseHTTPRequestHandler):
             self._send_text_response(current_xrandr)
         elif parsed.path == "/api/system":
             self._send_json_response(get_system_info())
+        elif parsed.path == "/api/telemetry":
+            self._send_json_response(get_telemetry_info())
+        elif parsed.path == "/api/volume":
+            level = int(params.get("level", ["100"])[0])
+            level = max(0, min(150, level))
+            run_cmd(f"pactl set-sink-volume @DEFAULT_SINK@ {level}% 2>/dev/null || wpctl set-volume @DEFAULT_AUDIO_SINK@ {level/100:.2f} 2>/dev/null")
+            self._send_json_response({"status": "ok", "volume": level})
         elif parsed.path == "/api/launchers":
             self._send_json_response(get_launchers_config())
         elif parsed.path == "/api/roms":

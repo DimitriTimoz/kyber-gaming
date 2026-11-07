@@ -396,5 +396,20 @@ class TestStorageService(unittest.TestCase):
         }
         self.assertTrue(kcs.is_authenticated(("127.0.0.1", 8081), headers_valid, {}))
 
+    def test_telemetry_endpoint_structure(self):
+        telemetry = kcs.get_telemetry_info()
+        self.assertIsInstance(telemetry, dict)
+        self.assertIn("gpu", telemetry)
+        self.assertIn("cpu_load", telemetry)
+        self.assertIn("ram_used_mb", telemetry)
+        self.assertIn("ram_total_mb", telemetry)
+        self.assertIn("active_app", telemetry)
+        self.assertIn("timestamp", telemetry)
+        self.assertIsInstance(telemetry["gpu"], dict)
+        self.assertIn("gpu_load", telemetry["gpu"])
+        self.assertIn("gpu_temp", telemetry["gpu"])
+        self.assertIn("vram_used", telemetry["gpu"])
+        self.assertIn("vram_total", telemetry["gpu"])
+
 if __name__ == "__main__":
     unittest.main()

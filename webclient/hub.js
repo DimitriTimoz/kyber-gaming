@@ -24,6 +24,8 @@
         authUser: '',
         authPass: '',
         isAuthenticated: false,
+        controllerLayout: localStorage.getItem('kyber_controller_layout') || 'xbox',
+        streamVolume: parseInt(localStorage.getItem('kyber_stream_volume') || '100', 10),
         gamepads: []
     };
 
@@ -35,6 +37,12 @@
         if (savedSettings) {
             Object.assign(state, JSON.parse(savedSettings));
         }
+
+        const savedLayout = localStorage.getItem('kyber_controller_layout');
+        if (savedLayout) state.controllerLayout = savedLayout;
+
+        const savedVol = localStorage.getItem('kyber_stream_volume');
+        if (savedVol) state.streamVolume = parseInt(savedVol, 10);
 
         const savedUser = localStorage.getItem('kyber_auth_user');
         const savedPass = localStorage.getItem('kyber_auth_pass');
@@ -63,6 +71,8 @@
                 codec: state.codec,
                 audioBuffer: state.audioBuffer
             }));
+            localStorage.setItem('kyber_controller_layout', state.controllerLayout);
+            localStorage.setItem('kyber_stream_volume', state.streamVolume.toString());
         } catch (e) {}
     }
 
@@ -617,25 +627,38 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Controllers & Quit Instructions -->
+                <!-- Card 3: Controllers & Shortcuts -->
                 <div class="lobby-card">
-                    <h2 class="card-title">Controllers & Shortcuts</h2>
-                    <div class="gamepad-box">
-                        <div class="gamepad-indicator" id="hub-gamepad-box">
-                            <span class="status-dot"></span>
-                            <span id="hub-gamepad-label">No controller detected</span>
-                        </div>
-                        <button class="gamepad-vibrate-btn" id="hub-btn-vibrate" style="display:none;">
-                            Test Vibration
-                        </button>
+                    <h2 class="card-title">Controllers & Layout</h2>
+                    <div class="input-row" style="margin-bottom:0.6rem;">
+                        <label for="hub-sel-layout">Button Layout</label>
+                        <select id="hub-sel-layout">
+                            <option value="xbox">Xbox / Standard (A=Bottom, B=Right)</option>
+                            <option value="nintendo">Nintendo Switch (A=Right, B=Bottom)</option>
+                        </select>
                     </div>
 
-                    <div style="font-size:0.75rem; color:var(--kh-text-muted); line-height:1.5;">
-                        <div style="font-weight:700; color:#fff; margin-bottom:0.35rem;">How to exit in-game session:</div>
+                    <div style="font-size:0.75rem; color:var(--kh-text-muted); margin-bottom:0.4rem; font-weight:600;">
+                        Connected Controllers (Up to 4 Players):
+                    </div>
+                    <div id="hub-controller-slots" class="controller-slots-list">
+                        <div class="gamepad-box">
+                            <div class="gamepad-indicator" id="hub-gamepad-box">
+                                <span class="status-dot"></span>
+                                <span id="hub-gamepad-label">No controller detected</span>
+                            </div>
+                            <button class="gamepad-vibrate-btn" id="hub-btn-vibrate" style="display:none;">
+                                Test Vibration
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="font-size:0.75rem; color:var(--kh-text-muted); line-height:1.5; margin-top:0.8rem;">
+                        <div style="font-weight:700; color:#fff; margin-bottom:0.35rem;">In-Game Quick Menu:</div>
                         <ul style="padding-left:1.1rem; margin:0; display:flex; flex-direction:column; gap:0.25rem;">
-                            <li>Hover near the top edge of the screen to reveal the control bar.</li>
-                            <li>Press <kbd>Esc</kbd> or <kbd>Ctrl+Shift+Q</kbd>.</li>
-                            <li>Click the red <strong>[Quit Session]</strong> button.</li>
+                            <li>Press <kbd>Guide / Home</kbd> on controller at any time.</li>
+                            <li>Or hold <kbd>Select + Start</kbd> for 1.2s to open Quick Menu.</li>
+                            <li>Keyboard: Press <kbd>F10</kbd> or hover top screen edge.</li>
                         </ul>
                     </div>
                 </div>
@@ -684,6 +707,78 @@
             </div>
         `;
         document.body.appendChild(loadingEl);
+
+        // Hold indicator for Select+Start combo
+        const holdIndicatorEl = document.createElement('div');
+        holdIndicatorEl.id = 'kyber-hold-indicator';
+        holdIndicatorEl.innerHTML = `
+            <svg class="hold-ring-svg" viewBox="0 0 68 68">
+                <circle class="hold-ring-bg" cx="34" cy="34" r="30"></circle>
+                <circle id="kyber-hold-circle" class="hold-ring-progress" cx="34" cy="34" r="30"></circle>
+            </svg>
+            <div class="hold-label">HOLD FOR MENU</div>
+        `;
+        document.body.appendChild(holdIndicatorEl);
+
+        // Kyber In-Game Quick Menu
+        const quickMenuEl = document.createElement('div');
+        quickMenuEl.id = 'kyber-quick-menu';
+        quickMenuEl.className = 'hidden';
+        quickMenuEl.innerHTML = `
+            <div class="qm-backdrop" id="qm-backdrop"></div>
+            <div class="qm-modal">
+                <div class="qm-header">
+                    <div class="qm-brand">KYBER QUICK MENU</div>
+                    <div class="qm-clock" id="qm-clock">--:--</div>
+                </div>
+                <div class="qm-session-bar">
+                    <span id="qm-active-session">Active Game: Standby</span>
+                    <span id="qm-active-res">1080p 60Hz</span>
+                </div>
+                <div class="qm-list" id="qm-list">
+                    <div class="qm-item active" data-action="resume">
+                        <span class="qm-item-label">Resume Game</span>
+                        <span class="qm-item-value">Back to play</span>
+                    </div>
+                    <div class="qm-item" data-action="hub">
+                        <span class="qm-item-label">Return to Console Hub</span>
+                        <span class="qm-item-value">Suspend & Menu</span>
+                    </div>
+                    <div class="qm-item" data-action="close_game">
+                        <span class="qm-item-label">Close Active Game</span>
+                        <span class="qm-item-value danger">Force Quit</span>
+                    </div>
+                    <div class="qm-item" data-action="hud">
+                        <span class="qm-item-label">Performance HUD</span>
+                        <span class="qm-item-value" id="qm-val-hud">Off</span>
+                    </div>
+                    <div class="qm-item" data-action="layout">
+                        <span class="qm-item-label">Controller Layout</span>
+                        <span class="qm-item-value" id="qm-val-layout">Xbox Standard</span>
+                    </div>
+                    <div class="qm-item" data-action="resolution">
+                        <span class="qm-item-label">Display Resolution</span>
+                        <span class="qm-item-value" id="qm-val-res">1080p 60Hz</span>
+                    </div>
+                    <div class="qm-item" data-action="volume">
+                        <span class="qm-item-label">Host Volume</span>
+                        <span class="qm-item-value" id="qm-val-vol">100%</span>
+                    </div>
+                    <div class="qm-item" data-action="disconnect">
+                        <span class="qm-item-label">Disconnect Stream</span>
+                        <span class="qm-item-value danger">Exit to Lobby</span>
+                    </div>
+                </div>
+                <div class="qm-footer" id="qm-footer-hints">
+                    <span class="qm-hint"><span class="qm-glyph" id="qm-hint-confirm">A</span> Select</span>
+                    <span class="qm-hint"><span class="qm-glyph" id="qm-hint-cancel">B</span> Close</span>
+                    <span class="qm-hint"><span class="qm-glyph">&larr;&rarr;</span> Adjust</span>
+                    <span class="qm-hint"><span class="qm-glyph">&uarr;&darr;</span> Move</span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(quickMenuEl);
+        isolateUiEvents(quickMenuEl);
 
         // Bind DOM references
         badgeHostStatus = document.getElementById('hub-host-status');
@@ -963,49 +1058,489 @@
     }
 
     // ==========================================================================
-    // Gamepad API Handling
+    // Gamepad API, Multi-Controllers & In-Game Quick Menu
     // ==========================================================================
-    function initGamepadListener() {
-        window.addEventListener('gamepadconnected', onGamepadStateChange);
-        window.addEventListener('gamepaddisconnected', onGamepadStateChange);
+    let quickMenuVisible = false;
+    let quickMenuIndex = 0;
+    let holdStartTime = 0;
+    let comboTriggered = false;
+    let lastGuidePressed = false;
+    let navThrottleTime = 0;
+    let sfxAudioCtx = null;
 
-        setInterval(checkGamepads, 1000);
+    const RESOLUTION_OPTIONS = ['1080p 60Hz', '1080p 120Hz', '1440p 60Hz', '1440p 120Hz', '4K 60Hz'];
+    let currentResOptionIdx = 0;
 
-        if (btnVibrateGamepad) {
-            btnVibrateGamepad.addEventListener('click', () => {
-                const gp = navigator.getGamepads().find(g => g !== null);
-                if (gp && gp.vibrationActuator) {
-                    gp.vibrationActuator.playEffect('dual-rumble', {
-                        startDelay: 0,
-                        duration: 400,
-                        weakMagnitude: 0.7,
-                        strongMagnitude: 0.7
-                    });
-                }
-            });
+    const QUICK_MENU_ITEMS = [
+        { id: 'resume', label: 'Resume Game', type: 'action' },
+        { id: 'hub', label: 'Return to Console Hub', type: 'action' },
+        { id: 'close_game', label: 'Close Active Game', type: 'action', danger: true },
+        { id: 'hud', label: 'Performance HUD', type: 'value' },
+        { id: 'layout', label: 'Controller Layout', type: 'value' },
+        { id: 'resolution', label: 'Display Resolution', type: 'value' },
+        { id: 'volume', label: 'Host Volume', type: 'value' },
+        { id: 'disconnect', label: 'Disconnect Stream', type: 'action', danger: true }
+    ];
+
+    function playQuickMenuSound(type) {
+        try {
+            if (!sfxAudioCtx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) sfxAudioCtx = new AudioCtx();
+            }
+            if (!sfxAudioCtx || sfxAudioCtx.state === 'suspended') {
+                sfxAudioCtx?.resume().catch(() => {});
+            }
+            if (!sfxAudioCtx) return;
+
+            const osc = sfxAudioCtx.createOscillator();
+            const gain = sfxAudioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(sfxAudioCtx.destination);
+            const now = sfxAudioCtx.currentTime;
+
+            if (type === 'nav') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(320, now);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.start(now);
+                osc.stop(now + 0.04);
+            } else if (type === 'select') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(660, now + 0.03);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'close') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.06);
+                gain.gain.setValueAtTime(0.04, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc.start(now);
+                osc.stop(now + 0.06);
+            }
+        } catch (e) {}
+    }
+
+    function vibrateGamepad(index, duration = 250, strength = 0.6) {
+        const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(g => g !== null) : [];
+        const gp = pads.find(g => g.index === index) || pads[0];
+        if (gp && gp.vibrationActuator) {
+            gp.vibrationActuator.playEffect('dual-rumble', {
+                startDelay: 0,
+                duration: duration,
+                weakMagnitude: strength,
+                strongMagnitude: strength
+            }).catch(() => {});
         }
     }
 
-    function onGamepadStateChange() {
+    function initGamepadListener() {
+        window.addEventListener('gamepadconnected', checkGamepads);
+        window.addEventListener('gamepaddisconnected', checkGamepads);
+
+        const selLayout = document.getElementById('hub-sel-layout');
+        if (selLayout) {
+            selLayout.value = state.controllerLayout;
+            selLayout.addEventListener('change', () => {
+                state.controllerLayout = selLayout.value;
+                saveSettings();
+                updateQuickMenuValues();
+            });
+        }
+
+        // Quick menu backdrop click to close
+        const qmBackdrop = document.getElementById('qm-backdrop');
+        if (qmBackdrop) {
+            qmBackdrop.addEventListener('click', closeQuickMenu);
+        }
+
+        // Click handlers on quick menu items
+        const qmItems = document.querySelectorAll('.qm-item');
+        qmItems.forEach((item, idx) => {
+            item.addEventListener('click', () => {
+                quickMenuIndex = idx;
+                updateQuickMenuSelection();
+                executeQuickMenuAction();
+            });
+        });
+
+        // Keyboard hotkeys for Quick Menu
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F10' || (e.shiftKey && e.key === 'Escape') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'o')) {
+                e.preventDefault();
+                toggleQuickMenu();
+            } else if (quickMenuVisible) {
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    moveQuickMenu(-1);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    moveQuickMenu(1);
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    adjustQuickMenuValue(-1);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    adjustQuickMenuValue(1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    executeQuickMenuAction();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeQuickMenu();
+                }
+            }
+        });
+
+        // Start animation frame loop for gamepad shortcut detection & quick menu control
+        requestAnimationFrame(pollInGameGamepads);
         checkGamepads();
     }
 
     function checkGamepads() {
         const gamepads = (navigator.getGamepads ? Array.from(navigator.getGamepads()) : []).filter(g => g !== null);
-        const indicatorBox = document.getElementById('hub-gamepad-box');
+        const slotsContainer = document.getElementById('hub-controller-slots');
+        if (!slotsContainer) return;
 
-        if (gamepads.length > 0) {
-            const first = gamepads[0];
-            gamepadStatusLabel.textContent = `${first.id} [${gamepads.length} active]`;
-            if (indicatorBox) indicatorBox.classList.add('connected');
-            if (first.vibrationActuator && btnVibrateGamepad) {
-                btnVibrateGamepad.style.display = 'inline-block';
-            }
-        } else {
-            gamepadStatusLabel.textContent = 'No controller detected (Connect via USB or Bluetooth)';
-            if (indicatorBox) indicatorBox.classList.remove('connected');
-            if (btnVibrateGamepad) btnVibrateGamepad.style.display = 'none';
+        if (gamepads.length === 0) {
+            slotsContainer.innerHTML = `
+                <div class="gamepad-box">
+                    <div class="gamepad-indicator" id="hub-gamepad-box">
+                        <span class="status-dot"></span>
+                        <span id="hub-gamepad-label">No controller detected (Connect via USB or Bluetooth)</span>
+                    </div>
+                </div>
+            `;
+            return;
         }
+
+        slotsContainer.innerHTML = '';
+        gamepads.slice(0, 4).forEach((gp, idx) => {
+            const row = document.createElement('div');
+            row.className = 'controller-slot-row';
+            row.innerHTML = `
+                <div style="display:flex; align-items:center;">
+                    <span class="controller-slot-tag">P${idx + 1}</span>
+                    <span style="font-weight:600; color:#ededed; max-width:210px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${gp.id}</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button class="in-game-btn" data-vibrate-idx="${gp.index}" style="font-size:10px; padding:2px 8px;">Test Rumble</button>
+                </div>
+            `;
+            const vibBtn = row.querySelector(`[data-vibrate-idx="${gp.index}"]`);
+            if (vibBtn) {
+                vibBtn.addEventListener('click', () => {
+                    vibrateGamepad(gp.index);
+                });
+            }
+            slotsContainer.appendChild(row);
+        });
+    }
+
+    // ==========================================================================
+    // Quick Menu UI Management
+    // ==========================================================================
+    function openQuickMenu() {
+        quickMenuVisible = true;
+        const qmEl = document.getElementById('kyber-quick-menu');
+        if (qmEl) qmEl.classList.remove('hidden');
+
+        // Update Clock in header
+        const clockEl = document.getElementById('qm-clock');
+        if (clockEl) {
+            const d = new Date();
+            clockEl.textContent = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        // Update active app name
+        const sessEl = document.getElementById('qm-active-session');
+        if (sessEl) {
+            const name = LAUNCHER_DISPLAY_NAMES[state.selectedLauncher] || 'Steam Session';
+            sessEl.textContent = `Active: ${name}`;
+        }
+
+        updateQuickMenuValues();
+        updateQuickMenuSelection();
+        playQuickMenuSound('select');
+    }
+
+    function closeQuickMenu() {
+        if (!quickMenuVisible) return;
+        quickMenuVisible = false;
+        const qmEl = document.getElementById('kyber-quick-menu');
+        if (qmEl) qmEl.classList.add('hidden');
+        playQuickMenuSound('close');
+    }
+
+    function toggleQuickMenu() {
+        if (quickMenuVisible) {
+            closeQuickMenu();
+        } else {
+            openQuickMenu();
+        }
+    }
+
+    function updateQuickMenuSelection() {
+        const items = document.querySelectorAll('.qm-item');
+        items.forEach((item, idx) => {
+            item.classList.toggle('active', idx === quickMenuIndex);
+        });
+    }
+
+    function updateQuickMenuValues() {
+        // 1. HUD value
+        const hudValEl = document.getElementById('qm-val-hud');
+        if (hudValEl) {
+            const mode = window.KyberPerfHUD?.getMode() || 'off';
+            hudValEl.textContent = mode === 'bar' ? 'Top Bar' : (mode === 'card' ? 'Full Card' : 'Off');
+        }
+
+        // 2. Controller Layout value
+        const layoutValEl = document.getElementById('qm-val-layout');
+        if (layoutValEl) {
+            layoutValEl.textContent = state.controllerLayout === 'nintendo' ? 'Nintendo Switch' : 'Xbox Standard';
+        }
+
+        // 3. Resolution value
+        const resValEl = document.getElementById('qm-val-res');
+        const sessionResEl = document.getElementById('qm-active-res');
+        const currentRes = RESOLUTION_OPTIONS[currentResOptionIdx];
+        if (resValEl) resValEl.textContent = currentRes;
+        if (sessionResEl) sessionResEl.textContent = currentRes;
+
+        // 4. Volume value
+        const volValEl = document.getElementById('qm-val-vol');
+        if (volValEl) {
+            volValEl.textContent = state.streamVolume === 0 ? 'Muted' : `${state.streamVolume}%`;
+        }
+
+        // 5. Button hint labels based on layout
+        const confirmHint = document.getElementById('qm-hint-confirm');
+        const cancelHint = document.getElementById('qm-hint-cancel');
+        if (confirmHint && cancelHint) {
+            if (state.controllerLayout === 'nintendo') {
+                confirmHint.textContent = 'A (Right)';
+                cancelHint.textContent = 'B (Bottom)';
+            } else {
+                confirmHint.textContent = 'A (Bottom)';
+                cancelHint.textContent = 'B (Right)';
+            }
+        }
+    }
+
+    function moveQuickMenu(delta) {
+        quickMenuIndex = (quickMenuIndex + delta + QUICK_MENU_ITEMS.length) % QUICK_MENU_ITEMS.length;
+        updateQuickMenuSelection();
+        playQuickMenuSound('nav');
+    }
+
+    function adjustQuickMenuValue(delta) {
+        const item = QUICK_MENU_ITEMS[quickMenuIndex];
+        if (!item) return;
+
+        if (item.id === 'hud') {
+            if (window.KyberPerfHUD) {
+                window.KyberPerfHUD.cycleMode();
+            }
+        } else if (item.id === 'layout') {
+            state.controllerLayout = state.controllerLayout === 'xbox' ? 'nintendo' : 'xbox';
+            const selLayout = document.getElementById('hub-sel-layout');
+            if (selLayout) selLayout.value = state.controllerLayout;
+            saveSettings();
+        } else if (item.id === 'resolution') {
+            currentResOptionIdx = (currentResOptionIdx + delta + RESOLUTION_OPTIONS.length) % RESOLUTION_OPTIONS.length;
+            const chosen = RESOLUTION_OPTIONS[currentResOptionIdx];
+            applyQuickResolution(chosen);
+        } else if (item.id === 'volume') {
+            state.streamVolume = Math.max(0, Math.min(100, state.streamVolume + delta * 25));
+            saveSettings();
+            applyQuickVolume(state.streamVolume);
+        }
+
+        updateQuickMenuValues();
+        playQuickMenuSound('nav');
+    }
+
+    function executeQuickMenuAction() {
+        const item = QUICK_MENU_ITEMS[quickMenuIndex];
+        if (!item) return;
+
+        playQuickMenuSound('select');
+
+        if (item.id === 'resume') {
+            closeQuickMenu();
+        } else if (item.id === 'hub') {
+            closeQuickMenu();
+            state.selectedLauncher = 'menu';
+            switchHostLauncher('menu');
+        } else if (item.id === 'close_game') {
+            closeQuickMenu();
+            switchHostLauncher('close-active');
+        } else if (item.id === 'hud') {
+            adjustQuickMenuValue(1);
+        } else if (item.id === 'layout') {
+            adjustQuickMenuValue(1);
+        } else if (item.id === 'resolution') {
+            adjustQuickMenuValue(1);
+        } else if (item.id === 'volume') {
+            adjustQuickMenuValue(1);
+        } else if (item.id === 'disconnect') {
+            closeQuickMenu();
+            stopStreamingSession();
+        }
+    }
+
+    async function applyQuickResolution(resString) {
+        let w = 1920, h = 1080, rate = 60;
+        if (resString.includes('1080p')) {
+            w = 1920; h = 1080;
+        } else if (resString.includes('1440p')) {
+            w = 2560; h = 1440;
+        } else if (resString.includes('4K')) {
+            w = 3840; h = 2160;
+        }
+        if (resString.includes('120Hz')) rate = 120;
+
+        await resizeHostScreen(w, h, rate);
+    }
+
+    function applyQuickVolume(volPercent) {
+        const host = window.location.hostname || '127.0.0.1';
+        const controlPort = 8081;
+        const u = state.authUser || 'gamer';
+        const p = state.authPass || 'kybergaming';
+        fetch(`https://${host}:${controlPort}/api/volume?level=${volPercent}&auth_user=${u}&auth_pass=${p}`, {
+            mode: 'cors',
+            cache: 'no-store'
+        }).catch(() => {});
+    }
+
+    // ==========================================================================
+    // Gamepad In-Game Polling Loop (Guide Button & Select+Start Hold Combo)
+    // ==========================================================================
+    function pollInGameGamepads() {
+        const pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(g => g !== null) : [];
+        const now = performance.now();
+
+        if (pads.length > 0) {
+            // Check combo and Guide button on all gamepads
+            let guidePressed = false;
+            let comboHeld = false;
+            let activePad = null;
+
+            for (const pad of pads) {
+                // Button 16 is Guide / Home on Standard Gamepad spec
+                if (pad.buttons[16] && (pad.buttons[16].pressed || pad.buttons[16].value > 0.5)) {
+                    guidePressed = true;
+                    activePad = pad;
+                    break;
+                }
+
+                // Combo: Select (btn 8) + Start (btn 9)
+                const selectPressed = pad.buttons[8] && (pad.buttons[8].pressed || pad.buttons[8].value > 0.5);
+                const startPressed = pad.buttons[9] && (pad.buttons[9].pressed || pad.buttons[9].value > 0.5);
+
+                if (selectPressed && startPressed) {
+                    comboHeld = true;
+                    activePad = pad;
+                    break;
+                }
+            }
+
+            // Handle Guide Button trigger
+            if (guidePressed) {
+                if (!lastGuidePressed) {
+                    lastGuidePressed = true;
+                    toggleQuickMenu();
+                }
+            } else {
+                lastGuidePressed = false;
+            }
+
+            // Handle Select+Start hold indicator
+            const holdIndicatorEl = document.getElementById('kyber-hold-indicator');
+            const holdCircle = document.getElementById('kyber-hold-circle');
+
+            if (comboHeld) {
+                if (holdStartTime === 0) {
+                    holdStartTime = now;
+                    comboTriggered = false;
+                    if (holdIndicatorEl) holdIndicatorEl.classList.add('active');
+                }
+
+                const elapsed = now - holdStartTime;
+                const progress = Math.min(1.0, elapsed / 1200);
+
+                if (holdCircle) {
+                    // Circumference: 2 * PI * 30 = ~188.5
+                    const dashoffset = 188.5 * (1.0 - progress);
+                    holdCircle.style.strokeDashoffset = `${dashoffset}`;
+                }
+
+                if (elapsed >= 1200 && !comboTriggered) {
+                    comboTriggered = true;
+                    if (activePad) vibrateGamepad(activePad.index, 300, 0.8);
+                    toggleQuickMenu();
+                    if (holdIndicatorEl) holdIndicatorEl.classList.remove('active');
+                }
+            } else {
+                if (holdStartTime !== 0) {
+                    holdStartTime = 0;
+                    comboTriggered = false;
+                    if (holdIndicatorEl) holdIndicatorEl.classList.remove('active');
+                }
+            }
+
+            // If Quick Menu is currently open, capture gamepad navigation
+            if (quickMenuVisible && activePad) {
+                const isNintendo = state.controllerLayout === 'nintendo';
+
+                // Button mapping based on layout:
+                // Xbox: Confirm = btn 0 (A), Cancel = btn 1 (B)
+                // Nintendo: Confirm = btn 1 (A), Cancel = btn 0 (B)
+                const confirmPressed = isNintendo ? activePad.buttons[1]?.pressed : activePad.buttons[0]?.pressed;
+                const cancelPressed = isNintendo ? activePad.buttons[0]?.pressed : activePad.buttons[1]?.pressed;
+
+                // D-Pad buttons
+                const dUp = activePad.buttons[12]?.pressed;
+                const dDown = activePad.buttons[13]?.pressed;
+                const dLeft = activePad.buttons[14]?.pressed;
+                const dRight = activePad.buttons[15]?.pressed;
+
+                // Analog stick axes
+                const stickY = activePad.axes[1] || 0;
+                const stickX = activePad.axes[0] || 0;
+
+                if (now > navThrottleTime) {
+                    if (dUp || stickY < -0.55) {
+                        moveQuickMenu(-1);
+                        navThrottleTime = now + 190;
+                    } else if (dDown || stickY > 0.55) {
+                        moveQuickMenu(1);
+                        navThrottleTime = now + 190;
+                    } else if (dLeft || stickX < -0.55) {
+                        adjustQuickMenuValue(-1);
+                        navThrottleTime = now + 210;
+                    } else if (dRight || stickX > 0.55) {
+                        adjustQuickMenuValue(1);
+                        navThrottleTime = now + 210;
+                    } else if (confirmPressed) {
+                        executeQuickMenuAction();
+                        navThrottleTime = now + 260;
+                    } else if (cancelPressed) {
+                        closeQuickMenu();
+                        navThrottleTime = now + 260;
+                    }
+                }
+            }
+        }
+
+        requestAnimationFrame(pollInGameGamepads);
     }
 
     // Init on load
