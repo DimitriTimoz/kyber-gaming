@@ -1,5 +1,11 @@
 # Kyber Cloud Gaming .gitignore
 
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
 # Auto-generated TLS certificates
 kyber_tls/
 *.pem

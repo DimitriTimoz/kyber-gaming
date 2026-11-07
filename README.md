@@ -11,6 +11,7 @@ Low-latency WebTransport/QUIC streaming, virtual display emulation, Steam Big Pi
 [![Protocol](https://img.shields.io/badge/Protocol-WebTransport%20%2F%20QUIC-6366f1?style=for-the-badge)](https://github.com/DimitriTimoz/kyber-gaming)
 [![Client](https://img.shields.io/badge/Desktop%20Client-Tauri%20v2%20(Rust)-10b981?style=for-the-badge&logo=tauri&logoColor=white)](https://github.com/DimitriTimoz/kyber-gaming/releases/latest)
 [![GPU Support](https://img.shields.io/badge/GPU-NVIDIA%20%7C%20AMD%20%7C%20Intel-f59e0b?style=for-the-badge)](https://github.com/DimitriTimoz/kyber-gaming)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](LICENSE)
 
 <br/>
 
@@ -260,3 +261,19 @@ To run the control service test suite:
 ```bash
 python3 -m unittest discover -s tests -p "test_*.py" -v
 ```
+
+---
+
+## Legal Disclaimer & Emulation Notice
+
+Kyber Cloud Gaming is an infrastructure platform and integration environment for personal remote gaming and home-server virtualization.
+
+- **No Copyrighted Files**: Kyber Gaming does not host, distribute, or bundle copyrighted ROMs, Nintendo Switch system encryption keys (`prod.keys`, `title.keys`), or official console firmware images (`.nca`).
+- **User Responsibility**: Users must provide their own legally acquired game backups, encryption keys, and system firmware extracted from hardware they own, in full compliance with local copyright legislation.
+- **Trademarks**: Steam and the Steam logo are trademarks or registered trademarks of Valve Corporation. Nintendo Switch is a trademark of Nintendo Co., Ltd. Epic Games is a trademark of Epic Games, Inc. All other product names, trademarks, and registered trademarks belong to their respective holders.
+
+---
+
+## License
+
+This project is open-source software licensed under the **GNU General Public License v3.0 (GPLv3)**. See the [LICENSE](LICENSE) file for the full license text.

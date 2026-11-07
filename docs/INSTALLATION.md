@@ -61,6 +61,14 @@ Kyber Gaming operates as a containerized stack designed for low-latency game str
 - **Docker Compose** (Compose v2: `docker compose`)
 - For NVIDIA hosts: **NVIDIA Container Toolkit** (`nvidia-container-toolkit`)
 
+### Host Controller & Input Device Permissions (`/dev/uinput`)
+To allow the streaming daemon to create virtual Xbox 360 controllers and inject keyboard/mouse inputs without permission errors, ensure `/dev/uinput` is accessible on the host:
+```bash
+sudo modprobe uinput
+echo 'KERNEL=="uinput", MODE="0660", GROUP="input", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-uinput.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
 ### Required Ports
 | Port | Protocol | Purpose |
 |------|----------|---------|
@@ -81,7 +89,13 @@ git clone https://github.com/DimitriTimoz/kyber-gaming.git
 cd kyber-gaming
 ```
 
-2. Review or customize `docker-compose.yml`:
+2. Configure environment variables and secure credentials:
+```bash
+cp .env.example .env
+nano .env # Customize AUTH_PASSWORD, RESOLUTION, and REFRESH_RATE
+```
+
+3. Review or customize `docker-compose.yml`:
 ```yaml
 services:
   kyber-gaming:
