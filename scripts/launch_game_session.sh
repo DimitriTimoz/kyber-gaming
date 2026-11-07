@@ -7,6 +7,11 @@ export HOME="/home/gamer"
 export XCURSOR_SIZE="${XCURSOR_SIZE:-24}"
 export XCURSOR_THEME="${XCURSOR_THEME:-Adwaita}"
 
+# Inherit GPU environment overrides configured during entrypoint hardware detection
+if [ -f /etc/profile.d/kyber_gpu.sh ]; then
+    . /etc/profile.d/kyber_gpu.sh
+fi
+
 echo "[session] Starting Kyber game session manager on DISPLAY $DISPLAY"
 
 # Wait for X server
@@ -58,10 +63,85 @@ STEAMDIR="$HOME/.steam/debian-installation"
 clean_steam_locks() {
     rm -rf \
         "$STEAMDIR/config/htmlcache/Singleton"* \
+        "$STEAMDIR/config/htmlcache/GPUCache" \
         "$HOME/.local/share/Steam/config/htmlcache/Singleton"* \
+        "$HOME/.local/share/Steam/config/htmlcache/GPUCache" \
         "$STEAMDIR/.steam_exec_test.sh" \
         "$STEAMDIR/steam.pid" \
         /tmp/steam* 2>/dev/null || true
+
+    # Pre-configure and normalize Steam library storage display (/games/steam)
+    python3 - << 'PYEOF' 2>/dev/null || true
+import os
+import re
+
+games_root = os.environ.get("GAMES_ROOT", "/games")
+target_label = f"{games_root}/steam"
+
+vdf_template = f'''"libraryfolders"
+{{
+\t"0"
+\t{{
+\t\t"path"\t\t"/home/gamer/.local/share/Steam"
+\t\t"label"\t\t"{target_label}"
+\t}}
+}}
+'''
+
+steam_dirs = [
+    "/home/gamer/.local/share/Steam/config",
+    "/home/gamer/.steam/debian-installation/config",
+    f"{games_root}/steam/steamapps",
+    "/home/gamer/.local/share/Steam/steamapps",
+    "/home/gamer/.steam/debian-installation/steamapps",
+]
+
+for sdir in steam_dirs:
+    try:
+        os.makedirs(sdir, exist_ok=True)
+        vdf_path = os.path.join(sdir, "libraryfolders.vdf")
+        if not os.path.exists(vdf_path) or os.path.getsize(vdf_path) == 0:
+            with open(vdf_path, "w", encoding="utf-8") as f:
+                f.write(vdf_template)
+        else:
+            with open(vdf_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            updated = re.sub(r'("label"\s+)"(?:|.*nvidia.*|/)"', rf'\1"{target_label}"', content)
+            if '"label"' not in updated and '"0"' in updated:
+                updated = re.sub(r'("0"\s*\{[^}]*?"path"\s+"[^"]+")', rf'\1\n\t\t"label"\t\t"{target_label}"', updated)
+            if updated != content:
+                with open(vdf_path, "w", encoding="utf-8") as f:
+                    f.write(updated)
+    except Exception:
+        pass
+
+# Ensure registry.vdf disables GPU accelerated rendering in web views (prevents Big Picture black screen)
+reg_dirs = [
+    "/home/gamer/.steam",
+    "/home/gamer/.steam/steam",
+    "/home/gamer/.steam/debian-installation",
+    "/home/gamer/.local/share/Steam",
+]
+for rdir in reg_dirs:
+    try:
+        rpath = os.path.join(rdir, "registry.vdf")
+        if os.path.exists(rpath):
+            with open(rpath, "r", encoding="utf-8") as f:
+                rcontent = f.read()
+            rupdated = re.sub(r'("GPUAccelWebViews"\s+)"[01]"', r'\1"0"', rcontent)
+            rupdated = re.sub(r'("GPUAccelWebViewsV3"\s+)"[01]"', r'\1"0"', rupdated)
+            if '"GPUAccelWebViews"' not in rupdated and '"Steam"' in rupdated:
+                rupdated = re.sub(
+                    r'("Steam"\s*\{)',
+                    r'\1\n\t\t\t\t\t"GPUAccelWebViews"\t\t"0"\n\t\t\t\t\t"GPUAccelWebViewsV3"\t\t"0"',
+                    rupdated
+                )
+            if rupdated != rcontent:
+                with open(rpath, "w", encoding="utf-8") as f:
+                    f.write(rupdated)
+    except Exception:
+        pass
+PYEOF
 }
 
 if [ ! -f "$STEAMDIR/steam.sh" ]; then
@@ -91,7 +171,8 @@ while true; do
         steam)
             echo "[session] Starting Steam..."
             clean_steam_locks
-            steam -no-cef-sandbox >/dev/null 2>&1 &
+            STEAM_CEF_FLAGS="${STEAM_CEF_OPTS:--no-cef-sandbox}"
+            steam $STEAM_CEF_FLAGS >/dev/null 2>&1 &
 
             STEAM_WIN_SEEN=0
             STEAM_LOGIN_SEEN=0
@@ -222,7 +303,8 @@ while true; do
         steam-bigpicture)
             echo "[session] Starting Steam Big Picture..."
             clean_steam_locks
-            steam -bigpicture -no-cef-sandbox >/dev/null 2>&1 &
+            STEAM_BP_FLAGS="${STEAM_BP_OPTS:--no-cef-sandbox}"
+            steam -bigpicture $STEAM_BP_FLAGS >/dev/null 2>&1 &
             STEAM_BP_SEEN=0
             LOADING_DISMISSED=0
             NO_WIN_TICKS=0
@@ -241,10 +323,40 @@ while true; do
                     fi
                 fi
 
-                BP_WID=$(wmctrl -l 2>/dev/null | grep -iE "big picture" | awk '{print $1}' | head -n 1 || true)
+                # Locate the primary Big Picture window while ignoring dummy zero-time helper windows
+                BP_WID=""
+                for wid in $(wmctrl -l 2>/dev/null | grep -iE "big picture|steam" | awk '{print $1}'); do
+                    if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                        UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
+                        if [ "$UTIME" != "0" ]; then
+                            BP_WID="$wid"
+                            break
+                        fi
+                    fi
+                done
+
+                # Fallback: scan any viewable steam window that has an active user time
                 if [ -z "$BP_WID" ]; then
-                    BP_WID=$(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam" | awk '{print $1}' | head -n 1 || true)
+                    for wid in $(wmctrl -lx 2>/dev/null | grep -iE "steamwebhelper|steam" | awk '{print $1}'); do
+                        if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                            UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
+                            if [ "$UTIME" != "0" ]; then
+                                BP_WID="$wid"
+                                break
+                            fi
+                        fi
+                    done
                 fi
+
+                # Unmap dummy background Steam windows (USER_TIME=0) that can obstruct the view
+                for wid in $(wmctrl -lx 2>/dev/null | grep -i "steamwebhelper" | awk '{print $1}'); do
+                    if [ "$wid" != "$BP_WID" ]; then
+                        UTIME=$(xprop -id "$wid" _NET_WM_USER_TIME 2>/dev/null | awk -F'= ' '{print $2}' | tr -d '[:space:]' || true)
+                        if [ "$UTIME" = "0" ]; then
+                            xdotool windowunmap "$wid" 2>/dev/null || true
+                        fi
+                    fi
+                done
 
                 VIEWABLE_BP=0
                 if [ -n "$BP_WID" ]; then
@@ -255,7 +367,8 @@ while true; do
                 fi
 
                 if [ -n "$BP_WID" ] && [ "$VIEWABLE_BP" -eq 1 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
-                    enforce_window_maximized "$BP_WID"
+                    wmctrl -ir "$BP_WID" -b add,fullscreen 2>/dev/null || true
+                    xdotool windowactivate "$BP_WID" 2>/dev/null || wmctrl -ia "$BP_WID" 2>/dev/null || true
                     dismiss_loading_screen
                     LOADING_DISMISSED=1
                 elif [ "$STEAM_BP_SEEN" -eq 0 ] && [ "$WAIT_TICKS" -ge 60 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then

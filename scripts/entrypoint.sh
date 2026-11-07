@@ -77,12 +77,91 @@ ln -sfn "$GAMES_ROOT/steam/steamapps" /home/gamer/.local/share/Steam/steamapps
 ln -sfn "$GAMES_ROOT/steam/steamapps" /home/gamer/.steam/debian-installation/steamapps
 ln -sfn "$GAMES_ROOT" /home/gamer/Games
 
+# Pre-configure and normalize Steam library storage display
+configure_steam_library() {
+    python3 - << 'PYEOF'
+import os
+import re
+
+games_root = os.environ.get("GAMES_ROOT", "/games")
+target_label = f"{games_root}/steam"
+
+vdf_template = f'''"libraryfolders"
+{{
+\t"0"
+\t{{
+\t\t"path"\t\t"/home/gamer/.local/share/Steam"
+\t\t"label"\t\t"{target_label}"
+\t}}
+}}
+'''
+
+steam_dirs = [
+    "/home/gamer/.local/share/Steam/config",
+    "/home/gamer/.steam/debian-installation/config",
+    f"{games_root}/steam/steamapps",
+    "/home/gamer/.local/share/Steam/steamapps",
+    "/home/gamer/.steam/debian-installation/steamapps",
+]
+
+for sdir in steam_dirs:
+    try:
+        os.makedirs(sdir, exist_ok=True)
+        vdf_path = os.path.join(sdir, "libraryfolders.vdf")
+        if not os.path.exists(vdf_path) or os.path.getsize(vdf_path) == 0:
+            with open(vdf_path, "w", encoding="utf-8") as f:
+                f.write(vdf_template)
+        else:
+            with open(vdf_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            updated = re.sub(r'("label"\s+)"(?:|.*nvidia.*|/)"', rf'\1"{target_label}"', content)
+            if '"label"' not in updated and '"0"' in updated:
+                updated = re.sub(r'("0"\s*\{[^}]*?"path"\s+"[^"]+")', rf'\1\n\t\t"label"\t\t"{target_label}"', updated)
+            if updated != content:
+                with open(vdf_path, "w", encoding="utf-8") as f:
+                    f.write(updated)
+    except Exception:
+        pass
+
+# Ensure registry.vdf disables GPU accelerated rendering in web views (prevents Big Picture black screen)
+reg_dirs = [
+    "/home/gamer/.steam",
+    "/home/gamer/.steam/steam",
+    "/home/gamer/.steam/debian-installation",
+    "/home/gamer/.local/share/Steam",
+]
+for rdir in reg_dirs:
+    try:
+        rpath = os.path.join(rdir, "registry.vdf")
+        if os.path.exists(rpath):
+            with open(rpath, "r", encoding="utf-8") as f:
+                rcontent = f.read()
+            rupdated = re.sub(r'("GPUAccelWebViews"\s+)"[01]"', r'\1"0"', rcontent)
+            rupdated = re.sub(r'("GPUAccelWebViewsV3"\s+)"[01]"', r'\1"0"', rupdated)
+            if '"GPUAccelWebViews"' not in rupdated and '"Steam"' in rupdated:
+                rupdated = re.sub(
+                    r'("Steam"\s*\{)',
+                    r'\1\n\t\t\t\t\t"GPUAccelWebViews"\t\t"0"\n\t\t\t\t\t"GPUAccelWebViewsV3"\t\t"0"',
+                    rupdated
+                )
+            if rupdated != rcontent:
+                with open(rpath, "w", encoding="utf-8") as f:
+                    f.write(rupdated)
+    except Exception:
+        pass
+PYEOF
+}
+configure_steam_library
+
 # Self-healing Steam lock and cache cleaner
 clean_steam_locks() {
     rm -rf \
         /home/gamer/.local/share/Steam/config/htmlcache/Singleton* \
+        /home/gamer/.local/share/Steam/config/htmlcache/GPUCache \
         /home/gamer/.steam/debian-installation/config/htmlcache/Singleton* \
+        /home/gamer/.steam/debian-installation/config/htmlcache/GPUCache \
         /home/gamer/.steam/steam/config/htmlcache/Singleton* \
+        /home/gamer/.steam/steam/config/htmlcache/GPUCache \
         /home/gamer/.steam/debian-installation/.steam_exec_test.sh \
         /home/gamer/.steam/debian-installation/steam.pid \
         /tmp/steam* \
