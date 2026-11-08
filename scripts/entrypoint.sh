@@ -291,15 +291,17 @@ if [ -d /home/gamer/.config/retroarch ] && [ ! -L /home/gamer/.config/retroarch 
     rm -rf /home/gamer/.config/retroarch
 fi
 ln -sfn "$GAMES_ROOT/retroarch/config" /home/gamer/.config/retroarch
+ln -sfn /usr/share/libretro/assets "$GAMES_ROOT/retroarch/config/assets" 2>/dev/null || true
 
 RETROARCH_CFG="$GAMES_ROOT/retroarch/config/retroarch.cfg"
 if [ ! -f "$RETROARCH_CFG" ]; then
     cat << 'EOF' > "$RETROARCH_CFG"
 video_fullscreen = "true"
 video_windowed_fullscreen = "true"
-video_driver = "vulkan"
+video_driver = "gl"
 audio_driver = "pulse"
 menu_driver = "ozone"
+assets_directory = "/usr/share/libretro/assets"
 rgui_browser_directory = "/games/roms"
 content_directory = "/games/roms"
 libretro_directory = "/games/retroarch/cores"
@@ -320,6 +322,16 @@ EOF
     chown -R gamer:gamer "$RETROARCH_CFG" 2>/dev/null || true
 fi
 
+if [ -f "$RETROARCH_CFG" ]; then
+    sed -i 's/video_driver = "vulkan"/video_driver = "gl"/g' "$RETROARCH_CFG" 2>/dev/null || true
+    if grep -q "assets_directory" "$RETROARCH_CFG" 2>/dev/null; then
+        sed -i 's|assets_directory = .*|assets_directory = "/usr/share/libretro/assets"|g' "$RETROARCH_CFG" 2>/dev/null || true
+    else
+        echo 'assets_directory = "/usr/share/libretro/assets"' >> "$RETROARCH_CFG"
+    fi
+fi
+chown -R gamer:gamer "$GAMES_ROOT/retroarch" 2>/dev/null || true
+
 if [ -d "$GAMES_ROOT/bios" ]; then
     for bf in "$GAMES_ROOT/bios"/*; do
         if [ -f "$bf" ]; then
@@ -329,12 +341,12 @@ if [ -d "$GAMES_ROOT/bios" ]; then
 fi
 
 # System configuration version sync: automatically update Openbox/Tint2 configs on image upgrade
-IMAGE_VER=$(cat /etc/kyber/version 2>/dev/null || echo "1.0.3")
+IMAGE_VER=$(cat /etc/kyber/version 2>/dev/null || echo "1.0.4")
 USER_VER=$(cat /home/gamer/.config/kyber_version 2>/dev/null || echo "0.0.0")
 
 mkdir -p /home/gamer/.config/openbox /home/gamer/.config/tint2 /home/gamer/.themes /home/gamer/.local/share/applications
 
-if [ "$IMAGE_VER" != "$USER_VER" ] || [ ! -f /home/gamer/.config/openbox/rc.xml ]; then
+if [ "$IMAGE_VER" != "$USER_VER" ] || [ ! -f /home/gamer/.config/openbox/rc.xml ] || grep -q "close-active" /home/gamer/.config/openbox/rc.xml 2>/dev/null; then
     echo "[entrypoint] Synchronizing container system configs (v$IMAGE_VER)..."
     if [ -d /etc/kyber/openbox ]; then
         cp -f /etc/kyber/openbox/* /home/gamer/.config/openbox/ 2>/dev/null || true

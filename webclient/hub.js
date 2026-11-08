@@ -552,42 +552,7 @@
             </header>
 
             <main class="lobby-grid">
-                <!-- Card 1: Launcher -->
-                <div class="lobby-card">
-                    <h2 class="card-title">Environment / Launcher</h2>
-                    <div class="launcher-options">
-                        <div class="launcher-btn active" data-launcher="menu">
-                            <div>
-                                <div class="launcher-name">Console OS Hub</div>
-                                <div class="launcher-desc">Console home interface (Steam, Heroic, Emulators)</div>
-                            </div>
-                            <span class="launcher-tag">Default</span>
-                        </div>
-                        <div class="launcher-btn" data-launcher="steam">
-                            <div>
-                                <div class="launcher-name">Steam Big Picture</div>
-                                <div class="launcher-desc">Direct fullscreen session optimized for gamepad</div>
-                            </div>
-                            <span class="launcher-tag">Direct</span>
-                        </div>
-                        <div class="launcher-btn" data-launcher="heroic">
-                            <div>
-                                <div class="launcher-name">Heroic Games Launcher</div>
-                                <div class="launcher-desc">Epic Games and GOG libraries</div>
-                            </div>
-                            <span class="launcher-tag">Direct</span>
-                        </div>
-                        <div class="launcher-btn" data-launcher="browser">
-                            <div>
-                                <div class="launcher-name">Web Browser</div>
-                                <div class="launcher-desc">Google Chrome for browsing, wikis, and Discord</div>
-                            </div>
-                            <span class="launcher-tag">App</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Card 2: Resolution & Stream Settings -->
+                <!-- Card 1: Resolution & Stream Settings -->
                 <div class="lobby-card">
                     <h2 class="card-title">Display & Video Stream</h2>
                     <div class="setting-group">
@@ -629,7 +594,7 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Controllers & Shortcuts -->
+                <!-- Card 2: Controllers & Shortcuts -->
                 <div class="lobby-card">
                     <h2 class="card-title">Controllers & Layout</h2>
                     <div class="input-row" style="margin-bottom:0.6rem;">
@@ -671,7 +636,7 @@
                     Exit shortcut: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Q</kbd> or hover the top screen edge.
                 </div>
                 <button class="btn-play-stream" id="hub-btn-play">
-                    Start Session
+                    Connect to Stream
                 </button>
             </footer>
         `;
@@ -688,7 +653,7 @@
             <span id="ingame-status-fps">Active stream</span>
             <span>|</span>
             <button class="in-game-btn" id="ingame-btn-fs">Fullscreen</button>
-            <button class="in-game-btn" id="ingame-btn-launcher">Launcher</button>
+            <button class="in-game-btn" id="ingame-btn-launcher">Console Hub</button>
             <button class="in-game-btn" id="ingame-btn-reload">Reload Stream</button>
             <span>|</span>
             <button class="in-game-btn btn-quit-danger" id="ingame-btn-quit">Quit Session</button>
@@ -703,8 +668,8 @@
         loadingEl.innerHTML = `
             <div class="loading-box">
                 <div class="loading-spinner"></div>
-                <div class="loading-title" id="kyber-loading-title">INITIALIZING STREAM</div>
-                <div class="loading-desc" id="kyber-loading-desc">Synchronizing display and launching environment...</div>
+                <div class="loading-title" id="kyber-loading-title">CONNECTING TO STREAM</div>
+                <div class="loading-desc" id="kyber-loading-desc">Synchronizing display and establishing stream...</div>
                 <div class="loading-bar"><div class="loading-bar-fill"></div></div>
             </div>
         `;
@@ -796,7 +761,6 @@
         gamepadStatusLabel = document.getElementById('hub-gamepad-label');
         btnVibrateGamepad = document.getElementById('hub-btn-vibrate');
         btnPlayStream = document.getElementById('hub-btn-play');
-        launcherButtons = lobbyEl.querySelectorAll('.launcher-btn');
 
         document.getElementById('hub-btn-logout').addEventListener('click', performLogout);
 
@@ -810,22 +774,9 @@
         if (selFps) selFps.value = state.refreshRate;
         if (selBitrate) selBitrate.value = state.bitrate;
         if (selCodec) selCodec.value = state.codec;
-
-        launcherButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.launcher === state.selectedLauncher);
-        });
     }
 
     function bindEvents() {
-        launcherButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                launcherButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.selectedLauncher = btn.dataset.launcher;
-                saveSettings();
-            });
-        });
-
         selResolution.addEventListener('change', e => {
             state.resolution = e.target.value;
             toggleCustomResRow();
@@ -859,9 +810,7 @@
         });
 
         document.getElementById('ingame-btn-launcher').addEventListener('click', () => {
-            const nextLauncher = state.selectedLauncher === 'menu' ? 'steam' : 'menu';
-            state.selectedLauncher = nextLauncher;
-            switchHostLauncher(nextLauncher);
+            switchHostLauncher('menu');
         });
 
         document.getElementById('ingame-btn-reload').addEventListener('click', () => {
@@ -971,23 +920,19 @@
         }
 
         btnPlayStream.disabled = true;
-        btnPlayStream.textContent = 'Preparing session...';
+        btnPlayStream.textContent = 'Connecting...';
 
-        const launcherName = LAUNCHER_DISPLAY_NAMES[state.selectedLauncher] || 'Kyber Game Session';
-        showLoadingScreen('INITIALIZING SESSION', `Starting ${launcherName} and synchronizing video stream...`, 4000);
+        showLoadingScreen('CONNECTING TO STREAM', 'Synchronizing display and establishing stream...', 3500);
 
         const [w, h] = getTargetResolutionDimensions();
 
         // 1. Resize remote host virtual display
         await resizeHostScreen(w, h, state.refreshRate);
 
-        // 2. Switch launcher if requested
-        switchHostLauncher(state.selectedLauncher);
-
-        // 3. Inject settings into native Kyber WebClient fields
+        // 2. Inject settings into native Kyber WebClient fields
         applySettingsToWebClient();
 
-        // 4. Hide Lobby, show in-game bar
+        // 3. Hide Lobby, show in-game bar
         setTimeout(() => {
             lobbyEl.classList.add('hidden');
             inGameBarEl.style.display = 'flex';
@@ -995,15 +940,15 @@
             setTimeout(() => inGameBarEl.classList.remove('active'), 4000);
 
             btnPlayStream.disabled = false;
-            btnPlayStream.textContent = 'Start Session';
+            btnPlayStream.textContent = 'Connect to Stream';
 
-            // 5. Trigger WebClient connect
+            // 4. Trigger WebClient connect
             const btnConnect = document.getElementById('connect');
             if (btnConnect) {
                 btnConnect.click();
             }
 
-            // 6. Request fullscreen
+            // 5. Request fullscreen
             try {
                 if (document.documentElement.requestFullscreen) {
                     document.documentElement.requestFullscreen().catch(() => {});
@@ -1382,7 +1327,7 @@
             switchHostLauncher('menu');
         } else if (item.id === 'close_game') {
             closeQuickMenu();
-            switchHostLauncher('close-active');
+            switchHostLauncher('kill-apps');
         } else if (item.id === 'hud') {
             adjustQuickMenuValue(1);
         } else if (item.id === 'layout') {

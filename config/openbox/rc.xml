@@ -67,34 +67,13 @@
 
     <!-- Window Closing & Management (Standard Universal Shortcuts) -->
     <keybind key="A-F4">
-      <action name="Execute">
-        <command>/usr/local/bin/switch_launcher.sh close-active</command>
-      </action>
+      <action name="Close"/>
     </keybind>
     <keybind key="W-q">
-      <action name="Execute">
-        <command>/usr/local/bin/switch_launcher.sh close-active</command>
-      </action>
+      <action name="Close"/>
     </keybind>
     <keybind key="W-c">
-      <action name="Execute">
-        <command>/usr/local/bin/switch_launcher.sh close-active</command>
-      </action>
-    </keybind>
-    <keybind key="W-w">
-      <action name="Execute">
-        <command>/usr/local/bin/switch_launcher.sh close-active</command>
-      </action>
-    </keybind>
-    <keybind key="C-w">
-      <action name="Execute">
-        <command>/usr/local/bin/switch_launcher.sh close-active</command>
-      </action>
-    </keybind>
-    <keybind key="C-q">
-      <action name="Execute">
-        <command>/usr/local/bin/switch_launcher.sh close-active</command>
-      </action>
+      <action name="Close"/>
     </keybind>
 
     <!-- Force Kill Stalled / Unresponsive Window -->
@@ -178,9 +157,7 @@
         <action name="Unshade"/>
       </mousebind>
       <mousebind button="Left" action="Click">
-        <action name="Execute">
-          <command>/usr/local/bin/switch_launcher.sh close-active</command>
-        </action>
+        <action name="Close"/>
       </mousebind>
     </context>
 

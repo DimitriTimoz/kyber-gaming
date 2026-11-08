@@ -461,6 +461,7 @@ PYEOF
             [ -x "$HEROIC_BIN" ] || HEROIC_BIN="$(command -v heroic || echo /usr/bin/heroic)"
             "$HEROIC_BIN" --no-sandbox >/dev/null 2>&1 &
             HEROIC_WIN_SEEN=0
+            HEROIC_NO_WIN_TICKS=0
             LOADING_DISMISSED=0
             WAIT_TICKS=0
             while pgrep -u gamer -f "heroic" >/dev/null 2>&1; do
@@ -485,8 +486,14 @@ PYEOF
                     fi
                 done
 
-                if [ -n "$HEROIC_WID" ]; then
-                    if [ "$HEROIC_WIN_SEEN" -eq 0 ]; then
+                GAME_RUNNING=0
+                if pgrep -u gamer -f "wine|proton|legendary|gogdl" >/dev/null 2>&1; then
+                    GAME_RUNNING=1
+                fi
+
+                if [ -n "$HEROIC_WID" ] || [ "$GAME_RUNNING" -eq 1 ]; then
+                    HEROIC_NO_WIN_TICKS=0
+                    if [ "$HEROIC_WIN_SEEN" -eq 0 ] && [ -n "$HEROIC_WID" ]; then
                         HEROIC_WIN_SEEN=1
                         enforce_window_maximized "$HEROIC_WID"
                         dismiss_loading_screen
@@ -494,13 +501,17 @@ PYEOF
                         sleep 0.3
                         enforce_window_maximized "$HEROIC_WID"
                     fi
-                    sleep 1
+                    sleep 0.5
                 elif [ "$HEROIC_WIN_SEEN" -eq 1 ]; then
-                    echo "[session] Heroic window closed via [X]. Terminating background helpers..."
-                    pkill -TERM -u gamer -f "heroic" 2>/dev/null || true
-                    sleep 0.2
-                    pkill -9 -u gamer -f "heroic" 2>/dev/null || true
-                    break
+                    HEROIC_NO_WIN_TICKS=$((HEROIC_NO_WIN_TICKS + 1))
+                    if [ "$HEROIC_NO_WIN_TICKS" -ge 4 ]; then
+                        echo "[session] Heroic and game windows closed. Terminating background helpers..."
+                        pkill -TERM -u gamer -f "heroic" 2>/dev/null || true
+                        sleep 0.2
+                        pkill -9 -u gamer -f "heroic" 2>/dev/null || true
+                        break
+                    fi
+                    sleep 0.35
                 else
                     WAIT_TICKS=$((WAIT_TICKS + 1))
                     if [ "$WAIT_TICKS" -ge 60 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
@@ -512,6 +523,141 @@ PYEOF
             done
             if [ "$CURRENT_ACTION" = "heroic" ]; then
                 echo "[session] Heroic has closed. Returning to Launcher Hub..."
+                dismiss_loading_screen
+                CURRENT_ACTION="menu"
+            fi
+            ;;
+
+        retroarch)
+            echo "[session] Starting RetroArch Multi-System Emulator..."
+            RETROARCH_BIN=""
+            if command -v retroarch >/dev/null 2>&1; then
+                RETROARCH_BIN="$(command -v retroarch)"
+            elif [ -x /usr/games/retroarch ]; then
+                RETROARCH_BIN="/usr/games/retroarch"
+            elif [ -x /usr/bin/retroarch ]; then
+                RETROARCH_BIN="/usr/bin/retroarch"
+            elif [ -x /usr/local/bin/retroarch ]; then
+                RETROARCH_BIN="/usr/local/bin/retroarch"
+            fi
+
+            if [ -z "$RETROARCH_BIN" ]; then
+                echo "[session] RetroArch is not installed in container. Attempting automatic installation..."
+                sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y --no-install-recommends retroarch retroarch-assets libretro-core-info >/dev/null 2>&1 || true
+                RETROARCH_BIN="$(command -v retroarch || echo /usr/games/retroarch)"
+            fi
+
+            if [ ! -x "$RETROARCH_BIN" ]; then
+                echo "[session] ERROR: RetroArch binary not found in container!"
+                dismiss_loading_screen
+                sleep 1
+                CURRENT_ACTION="menu"
+                continue
+            fi
+
+            # Ensure config directories and robust retroarch.cfg exist
+            GAMES_ROOT="${GAMES_DIR:-/games}"
+            mkdir -p "$GAMES_ROOT/retroarch/config" "$GAMES_ROOT/retroarch/system" "$GAMES_ROOT/retroarch/saves" "$GAMES_ROOT/retroarch/states" "$GAMES_ROOT/retroarch/cores"
+            mkdir -p /home/gamer/.config
+            ln -sfn "$GAMES_ROOT/retroarch/config" /home/gamer/.config/retroarch
+            ln -sfn /usr/share/libretro/assets "$GAMES_ROOT/retroarch/config/assets" 2>/dev/null || true
+
+            RETROARCH_CFG="$GAMES_ROOT/retroarch/config/retroarch.cfg"
+            if [ ! -f "$RETROARCH_CFG" ]; then
+                cat << 'EOF' > "$RETROARCH_CFG"
+video_fullscreen = "true"
+video_windowed_fullscreen = "true"
+video_driver = "gl"
+audio_driver = "pulse"
+menu_driver = "ozone"
+assets_directory = "/usr/share/libretro/assets"
+rgui_browser_directory = "/games/roms"
+content_directory = "/games/roms"
+libretro_directory = "/games/retroarch/cores"
+libretro_info_path = "/usr/share/libretro/info"
+system_directory = "/games/retroarch/system"
+savefile_directory = "/games/retroarch/saves"
+savestate_directory = "/games/retroarch/states"
+playlist_directory = "/games/retroarch/playlists"
+thumbnails_directory = "/games/retroarch/thumbnails"
+input_menu_toggle_gamepad_combo = "2"
+input_enable_hotkey_btn = "8"
+input_exit_emulator_btn = "9"
+quit_press_twice = "false"
+pause_nonactive = "false"
+video_vsync = "true"
+EOF
+            fi
+
+            if [ -f "$RETROARCH_CFG" ]; then
+                sed -i 's/video_driver = "vulkan"/video_driver = "gl"/g' "$RETROARCH_CFG" 2>/dev/null || true
+                if grep -q "assets_directory" "$RETROARCH_CFG" 2>/dev/null; then
+                    sed -i 's|assets_directory = .*|assets_directory = "/usr/share/libretro/assets"|g' "$RETROARCH_CFG" 2>/dev/null || true
+                else
+                    echo 'assets_directory = "/usr/share/libretro/assets"' >> "$RETROARCH_CFG"
+                fi
+            fi
+
+            # Launch RetroArch in fullscreen
+            echo "[session] Spawning $RETROARCH_BIN --fullscreen..."
+            "$RETROARCH_BIN" --fullscreen >/tmp/retroarch.log 2>&1 &
+            RETROARCH_PID=$!
+            RETROARCH_WIN_SEEN=0
+            RETROARCH_NO_WIN_TICKS=0
+            LOADING_DISMISSED=0
+            WAIT_TICKS=0
+
+            while pgrep -u gamer -f "retroarch" >/dev/null 2>&1; do
+                if [ -s /tmp/kyber_next_action ]; then
+                    NEXT=$(cat /tmp/kyber_next_action | tr -d '[:space:]')
+                    rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
+                    if [ -n "$NEXT" ] && [ "$NEXT" != "retroarch" ]; then
+                        echo "[session] Action requested while RetroArch running: $NEXT"
+                        pkill -TERM -u gamer -f "retroarch" 2>/dev/null || true
+                        sleep 0.2
+                        pkill -9 -u gamer -f "retroarch" 2>/dev/null || true
+                        CURRENT_ACTION="$NEXT"
+                        break
+                    fi
+                fi
+
+                RETROARCH_WID=""
+                for wid in $(wmctrl -lx 2>/dev/null | grep -i "retroarch" | awk '{print $1}'); do
+                    if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                        RETROARCH_WID="$wid"
+                        break
+                    fi
+                done
+
+                if [ -n "$RETROARCH_WID" ]; then
+                    RETROARCH_NO_WIN_TICKS=0
+                    if [ "$RETROARCH_WIN_SEEN" -eq 0 ]; then
+                        RETROARCH_WIN_SEEN=1
+                        enforce_window_maximized "$RETROARCH_WID"
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
+                    fi
+                    sleep 0.5
+                elif [ "$RETROARCH_WIN_SEEN" -eq 1 ]; then
+                    RETROARCH_NO_WIN_TICKS=$((RETROARCH_NO_WIN_TICKS + 1))
+                    if [ "$RETROARCH_NO_WIN_TICKS" -ge 4 ]; then
+                        echo "[session] RetroArch window closed. Returning to Console Hub..."
+                        pkill -TERM -u gamer -f "retroarch" 2>/dev/null || true
+                        break
+                    fi
+                    sleep 0.35
+                else
+                    WAIT_TICKS=$((WAIT_TICKS + 1))
+                    if [ "$WAIT_TICKS" -ge 40 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
+                        dismiss_loading_screen
+                        LOADING_DISMISSED=1
+                    fi
+                    sleep 0.25
+                fi
+            done
+
+            if [ "$CURRENT_ACTION" = "retroarch" ]; then
+                echo "[session] RetroArch session ended. Returning to Console Hub..."
                 dismiss_loading_screen
                 CURRENT_ACTION="menu"
             fi
@@ -670,6 +816,7 @@ except Exception: pass
                 setsid $EXEC_CMD >/dev/null 2>&1 &
                 APP_PID=$!
                 APP_WIN_SEEN=0
+                APP_NO_WIN_TICKS=0
                 LOADING_DISMISSED=0
                 WAIT_TICKS=0
 
@@ -725,7 +872,18 @@ except Exception: pass
                         fi
                     done
 
+                    # If not matched by name, check if any non-system client window is viewable
+                    if [ -z "$APP_WID" ]; then
+                        for wid in $(wmctrl -lx 2>/dev/null | grep -viE "kyberhub|tint2|desktop" | awk '{print $1}'); do
+                            if xwininfo -id "$wid" 2>/dev/null | grep -q "Map State: IsViewable"; then
+                                APP_WID="$wid"
+                                break
+                            fi
+                        done
+                    fi
+
                     if [ -n "$APP_WID" ]; then
+                        APP_NO_WIN_TICKS=0
                         if [ "$APP_WIN_SEEN" -eq 0 ]; then
                             APP_WIN_SEEN=1
                             enforce_window_maximized "$APP_WID"
@@ -734,15 +892,19 @@ except Exception: pass
                             sleep 0.25
                             enforce_window_maximized "$APP_WID"
                         fi
-                        sleep 1
+                        sleep 0.5
                     elif [ "$APP_WIN_SEEN" -eq 1 ]; then
-                        echo "[session] Window for $CURRENT_ACTION closed via [X]. Cleaning up process..."
-                        kill -TERM "$APP_PID" 2>/dev/null || true
-                        pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
-                        sleep 0.3
-                        kill -9 "$APP_PID" 2>/dev/null || true
-                        pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
-                        break
+                        APP_NO_WIN_TICKS=$((APP_NO_WIN_TICKS + 1))
+                        if [ "$APP_NO_WIN_TICKS" -ge 4 ]; then
+                            echo "[session] All windows for $CURRENT_ACTION closed. Cleaning up process..."
+                            kill -TERM "$APP_PID" 2>/dev/null || true
+                            pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            sleep 0.3
+                            kill -9 "$APP_PID" 2>/dev/null || true
+                            pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            break
+                        fi
+                        sleep 0.35
                     else
                         WAIT_TICKS=$((WAIT_TICKS + 1))
                         if [ "$WAIT_TICKS" -ge 48 ] && [ "$LOADING_DISMISSED" -eq 0 ]; then
