@@ -15,6 +15,7 @@ import sys
 import json
 import subprocess
 import re
+import shlex
 import ssl
 import shutil
 import base64
@@ -101,11 +102,20 @@ def format_bytes(num_bytes):
         num_bytes /= 1024.0
     return f"{num_bytes:.1f} PB"
 
+def _is_within_real_base(base_abs, target_abs):
+    """Verify via realpath that target_abs does not escape base_abs through symlinks."""
+    try:
+        real_base = os.path.realpath(base_abs)
+        real_target = os.path.realpath(target_abs)
+        return os.path.commonpath([real_base, real_target]) == real_base
+    except (ValueError, OSError):
+        return False
+
 def resolve_safe_storage_path(rel_path=""):
     """
     Safely resolves a relative or absolute storage path against ROMS_BASE_DIR or BIOS_BASE_DIR.
-    Prevents directory traversal attacks and correctly handles URL-encoding, leading slashes,
-    and absolute paths that are already rooted at ROMS_BASE_DIR or BIOS_BASE_DIR.
+    Prevents directory traversal and symlink escape attacks and correctly handles URL-encoding,
+    leading slashes, and absolute paths that are already rooted at ROMS_BASE_DIR or BIOS_BASE_DIR.
     Returns (absolute_path, clean_relative_path) or (None, None) if invalid/unsafe.
     """
     if rel_path is None:
@@ -121,7 +131,7 @@ def resolve_safe_storage_path(rel_path=""):
     if os.path.isabs(raw_path):
         norm_abs = os.path.abspath(raw_path)
         try:
-            if os.path.commonpath([bios_base_abs, norm_abs]) == bios_base_abs:
+            if os.path.commonpath([bios_base_abs, norm_abs]) == bios_base_abs and _is_within_real_base(bios_base_abs, norm_abs):
                 rel = os.path.relpath(norm_abs, bios_base_abs).replace("\\", "/")
                 clean_rel = "bios" if rel == "." else f"bios/{rel}"
                 return norm_abs, clean_rel
@@ -129,7 +139,7 @@ def resolve_safe_storage_path(rel_path=""):
             pass
 
         try:
-            if os.path.commonpath([roms_base_abs, norm_abs]) == roms_base_abs:
+            if os.path.commonpath([roms_base_abs, norm_abs]) == roms_base_abs and _is_within_real_base(roms_base_abs, norm_abs):
                 rel = os.path.relpath(norm_abs, roms_base_abs).replace("\\", "/")
                 clean_rel = "" if rel == "." else rel
                 return norm_abs, clean_rel
@@ -141,6 +151,8 @@ def resolve_safe_storage_path(rel_path=""):
             if norm_abs == def_bios or norm_abs.startswith(def_bios + "/"):
                 sub = norm_abs[len(def_bios):].lstrip("/")
                 full = os.path.abspath(os.path.join(bios_base_abs, sub))
+                if not _is_within_real_base(bios_base_abs, full):
+                    return None, None
                 clean_rel = "bios" if not sub else f"bios/{sub}"
                 return full, clean_rel
 
@@ -148,6 +160,8 @@ def resolve_safe_storage_path(rel_path=""):
             if norm_abs == def_roms or norm_abs.startswith(def_roms + "/"):
                 sub = norm_abs[len(def_roms):].lstrip("/")
                 full = os.path.abspath(os.path.join(roms_base_abs, sub))
+                if not _is_within_real_base(roms_base_abs, full):
+                    return None, None
                 return full, sub
 
         # Disallow system directories
@@ -181,7 +195,7 @@ def resolve_safe_storage_path(rel_path=""):
         sub = norm_rel[5:].lstrip("/")
         full = os.path.abspath(os.path.join(bios_base_abs, sub))
         try:
-            if os.path.commonpath([bios_base_abs, full]) != bios_base_abs:
+            if os.path.commonpath([bios_base_abs, full]) != bios_base_abs or not _is_within_real_base(bios_base_abs, full):
                 return None, None
         except (ValueError, Exception):
             return None, None
@@ -189,7 +203,7 @@ def resolve_safe_storage_path(rel_path=""):
 
     full = os.path.abspath(os.path.join(roms_base_abs, norm_rel))
     try:
-        if os.path.commonpath([roms_base_abs, full]) != roms_base_abs:
+        if os.path.commonpath([roms_base_abs, full]) != roms_base_abs or not _is_within_real_base(roms_base_abs, full):
             return None, None
     except (ValueError, Exception):
         return None, None
@@ -382,9 +396,14 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
     if not upload_id:
         return {"error": "Invalid upload ID", "status": "error"}
 
+    if total_chunks is None or total_chunks < 1:
+        return {"error": "Invalid total_chunks", "status": "error"}
+    if chunk_index is None or chunk_index < 0 or chunk_index >= total_chunks:
+        return {"error": "Invalid chunk_index", "status": "error"}
+
     raw_name = urllib.parse.unquote(os.path.basename(str(filename)))
     safe_name = re.sub(r'[^\w\-\.\(\)\[\]\s]', '_', raw_name).strip()
-    if not safe_name:
+    if not safe_name or all(c == "." for c in safe_name):
         safe_name = f"upload_{upload_id}.bin"
 
     temp_session_dir = os.path.join(UPLOAD_TEMP_DIR, upload_id)
@@ -394,7 +413,16 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
     if chunk_offset is None or chunk_offset < 0:
         chunk_offset = chunk_index * len(chunk_data)
 
+    max_allowed_offset = (total_size + 1024 * 1024) if (total_size and total_size > 0) else (128 * 1024 * 1024 * 1024)
+    if chunk_offset > max_allowed_offset:
+        return {"error": "Chunk offset exceeds maximum allowed size", "status": "error"}
+
     file_lock = get_upload_file_lock(upload_id)
+    is_completed = False
+    dest_dir = None
+    clean_rel = None
+    final_dest = None
+
     with file_lock:
         with UPLOAD_SESSIONS_LOCK:
             is_new_session = upload_id not in UPLOAD_SESSIONS
@@ -417,43 +445,44 @@ def save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chu
             f.seek(chunk_offset)
             f.write(chunk_data)
 
-    now = time.time()
-    with UPLOAD_SESSIONS_LOCK:
-        if upload_id not in UPLOAD_SESSIONS:
-            UPLOAD_SESSIONS[upload_id] = {
-                "chunks": set(),
-                "total_chunks": total_chunks,
-                "total_size": total_size,
-                "last_active": now
-            }
-        session = UPLOAD_SESSIONS[upload_id]
-        session["chunks"].add(chunk_index)
-        session["last_active"] = now
-        is_completed = len(session["chunks"]) >= total_chunks
+        now = time.time()
+        with UPLOAD_SESSIONS_LOCK:
+            if upload_id not in UPLOAD_SESSIONS:
+                UPLOAD_SESSIONS[upload_id] = {
+                    "chunks": set(),
+                    "total_chunks": total_chunks,
+                    "total_size": total_size,
+                    "last_active": now
+                }
+            session = UPLOAD_SESSIONS[upload_id]
+            session["chunks"].add(chunk_index)
+            session["last_active"] = now
+            is_completed = len(session["chunks"]) >= total_chunks
+            if is_completed:
+                UPLOAD_SESSIONS.pop(upload_id, None)
+
+        if is_completed:
+            with UPLOAD_FILE_LOCKS_MUTEX:
+                UPLOAD_FILE_LOCKS.pop(upload_id, None)
+
+            dest_dir, clean_rel = resolve_safe_storage_path(target_path)
+            if not dest_dir:
+                dest_dir = os.path.join(ROMS_BASE_DIR, "eglantine/games")
+                clean_rel = "eglantine/games"
+            os.makedirs(dest_dir, exist_ok=True)
+
+            final_dest = os.path.join(dest_dir, safe_name)
+
+            if os.path.exists(final_dest):
+                try:
+                    os.remove(final_dest)
+                except Exception:
+                    pass
+
+            shutil.move(part_file, final_dest)
+            shutil.rmtree(temp_session_dir, ignore_errors=True)
 
     if is_completed:
-        with UPLOAD_SESSIONS_LOCK:
-            UPLOAD_SESSIONS.pop(upload_id, None)
-        with UPLOAD_FILE_LOCKS_MUTEX:
-            UPLOAD_FILE_LOCKS.pop(upload_id, None)
-
-        dest_dir, clean_rel = resolve_safe_storage_path(target_path)
-        if not dest_dir:
-            dest_dir = os.path.join(ROMS_BASE_DIR, "eglantine/games")
-            clean_rel = "eglantine/games"
-        os.makedirs(dest_dir, exist_ok=True)
-
-        final_dest = os.path.join(dest_dir, safe_name)
-
-        if os.path.exists(final_dest):
-            try:
-                os.remove(final_dest)
-            except Exception:
-                pass
-
-        shutil.move(part_file, final_dest)
-        shutil.rmtree(temp_session_dir, ignore_errors=True)
-
         try:
             shutil.chown(final_dest, user="gamer", group="gamer")
         except Exception:
@@ -559,29 +588,56 @@ def extract_archive(rel_path, delete_archive=False):
     dest_dir = os.path.dirname(full_path)
     archive_name = os.path.basename(full_path)
 
+    def _safe_extract_zip(zip_path, target_dir):
+        import zipfile
+        real_target = os.path.realpath(target_dir)
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            for info in zf.infolist():
+                # Reject symlinks stored in zip external_attr (POSIX S_IFLNK = 0o120000)
+                if (info.external_attr >> 16) & 0o170000 == 0o120000:
+                    raise ValueError(f"Unsafe symlink in archive: {info.filename}")
+                member_path = os.path.realpath(os.path.join(real_target, info.filename))
+                if os.path.commonpath([real_target, member_path]) != real_target:
+                    raise ValueError(f"Unsafe path in archive: {info.filename}")
+            zf.extractall(target_dir)
+
+    def _safe_extract_tar(tar_path, target_dir):
+        import tarfile
+        real_target = os.path.realpath(target_dir)
+        with tarfile.open(tar_path, "r:*") as tf:
+            for member in tf.getmembers():
+                if member.issym() or member.islnk():
+                    raise ValueError(f"Unsafe link in archive: {member.name}")
+                member_path = os.path.realpath(os.path.join(real_target, member.name))
+                if os.path.commonpath([real_target, member_path]) != real_target:
+                    raise ValueError(f"Unsafe path in archive: {member.name}")
+            if sys.version_info >= (3, 12):
+                tf.extractall(target_dir, filter="data")
+            else:
+                tf.extractall(target_dir)
+
+    def _sanitize_extracted_symlinks(target_dir):
+        real_target = os.path.realpath(target_dir)
+        for root, dirs, files in os.walk(target_dir, followlinks=False):
+            for name in files + dirs:
+                p = os.path.join(root, name)
+                if os.path.islink(p):
+                    if os.path.commonpath([real_target, os.path.realpath(p)]) != real_target:
+                        os.unlink(p)
+
     try:
         has_7z = shutil.which("7z") or shutil.which("7za")
-        has_unzip = shutil.which("unzip")
 
-        if has_7z:
+        if ext == ".zip":
+            _safe_extract_zip(full_path, dest_dir)
+        elif ext in [".tar", ".gz", ".tgz", ".bz2", ".xz"]:
+            _safe_extract_tar(full_path, dest_dir)
+        elif has_7z:
             cmd = [has_7z, "x", "-y", f"-o{dest_dir}", full_path]
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600)
             if res.returncode != 0:
-                if ext == ".zip" and has_unzip:
-                    subprocess.run(["unzip", "-o", "-d", dest_dir, full_path], check=True, timeout=600)
-                else:
-                    return {"error": f"7z extraction error: {res.stderr.decode(errors='ignore')[:300]}", "status": "error"}
-        elif ext == ".zip":
-            if has_unzip:
-                subprocess.run(["unzip", "-o", "-d", dest_dir, full_path], check=True, timeout=600)
-            else:
-                import zipfile
-                with zipfile.ZipFile(full_path, "r") as zf:
-                    zf.extractall(dest_dir)
-        elif ext in [".tar", ".gz", ".tgz", ".bz2", ".xz"]:
-            import tarfile
-            with tarfile.open(full_path, "r:*") as tf:
-                tf.extractall(dest_dir)
+                return {"error": f"7z extraction error: {res.stderr.decode(errors='ignore')[:300]}", "status": "error"}
+            _sanitize_extracted_symlinks(dest_dir)
         else:
             return {"error": "No decompression utility available on host", "status": "error"}
 
@@ -841,7 +897,7 @@ def get_tls_fingerprint():
             pass
     cert_path = os.environ.get("TLS_CERT", "/etc/kyber/tls/cert.pem")
     if os.path.exists(cert_path):
-        out = run_cmd(f"openssl x509 -in {cert_path} -outform der | openssl dgst -sha256 2>/dev/null")
+        out = run_cmd(f"openssl x509 -in {shlex.quote(cert_path)} -outform der | openssl dgst -sha256 2>/dev/null")
         if out:
             fp = out.split()[-1]
             return {"has_tls": True, "fingerprint_sha256": fp}
@@ -865,7 +921,7 @@ def run_cmd(cmd):
 
 def get_system_info():
     """Dynamically query GPU and screen state without hardcoded values."""
-    gpu_name = "GPU Accéléré"
+    gpu_name = "Accelerated GPU"
     # 1. Try nvidia-smi
     try:
         res = subprocess.run(
@@ -880,7 +936,7 @@ def get_system_info():
         pass
 
     # 2. Fallback to lspci if nvidia-smi failed (e.g. AMD, Intel, or virtual GPU)
-    if gpu_name == "GPU Accéléré":
+    if gpu_name == "Accelerated GPU":
         lspci = run_cmd("lspci | grep -iE 'vga|3d|display'") or ""
         if lspci:
             gpu_name = lspci.split(":")[-1].strip()[:24]
@@ -1053,10 +1109,10 @@ def get_telemetry_info():
 def get_launchers_config():
     """Read dynamic launchers & emulators registry and check availability."""
     paths = [
-        "/opt/kyber/hub/launchers.json",
         "/etc/kyber/launchers.json",
-        "hub/launchers.json",
-        "config/launchers.json"
+        "/opt/kyber/hub/launchers.json",
+        "config/launchers.json",
+        "hub/launchers.json"
     ]
     config = None
     for p in paths:
@@ -1137,15 +1193,16 @@ def set_resolution(width, height, rate=60):
     mode_name, mode_params = get_cvt_modeline(width, height, rate)
 
     # Check if mode already registered in xrandr
+    safe_output = shlex.quote(output)
     xrandr_out = run_cmd("xrandr --current") or ""
     if mode_name not in xrandr_out:
         print(f"[resizer] Adding new mode: {mode_name} with params: {mode_params}")
-        run_cmd(f'xrandr --newmode "{mode_name}" {mode_params}')
-        run_cmd(f'xrandr --addmode {output} "{mode_name}"')
+        run_cmd(f'xrandr --newmode {shlex.quote(mode_name)} {mode_params}')
+        run_cmd(f'xrandr --addmode {safe_output} {shlex.quote(mode_name)}')
 
     # Apply the mode
     print(f"[resizer] Applying mode {mode_name} to {output}...")
-    applied = run_cmd(f'xrandr --output {output} --mode "{mode_name}"')
+    applied = run_cmd(f'xrandr --output {safe_output} --mode {shlex.quote(mode_name)}')
     if applied is None:
         # Fallback to simple -s if output-based switch failed
         run_cmd(f'xrandr -s {width}x{height} -r {rate}')
@@ -1182,6 +1239,23 @@ class ResizeHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _parse_int(self, raw_val, default=None):
+        if raw_val is None or raw_val == "":
+            return default
+        try:
+            return int(raw_val)
+        except (ValueError, TypeError):
+            return None
+
+    def _read_bounded_body(self, max_bytes=16 * 1024 * 1024):
+        raw_cl = self.headers.get("Content-Length", "0")
+        cl = self._parse_int(raw_cl, default=0)
+        if cl is None or cl < 0 or cl > max_bytes:
+            return None, cl
+        if cl == 0:
+            return b"{}", 0
+        return self.rfile.read(cl), cl
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._send_cors_headers()
@@ -1199,16 +1273,28 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 self._send_json_response({"authenticated": False, "error": "Invalid credentials"}, code=401)
             return
 
-        # Protect sensitive execution endpoints
-        if parsed.path in ["/api/resize", "/api/launcher"]:
+        # Protect sensitive execution and storage endpoints
+        protected_get_paths = {
+            "/api/resize",
+            "/api/launcher",
+            "/api/volume",
+            "/api/roms",
+            "/api/roms/browse",
+            "/api/roms/extract",
+            "/api/roms/download",
+        }
+        if parsed.path in protected_get_paths:
             if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
 
         if parsed.path == "/api/resize":
-            width = int(params.get("width", ["1920"])[0])
-            height = int(params.get("height", ["1080"])[0])
-            rate = int(params.get("rate", ["60"])[0])
+            width = self._parse_int(params.get("width", ["1920"])[0])
+            height = self._parse_int(params.get("height", ["1080"])[0])
+            rate = self._parse_int(params.get("rate", ["60"])[0])
+            if width is None or height is None or rate is None:
+                self._send_json_response({"error": "Invalid numeric parameter", "status": "error"}, code=400)
+                return
             result = set_resolution(width, height, rate)
             self._send_json_response(result)
         elif parsed.path == "/api/launcher":
@@ -1226,7 +1312,10 @@ class ResizeHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/telemetry":
             self._send_json_response(get_telemetry_info())
         elif parsed.path == "/api/volume":
-            level = int(params.get("level", ["100"])[0])
+            level = self._parse_int(params.get("level", ["100"])[0])
+            if level is None:
+                self._send_json_response({"error": "Invalid volume level", "status": "error"}, code=400)
+                return
             level = max(0, min(150, level))
             run_cmd(f"pactl set-sink-volume @DEFAULT_SINK@ {level}% 2>/dev/null || wpctl set-volume @DEFAULT_AUDIO_SINK@ {level/100:.2f} 2>/dev/null")
             self._send_json_response({"status": "ok", "volume": level})
@@ -1277,12 +1366,23 @@ class ResizeHandler(BaseHTTPRequestHandler):
             })
         elif parsed.path == "/" or parsed.path == "/hub" or parsed.path.startswith("/hub/"):
             hub_dir = "/opt/kyber/hub"
-            rel_path = parsed.path[len("/hub"):].lstrip("/") if parsed.path.startswith("/hub") else ""
+            real_hub_dir = os.path.realpath(hub_dir)
+            raw_rel = parsed.path[len("/hub"):] if parsed.path.startswith("/hub") else ""
+            rel_path = urllib.parse.unquote(raw_rel).lstrip("/")
             if not rel_path or rel_path.endswith("/"):
                 rel_path = "index.html"
-            file_path = os.path.normpath(os.path.join(hub_dir, rel_path))
-            if os.path.exists(file_path) and os.path.isfile(file_path):
-                ext = os.path.splitext(file_path)[1].lower()
+            real_file_path = os.path.realpath(os.path.join(real_hub_dir, rel_path))
+            try:
+                within_hub = os.path.commonpath([real_hub_dir, real_file_path]) == real_hub_dir
+            except (ValueError, OSError):
+                within_hub = False
+            if not within_hub:
+                self.send_response(403)
+                self._send_cors_headers()
+                self.end_headers()
+                return
+            if os.path.exists(real_file_path) and os.path.isfile(real_file_path):
+                ext = os.path.splitext(real_file_path)[1].lower()
                 mime_types = {
                     ".html": "text/html; charset=utf-8",
                     ".css": "text/css; charset=utf-8",
@@ -1293,7 +1393,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
                     ".woff2": "font/woff2",
                 }
                 content_type = mime_types.get(ext, "application/octet-stream")
-                with open(file_path, "rb") as f:
+                with open(real_file_path, "rb") as f:
                     content = f.read()
                 self.send_response(200)
                 self._send_cors_headers()
@@ -1320,21 +1420,28 @@ class ResizeHandler(BaseHTTPRequestHandler):
                 return
 
         if parsed.path == "/api/resize":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length)
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
                 data = {}
 
-            width = data.get("width", 1920)
-            height = data.get("height", 1080)
-            rate = data.get("rate", 60)
+            width = self._parse_int(data.get("width", 1920))
+            height = self._parse_int(data.get("height", 1080))
+            rate = self._parse_int(data.get("rate", 60))
+            if width is None or height is None or rate is None:
+                self._send_json_response({"error": "Invalid numeric parameter", "status": "error"}, code=400)
+                return
             result = set_resolution(width, height, rate)
             self._send_json_response(result)
         elif parsed.path == "/api/launcher":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
@@ -1346,8 +1453,10 @@ class ResizeHandler(BaseHTTPRequestHandler):
             subprocess.Popen(["/usr/local/bin/switch_launcher.sh", app])
             self._send_json_response({"status": "ok", "app": app})
         elif parsed.path == "/api/roms/create_folder":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
@@ -1357,25 +1466,31 @@ class ResizeHandler(BaseHTTPRequestHandler):
             result = create_directory(target_path, folder_name)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/upload_chunk":
-            content_length = int(self.headers.get("Content-Length", 0))
-            if content_length <= 0:
-                self._send_json_response({"error": "Empty chunk body", "status": "error"}, code=400)
+            content_length = self._parse_int(self.headers.get("Content-Length", "0"))
+            max_chunk_bytes = 64 * 1024 * 1024
+            if content_length is None or content_length <= 0 or content_length > max_chunk_bytes:
+                self._send_json_response({"error": "Invalid or empty chunk body", "status": "error"}, code=400)
                 return
             upload_id = params.get("upload_id", [self.headers.get("X-Upload-ID", "")])[0]
             filename = params.get("filename", [self.headers.get("X-Filename", "")])[0]
             target_path = params.get("target_path", [self.headers.get("X-Target-Path", "eglantine/games")])[0]
-            chunk_index = int(params.get("chunk_index", [self.headers.get("X-Chunk-Index", 0)])[0])
+            chunk_index = self._parse_int(params.get("chunk_index", [self.headers.get("X-Chunk-Index", 0)])[0])
             chunk_offset_val = params.get("chunk_offset", [self.headers.get("X-Chunk-Offset", "")])[0]
-            chunk_offset = int(chunk_offset_val) if chunk_offset_val != "" else None
-            total_chunks = int(params.get("total_chunks", [self.headers.get("X-Total-Chunks", 1)])[0])
-            total_size = int(params.get("total_size", [self.headers.get("X-Total-Size", 0)])[0])
+            chunk_offset = self._parse_int(chunk_offset_val, default=None) if chunk_offset_val != "" else None
+            total_chunks = self._parse_int(params.get("total_chunks", [self.headers.get("X-Total-Chunks", 1)])[0])
+            total_size = self._parse_int(params.get("total_size", [self.headers.get("X-Total-Size", 0)])[0])
+            if chunk_index is None or total_chunks is None or total_size is None or (chunk_offset_val != "" and chunk_offset is None):
+                self._send_json_response({"error": "Invalid chunk metadata", "status": "error"}, code=400)
+                return
 
             chunk_data = self.rfile.read(content_length)
             result = save_uploaded_chunk(upload_id, filename, target_path, chunk_index, total_chunks, total_size, chunk_data, chunk_offset)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/cancel_upload":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
@@ -1384,9 +1499,9 @@ class ResizeHandler(BaseHTTPRequestHandler):
             result = cancel_uploaded_session(upload_id)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/upload":
-            content_length = int(self.headers.get("Content-Length", 0))
-            if content_length <= 0:
-                self._send_json_response({"error": "Empty upload body", "status": "error"}, code=400)
+            content_length = self._parse_int(self.headers.get("Content-Length", "0"))
+            if content_length is None or content_length <= 0:
+                self._send_json_response({"error": "Invalid or empty upload body", "status": "error"}, code=400)
                 return
             system = params.get("system", [self.headers.get("X-Rom-System", "switch")])[0]
             filename = params.get("filename", [self.headers.get("X-Rom-Filename", "")])[0]
@@ -1395,8 +1510,10 @@ class ResizeHandler(BaseHTTPRequestHandler):
             result = save_uploaded_stream(system, filename, self.rfile, content_length)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/delete":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
@@ -1408,8 +1525,10 @@ class ResizeHandler(BaseHTTPRequestHandler):
             result = delete_storage_item(path)
             self._send_json_response(result)
         elif parsed.path == "/api/roms/extract":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
@@ -1431,8 +1550,10 @@ class ResizeHandler(BaseHTTPRequestHandler):
             if not is_authenticated(self.client_address, self.headers, params):
                 self._send_json_response({"error": "Unauthorized", "authenticated": False}, code=401)
                 return
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length > 0 else b"{}"
+            body, cl = self._read_bounded_body()
+            if body is None:
+                self._send_json_response({"error": "Invalid Content-Length", "status": "error"}, code=400)
+                return
             try:
                 data = json.loads(body.decode("utf-8"))
             except Exception:
@@ -1459,18 +1580,22 @@ class DualProtocolHTTPServer(ThreadingHTTPServer):
         self.ssl_context = ssl_context
         self.daemon_threads = True
 
-    def get_request(self):
-        newsock, fromaddr = self.socket.accept()
+    def finish_request(self, request, client_address):
+        """Perform TLS detection and wrapping inside the worker thread so slow clients cannot block accept()."""
         if self.ssl_context is not None:
             try:
-                # Peek at the first byte without consuming it from the stream
-                first_byte = newsock.recv(1, socket.MSG_PEEK)
-                # 0x16 is the standard TLS Handshake record type
+                request.settimeout(5.0)
+                first_byte = request.recv(1, socket.MSG_PEEK)
                 if first_byte == b'\x16':
-                    newsock = self.ssl_context.wrap_socket(newsock, server_side=True)
+                    request = self.ssl_context.wrap_socket(request, server_side=True)
+                request.settimeout(None)
             except Exception:
-                pass
-        return newsock, fromaddr
+                try:
+                    request.close()
+                except Exception:
+                    pass
+                return
+        self.RequestHandlerClass(request, client_address, self)
 
 def main():
     print(f"[kyber-control] Starting Kyber Gaming Control Service on port {PORT} for display {DISPLAY}...")

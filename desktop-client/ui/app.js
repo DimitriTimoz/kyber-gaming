@@ -351,30 +351,33 @@
         servers.forEach(server => {
             const card = document.createElement('div');
             card.className = 'server-card';
-            card.id = `card-${server.id}`;
+            card.id = `card-${escapeHtml(server.id)}`;
 
             card.innerHTML = `
                 <div class="server-card-top">
                     <div class="server-info-box">
-                        <div class="server-name">${server.name}</div>
-                        <div class="server-address">${server.host}:${server.port}</div>
+                        <div class="server-name">${escapeHtml(server.name)}</div>
+                        <div class="server-address">${escapeHtml(server.host)}:${escapeHtml(String(server.port))}</div>
                     </div>
-                    <div class="server-status-pill status-${server.status || 'checking'}" id="status-${server.id}">
+                    <div class="server-status-pill status-${escapeHtml(server.status || 'checking')}" id="status-${escapeHtml(server.id)}">
                         <span class="status-dot"></span>
-                        <span class="status-label">${getStatusLabel(server)}</span>
+                        <span class="status-label">${escapeHtml(getStatusLabel(server))}</span>
                     </div>
                 </div>
 
                 <div class="server-card-bottom">
                     <div style="display:flex; gap:0.35rem;">
-                        <button class="server-action-btn" onclick="window.editServer('${server.id}')">Edit</button>
-                        <button class="server-action-btn" onclick="window.deleteServer('${server.id}')">Delete</button>
+                        <button class="server-action-btn" data-action="edit">Edit</button>
+                        <button class="server-action-btn" data-action="delete">Delete</button>
                     </div>
-                    <button class="btn btn-primary" onclick="window.launchServerSession('${server.id}')">
+                    <button class="btn btn-primary" data-action="connect">
                         Connect
                     </button>
                 </div>
             `;
+            card.querySelector('[data-action="edit"]')?.addEventListener('click', () => window.editServer(server.id));
+            card.querySelector('[data-action="delete"]')?.addEventListener('click', () => window.deleteServer(server.id));
+            card.querySelector('[data-action="connect"]')?.addEventListener('click', () => window.launchServerSession(server.id));
             serversGrid.appendChild(card);
         });
     }
@@ -800,6 +803,12 @@
         { id: 'switch_keys', name: 'Keys', path: 'eglantine/keys' },
         { id: 'switch_firmware', name: 'Firmware', path: 'eglantine/firmware' },
         { id: 'switch_mods', name: 'Mods', path: 'eglantine/mods' },
+        { id: 'ps1', name: 'PS1', path: 'ps1' },
+        { id: 'ps2', name: 'PS2', path: 'ps2' },
+        { id: 'n64', name: 'N64', path: 'n64' },
+        { id: 'snes', name: 'SNES', path: 'snes' },
+        { id: 'nes', name: 'NES', path: 'nes' },
+        { id: 'gba', name: 'GBA', path: 'gba' },
         { id: 'saves', name: 'Saves', path: 'saves' },
         { id: 'all', name: 'All Folders', path: '' }
     ];
@@ -1363,7 +1372,10 @@
         if (romServerSelect) romServerSelect.addEventListener('change', () => loadDesktopDirectory(currentDesktopBrowsePath));
         if (btnDesktopNewFolder) btnDesktopNewFolder.addEventListener('click', promptDesktopCreateFolder);
         if (btnDesktopUploadFiles) btnDesktopUploadFiles.addEventListener('click', () => desktopRomFileInput.click());
-        if (desktopRomFileInput) desktopRomFileInput.addEventListener('change', (e) => uploadDesktopFilesChunked(e.target.files));
+        if (desktopRomFileInput) desktopRomFileInput.addEventListener('change', (e) => {
+            uploadDesktopFilesChunked(e.target.files);
+            e.target.value = '';
+        });
 
         if (btnDesktopCancelUpload) {
             btnDesktopCancelUpload.addEventListener('click', () => {
@@ -1427,16 +1439,21 @@
 
                             item.innerHTML = `
                                 <div>
-                                    <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">${srv.name}</div>
-                                    <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">${srv.host}:${srv.port} | v${srv.version}</div>
+                                    <div style="font-size:0.85rem; font-weight:600; color:var(--text-primary);">${escapeHtml(srv.name)}</div>
+                                    <div style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted);">${escapeHtml(srv.host)}:${escapeHtml(String(srv.port))} | v${escapeHtml(srv.version)}</div>
                                 </div>
                                 <div>
                                     ${alreadyExists ? 
                                         '<span style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted);">Added</span>' :
-                                        `<button class="btn btn-secondary" style="font-size:0.75rem; padding:4px 10px;" onclick="window.addDiscoveredServer('${srv.name}', '${srv.host}', ${srv.port})">Add Server</button>`
+                                        `<button class="btn btn-secondary" data-action="add-discovered" style="font-size:0.75rem; padding:4px 10px;">Add Server</button>`
                                     }
                                 </div>
                             `;
+                            if (!alreadyExists) {
+                                item.querySelector('[data-action="add-discovered"]')?.addEventListener('click', () => {
+                                    window.addDiscoveredServer(srv.name, srv.host, srv.port);
+                                });
+                            }
                             discoveredList.appendChild(item);
                         });
                     }

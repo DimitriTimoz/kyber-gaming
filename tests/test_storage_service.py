@@ -427,5 +427,64 @@ class TestStorageService(unittest.TestCase):
         self.assertIn("ps1", inv_ids)
         self.assertIn("snes", inv_ids)
 
+    # -------------------------------------------------------------
+    # 6. Security & Hardening Regression Tests
+    # -------------------------------------------------------------
+
+    def test_symlink_escape_rejected_in_path_resolution(self):
+        outside_file = os.path.join(self.test_root, "secret.txt")
+        with open(outside_file, "w") as f:
+            f.write("secret")
+        escape_link = os.path.join(self.roms_dir, "escape_link.txt")
+        os.symlink(outside_file, escape_link)
+
+        full, rel = kcs.resolve_safe_storage_path("escape_link.txt")
+        self.assertIsNone(full)
+        self.assertIsNone(rel)
+
+    def test_zipslip_archive_rejected(self):
+        import zipfile
+        zip_path = os.path.join(self.roms_dir, "evil.zip")
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("../../escaped.txt", "pwned")
+
+        res = kcs.extract_archive("evil.zip")
+        self.assertEqual(res.get("status"), "error")
+        self.assertFalse(os.path.exists(os.path.join(self.test_root, "escaped.txt")))
+
+    def _invoke_get(self, path, headers=None):
+        handler = kcs.ResizeHandler.__new__(kcs.ResizeHandler)
+        handler.path = path
+        handler.headers = headers or {}
+        handler.client_address = ("127.0.0.1", 50000)
+        handler.wfile = BytesIO()
+        handler.rfile = BytesIO()
+        codes = []
+        handler.send_response = lambda code, msg=None: codes.append(code)
+        handler.send_header = lambda k, v: None
+        handler.end_headers = lambda: None
+        handler.do_GET()
+        return codes[0] if codes else None, handler.wfile.getvalue()
+
+    def test_upload_chunk_dotdot_filename_and_bounds(self):
+        res = kcs.save_uploaded_chunk("sess_dot", "..", "", 0, 1, 4, b"test", 0)
+        self.assertEqual(res.get("status"), "completed")
+        self.assertEqual(res.get("filename"), "upload_sess_dot.bin")
+
+        bad_chunks = kcs.save_uploaded_chunk("sess_bad", "a.bin", "", 0, 0, 4, b"test", 0)
+        self.assertEqual(bad_chunks.get("status"), "error")
+
+        bad_offset = kcs.save_uploaded_chunk("sess_off", "a.bin", "", 0, 1, 4, b"test", 10**12)
+        self.assertEqual(bad_offset.get("status"), "error")
+
+    def test_protected_get_endpoints_require_auth_behind_proxy(self):
+        for endpoint in ["/api/roms", "/api/roms/browse", "/api/roms/download?path=x", "/api/volume?level=50"]:
+            code, _ = self._invoke_get(endpoint, headers={"X-Forwarded-For": "203.0.113.10"})
+            self.assertEqual(code, 401, f"{endpoint} must require auth behind proxy")
+
+    def test_hub_static_path_traversal_blocked(self):
+        code, _ = self._invoke_get("/hub/../../../etc/passwd")
+        self.assertEqual(code, 403)
+
 if __name__ == "__main__":
     unittest.main()

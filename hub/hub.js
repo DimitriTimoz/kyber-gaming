@@ -326,21 +326,22 @@
                 ? (item.category === 'emulators' ? 'Emulator ready' : 'Ready to launch')
                 : 'Not installed';
 
+            const _esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
             card.innerHTML = `
                 <div class="card-inner">
                     <div class="card-cover ${coverClass}">
                         <div class="card-sheen"></div>
-                        <div class="card-tag">${item.tag || 'EXPERIENCE'}</div>
+                        <div class="card-tag">${_esc(item.tag || 'EXPERIENCE')}</div>
                         <div class="card-bg-icon">${svgIcon}</div>
                         <div class="card-icon">${svgIcon}</div>
                     </div>
                     <div class="card-meta">
-                        <div class="meta-title">${item.name}</div>
-                        <div class="meta-sub">${subText}</div>
+                        <div class="meta-title">${_esc(item.name)}</div>
+                        <div class="meta-sub">${_esc(subText)}</div>
                     </div>
                     <div class="card-badge">
-                        <span class="badge-key">${item.badge_key || (idx + 1)}</span>
-                        <span class="badge-pad">${item.badge_pad || 'A'}</span>
+                        <span class="badge-key">${_esc(item.badge_key || (idx + 1))}</span>
+                        <span class="badge-pad">${_esc(item.badge_pad || 'A')}</span>
                     </div>
                 </div>
                 <div class="card-reflection"></div>
@@ -1040,7 +1041,11 @@
         const pad = updateGamepadStatus();
         const now = performance.now();
 
-        if (pad && !isLaunching && ccOpen) {
+        if (pad && !isLaunching && isRomModalOpen) {
+            const pressedNow = (i) => pad.buttons[i] && pad.buttons[i].pressed;
+            const just = (i) => { const p = pressedNow(i); const j = p && !prevButtonsState[i]; prevButtonsState[i] = p; return j; };
+            if (just(1)) closeRomModal();
+        } else if (pad && !isLaunching && ccOpen) {
             const pressedNow = (i) => pad.buttons[i] && pad.buttons[i].pressed;
             const just = (i) => { const p = pressedNow(i); const j = p && !prevButtonsState[i]; prevButtonsState[i] = p; return j; };
             const ay = pad.axes[1] || 0;
@@ -1142,6 +1147,18 @@
                 e.preventDefault();
                 cancelActiveLaunch();
             }
+            return;
+        }
+
+        if (isRomModalOpen) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeRomModal();
+            }
+            return;
+        }
+
+        if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
             return;
         }
 
@@ -1581,6 +1598,7 @@
             const file = fileArr[fileIdx];
             const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
             const uploadId = `upl_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            window._kyberActiveUploadId = uploadId;
 
             romUploadCardTitleEl.textContent = `Uploading ${file.name} (${fileIdx + 1} of ${fileArr.length})...`;
 
@@ -1599,6 +1617,7 @@
 
                     await new Promise((resolve, reject) => {
                         const xhr = new XMLHttpRequest();
+                        window._kyberActiveUploadXhr = xhr;
                         xhr.open('POST', uploadUrl, true);
                         xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 
@@ -1624,6 +1643,7 @@
                         };
 
                         xhr.onload = () => {
+                            window._kyberActiveUploadXhr = null;
                             if (xhr.status === 200) {
                                 resolve();
                             } else {
@@ -1631,14 +1651,23 @@
                             }
                         };
 
-                        xhr.onerror = () => reject(new Error('Network transport error'));
+                        xhr.onerror = () => {
+                            window._kyberActiveUploadXhr = null;
+                            reject(new Error('Network transport error'));
+                        };
+                        xhr.onabort = () => {
+                            window._kyberActiveUploadXhr = null;
+                            reject(new Error('Upload cancelled'));
+                        };
                         xhr.send(chunkBlob);
                     });
 
                     uploadedBytesOverall += chunkSize;
                 } catch (err) {
                     romUploadCardEl.style.display = 'none';
-                    showToast('Upload Error', `Failed on ${file.name}: ${err.message}`);
+                    if (!isUploadCancelled) {
+                        showToast('Upload Error', `Failed on ${file.name}: ${err.message}`);
+                    }
                     loadDirectory(currentBrowsePath);
                     return;
                 }
@@ -1673,11 +1702,26 @@
     if (btnRomModalCloseEl) btnRomModalCloseEl.addEventListener('click', closeRomModal);
     if (btnNewFolderEl) btnNewFolderEl.addEventListener('click', promptCreateFolder);
     if (btnUploadFilesEl) btnUploadFilesEl.addEventListener('click', () => romFileInputEl.click());
-    if (romFileInputEl) romFileInputEl.addEventListener('change', (e) => uploadFilesChunked(e.target.files));
+    if (romFileInputEl) romFileInputEl.addEventListener('change', (e) => {
+        uploadFilesChunked(e.target.files);
+        e.target.value = '';
+    });
 
     if (btnCancelUploadEl) {
         btnCancelUploadEl.addEventListener('click', () => {
             isUploadCancelled = true;
+            if (window._kyberActiveUploadXhr) {
+                try { window._kyberActiveUploadXhr.abort(); } catch (_) {}
+                window._kyberActiveUploadXhr = null;
+            }
+            if (window._kyberActiveUploadId) {
+                fetch('/api/roms/cancel_upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ upload_id: window._kyberActiveUploadId })
+                }).catch(() => {});
+                window._kyberActiveUploadId = null;
+            }
             romUploadCardEl.style.display = 'none';
         });
     }

@@ -97,8 +97,18 @@
         'retroarch': 'RetroArch Multi-System',
         'eglantine': 'Eglantine Switch NX2',
         'browser': 'Web Browser',
-        'desktop': 'XFCE Desktop'
+        'desktop': 'Openbox Desktop'
     };
+
+    function escapeHtml(str) {
+        return String(str ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[ch]));
+    }
 
     function showLoadingScreen(title, desc, maxDurationMs = 3500) {
         if (!loadingEl) return;
@@ -172,13 +182,13 @@
 
                 <div class="setting-group">
                     <label class="setting-label">Username</label>
-                    <input type="text" class="setting-input" id="hub-input-user" value="${state.authUser || 'gamer'}" placeholder="e.g. gamer">
+                    <input type="text" class="setting-input" id="hub-input-user" placeholder="e.g. gamer">
                 </div>
 
                 <div class="setting-group">
                     <label class="setting-label">Password</label>
                     <div style="position: relative; display: flex; align-items: center; width: 100%;">
-                        <input type="password" class="setting-input" id="hub-input-pass" value="${state.authPass || ''}" placeholder="Password" autocomplete="current-password" style="padding-right: 4.5rem; width: 100%;">
+                        <input type="password" class="setting-input" id="hub-input-pass" placeholder="Password" autocomplete="current-password" style="padding-right: 4.5rem; width: 100%;">
                         <button type="button" id="hub-btn-toggle-pass" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: #161b26; border: 1px solid var(--kh-border); color: var(--kh-text-dim); padding: 4px 8px; font-size: 0.72rem; border-radius: 3px; cursor: pointer;">Show</button>
                     </div>
                 </div>
@@ -192,6 +202,10 @@
             </div>
         `;
         document.body.appendChild(authGateEl);
+        const userEl = document.getElementById('hub-input-user');
+        const passEl = document.getElementById('hub-input-pass');
+        if (userEl) userEl.value = state.authUser || 'gamer';
+        if (passEl) passEl.value = state.authPass || '';
         isolateUiEvents(authGateEl);
 
         inputAuthUser = document.getElementById('hub-input-user');
@@ -841,8 +855,8 @@
                 stopStreamingSession();
             }
 
-            // F10 hotkey toggles in-game bar
-            if (e.key === 'F10') {
+            // F9 hotkey toggles in-game bar (F10 is reserved for Quick Menu)
+            if (e.key === 'F9') {
                 e.preventDefault();
                 inGameBarEl.classList.toggle('active');
             }
@@ -871,8 +885,10 @@
                 }
 
                 if (data.gpu) {
-                    const temp = data.gpu.temp ? ` [${data.gpu.temp}]` : '';
-                    hostSpecsPill.textContent = `${data.gpu.name}${temp} | X11 Display: ${data.active_resolution || '1080p'}`;
+                    const gpuLabel = typeof data.gpu === 'string' ? data.gpu : (data.gpu.name || 'Accelerated GPU');
+                    const temp = (typeof data.gpu === 'object' && data.gpu.temp) ? ` [${data.gpu.temp}]` : '';
+                    const resLabel = data.resolution || data.active_resolution || '1080p';
+                    hostSpecsPill.textContent = `${gpuLabel}${temp} | X11 Display: ${resLabel}`;
                 }
             })
             .catch(() => {
@@ -1173,7 +1189,7 @@
             row.innerHTML = `
                 <div style="display:flex; align-items:center;">
                     <span class="controller-slot-tag">P${idx + 1}</span>
-                    <span style="font-weight:600; color:#ededed; max-width:210px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${gp.id}</span>
+                    <span style="font-weight:600; color:#ededed; max-width:210px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(gp.id)}</span>
                 </div>
                 <div style="display:flex; gap:6px;">
                     <button class="in-game-btn" data-vibrate-idx="${gp.index}" style="font-size:10px; padding:2px 8px;">Test Rumble</button>
@@ -1357,11 +1373,10 @@
     }
 
     function applyQuickVolume(volPercent) {
-        const host = window.location.hostname || '127.0.0.1';
-        const controlPort = 8081;
-        const u = state.authUser || 'gamer';
-        const p = state.authPass || 'kybergaming';
-        fetch(`https://${host}:${controlPort}/api/volume?level=${volPercent}&auth_user=${u}&auth_pass=${p}`, {
+        const base = getApiEndpoint('/api/volume');
+        const sep = base.includes('?') ? '&' : '?';
+        fetch(`${base}${sep}level=${encodeURIComponent(volPercent)}`, {
+            headers: getAuthHeaders(),
             mode: 'cors',
             cache: 'no-store'
         }).catch(() => {});
@@ -1443,25 +1458,26 @@
                 }
             }
 
-            // If Quick Menu is currently open, capture gamepad navigation
-            if (quickMenuVisible && activePad) {
+            // If Quick Menu is currently open, capture gamepad navigation from active or first connected pad
+            const navPad = activePad || pads[0];
+            if (quickMenuVisible && navPad) {
                 const isNintendo = state.controllerLayout === 'nintendo';
 
                 // Button mapping based on layout:
                 // Xbox: Confirm = btn 0 (A), Cancel = btn 1 (B)
                 // Nintendo: Confirm = btn 1 (A), Cancel = btn 0 (B)
-                const confirmPressed = isNintendo ? activePad.buttons[1]?.pressed : activePad.buttons[0]?.pressed;
-                const cancelPressed = isNintendo ? activePad.buttons[0]?.pressed : activePad.buttons[1]?.pressed;
+                const confirmPressed = isNintendo ? navPad.buttons[1]?.pressed : navPad.buttons[0]?.pressed;
+                const cancelPressed = isNintendo ? navPad.buttons[0]?.pressed : navPad.buttons[1]?.pressed;
 
                 // D-Pad buttons
-                const dUp = activePad.buttons[12]?.pressed;
-                const dDown = activePad.buttons[13]?.pressed;
-                const dLeft = activePad.buttons[14]?.pressed;
-                const dRight = activePad.buttons[15]?.pressed;
+                const dUp = navPad.buttons[12]?.pressed;
+                const dDown = navPad.buttons[13]?.pressed;
+                const dLeft = navPad.buttons[14]?.pressed;
+                const dRight = navPad.buttons[15]?.pressed;
 
                 // Analog stick axes
-                const stickY = activePad.axes[1] || 0;
-                const stickX = activePad.axes[0] || 0;
+                const stickY = navPad.axes[1] || 0;
+                const stickX = navPad.axes[0] || 0;
 
                 if (now > navThrottleTime) {
                     if (dUp || stickY < -0.55) {

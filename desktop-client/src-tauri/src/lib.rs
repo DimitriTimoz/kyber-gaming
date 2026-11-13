@@ -157,43 +157,47 @@ async fn ping_server(host: String, port: u16) -> Result<PingResult, String> {
 
 #[tauri::command]
 async fn scan_local_servers() -> Result<Vec<DiscoveredServer>, String> {
-    let mut discovered: Vec<DiscoveredServer> = Vec::new();
-    let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
-    let _ = socket.set_broadcast(true);
-    let _ = socket.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
+    tokio::task::spawn_blocking(|| {
+        let mut discovered: Vec<DiscoveredServer> = Vec::new();
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0").map_err(|e| e.to_string())?;
+        let _ = socket.set_broadcast(true);
+        let _ = socket.set_read_timeout(Some(std::time::Duration::from_millis(1500)));
 
-    let msg = b"KYBER_DISCOVER";
-    let _ = socket.send_to(msg, "255.255.255.255:8082");
+        let msg = b"KYBER_DISCOVER";
+        let _ = socket.send_to(msg, "255.255.255.255:8082");
 
-    let mut buf = [0u8; 2048];
-    let start = Instant::now();
-    while start.elapsed() < std::time::Duration::from_millis(1500) {
-        if let Ok((len, addr)) = socket.recv_from(&mut buf) {
-            if let Ok(text) = std::str::from_utf8(&buf[..len]) {
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
-                    if val.get("type").and_then(|t| t.as_str()) == Some("kyber_server_announce") {
-                        let ip = addr.ip().to_string();
-                        let name = val.get("name").and_then(|n| n.as_str()).unwrap_or("Kyber Host").to_string();
-                        let port = val.get("port").and_then(|p| p.as_u64()).unwrap_or(8080) as u16;
-                        let control_port = val.get("control_port").and_then(|p| p.as_u64()).unwrap_or(8081) as u16;
-                        let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
+        let mut buf = [0u8; 2048];
+        let start = Instant::now();
+        while start.elapsed() < std::time::Duration::from_millis(1500) {
+            if let Ok((len, addr)) = socket.recv_from(&mut buf) {
+                if let Ok(text) = std::str::from_utf8(&buf[..len]) {
+                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
+                        if val.get("type").and_then(|t| t.as_str()) == Some("kyber_server_announce") {
+                            let ip = addr.ip().to_string();
+                            let name = val.get("name").and_then(|n| n.as_str()).unwrap_or("Kyber Host").to_string();
+                            let port = val.get("port").and_then(|p| p.as_u64()).unwrap_or(8080) as u16;
+                            let control_port = val.get("control_port").and_then(|p| p.as_u64()).unwrap_or(8081) as u16;
+                            let version = val.get("version").and_then(|v| v.as_str()).unwrap_or("1.0.0").to_string();
 
-                        if !discovered.iter().any(|s| s.host == ip && s.port == port) {
-                            discovered.push(DiscoveredServer {
-                                name,
-                                host: ip,
-                                port,
-                                control_port,
-                                version,
-                            });
+                            if !discovered.iter().any(|s| s.host == ip && s.port == port) {
+                                discovered.push(DiscoveredServer {
+                                    name,
+                                    host: ip,
+                                    port,
+                                    control_port,
+                                    version,
+                                });
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    Ok(discovered)
+        Ok(discovered)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn find_kyclient_binary(app_handle: Option<&tauri::AppHandle>) -> Option<PathBuf> {

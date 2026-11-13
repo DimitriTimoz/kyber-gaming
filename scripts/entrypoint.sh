@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
-PUID="${PUID:-1000}"
-PGID="${PGID:-1000}"
+export PUID="${PUID:-1000}"
+export PGID="${PGID:-1000}"
 
 echo "[entrypoint] Setting up Kyber Cloud Gaming container..."
 
@@ -62,21 +62,21 @@ mkdir -p \
 # Auto-migrate existing ROMs/BIOS/Steam files from legacy /home/gamer volume into /games
 if [ -d /home/gamer/roms ] && [ ! -L /home/gamer/roms ]; then
     echo "[entrypoint] Migrating existing ROMs to $GAMES_ROOT/roms..."
-    cp -rn /home/gamer/roms/* "$GAMES_ROOT/roms/" 2>/dev/null || true
+    cp -rn /home/gamer/roms/. "$GAMES_ROOT/roms/" 2>/dev/null || true
     rm -rf /home/gamer/roms
 fi
 ln -sfn "$GAMES_ROOT/roms" /home/gamer/roms
 
 if [ -d /home/gamer/bios ] && [ ! -L /home/gamer/bios ]; then
     echo "[entrypoint] Migrating existing BIOS to $GAMES_ROOT/bios..."
-    cp -rn /home/gamer/bios/* "$GAMES_ROOT/bios/" 2>/dev/null || true
+    cp -rn /home/gamer/bios/. "$GAMES_ROOT/bios/" 2>/dev/null || true
     rm -rf /home/gamer/bios
 fi
 ln -sfn "$GAMES_ROOT/bios" /home/gamer/bios
 
 if [ -d /home/gamer/saves ] && [ ! -L /home/gamer/saves ]; then
     echo "[entrypoint] Migrating existing saves to $GAMES_ROOT/saves..."
-    cp -rn /home/gamer/saves/* "$GAMES_ROOT/saves/" 2>/dev/null || true
+    cp -rn /home/gamer/saves/. "$GAMES_ROOT/saves/" 2>/dev/null || true
     rm -rf /home/gamer/saves
 fi
 ln -sfn "$GAMES_ROOT/saves" /home/gamer/saves
@@ -85,7 +85,7 @@ ln -sfn "$GAMES_ROOT/saves" /home/gamer/saves
 mkdir -p /home/gamer/.local/share/Steam /home/gamer/.steam/debian-installation
 if [ -d /home/gamer/.local/share/Steam/steamapps ] && [ ! -L /home/gamer/.local/share/Steam/steamapps ]; then
     echo "[entrypoint] Migrating existing Steam games to $GAMES_ROOT/steam/steamapps..."
-    cp -rn /home/gamer/.local/share/Steam/steamapps/* "$GAMES_ROOT/steam/steamapps/" 2>/dev/null || true
+    cp -rn /home/gamer/.local/share/Steam/steamapps/. "$GAMES_ROOT/steam/steamapps/" 2>/dev/null || true
     rm -rf /home/gamer/.local/share/Steam/steamapps
 fi
 ln -sfn "$GAMES_ROOT/steam/steamapps" /home/gamer/.local/share/Steam/steamapps
@@ -363,7 +363,9 @@ if [ "$IMAGE_VER" != "$USER_VER" ] || [ ! -f /home/gamer/.config/openbox/rc.xml 
     echo "$IMAGE_VER" > /home/gamer/.config/kyber_version
 fi
 
-chown -R gamer:gamer "$GAMES_ROOT" /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes /home/gamer/.steam /home/gamer/.cache 2>/dev/null || true
+# Only chown top-level/unowned directories under $GAMES_ROOT to avoid stalling boot on huge libraries
+find "$GAMES_ROOT" -maxdepth 2 ! -user gamer -exec chown gamer:gamer {} + 2>/dev/null || true
+chown -R gamer:gamer /home/gamer/roms /home/gamer/bios /home/gamer/saves /home/gamer/.local /home/gamer/.config /home/gamer/.themes /home/gamer/.steam /home/gamer/.cache 2>/dev/null || true
 
 # 3. Permissions on uinput and input devices
 if [ -e /dev/uinput ]; then

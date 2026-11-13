@@ -85,6 +85,9 @@ function calculateAspectRatioFit(srcWidth, srcHeight, maxWidth, maxHeight) {
 }
 
 function resizeCanvas(container, canvasWidth, canvasHeight) {
+    const canvas = document.getElementById('canvas');
+    if (!canvas || !container) return;
+
     let size = calculateAspectRatioFit(
         canvasWidth,
         canvasHeight,
