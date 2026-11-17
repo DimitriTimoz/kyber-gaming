@@ -40,7 +40,7 @@ Kyber Gaming operates as a containerized stack designed for low-latency game str
   - Simulated X11 virtual display with dynamic EDID generation.
   - Kyber streaming daemon (`port 8080 TCP/UDP`): QUIC / WebTransport protocol.
   - Kyber Control Service (`port 8081 TCP`): REST API for dynamic resolution resizing, system telemetry, launcher switching, and hierarchical ROM management.
-  - Gaming Environment: Steam (Desktop and Big Picture), Heroic Games Launcher (Epic Games & GOG), Eglantine (Nintendo Switch / NX2 emulator with Vulkan), Google Chrome, Openbox window manager, and PipeWire virtual audio.
+  - Gaming Environment: Steam (Desktop and Big Picture), Heroic Games Launcher (Epic Games & GOG), RetroArch (multi-system retro emulation), Eglantine (Nintendo Switch / NX2 emulator with Vulkan), Google Chrome, Openbox window manager, and PipeWire virtual audio.
 - **Client Layer:**
   - **Desktop Client:** Tauri v2 native app (macOS, Windows, Linux) with hardware display resolution detection, latency ping telemetry, in-app streaming player, and full ROM manager.
   - **Web Client:** Direct browser streaming over WebRTC / WebTransport via `https://<server-ip>:8080/webclient/`.
@@ -190,8 +190,9 @@ AMD GPUs use the open-source Mesa stack and Linux Direct Rendering Infrastructur
    ```bash
    ls -la /dev/dri
    ```
-2. Ensure the container has access to `/dev/dri` (handled automatically when `privileged: true` is enabled).
-3. The container automatically selects `xorg.modesetting.conf` with Glamor 2D/3D acceleration, Mesa RADV Vulkan (`AMD_VULKAN_ICD=RADV`), and VA-API video capture.
+2. In `docker-compose.yml`, remove the NVIDIA `deploy:` block and uncomment `- /dev/dri:/dev/dri` under `devices:`.
+3. Verify DRI permissions on the host and ensure `privileged: true` or device passthrough is enabled.
+4. The container automatically selects `xorg.modesetting.conf` with Glamor 2D/3D acceleration, Mesa RADV Vulkan (`AMD_VULKAN_ICD=RADV`), and VA-API video capture.
 
 ### Intel Arc & Iris Xe
 
@@ -207,19 +208,26 @@ If no physical GPU is present, Kyber falls back to the virtual dummy display dri
 
 ### Directory Structure
 
-Storage inside `/home/gamer/roms` is organized into a clean hierarchical tree:
+Storage inside `/games` (with `/home/gamer/roms`, `/home/gamer/bios`, and `/home/gamer/saves` maintained as symlinks) is organized into a clean hierarchical tree:
 
 ```text
-/home/gamer/roms/
-|-- eglantine/
-|   |-- games/        Base game ROMs (.nsp, .xci, .nsz)
-|   |-- updates/      Title update patches (.nsp)
-|   |-- dlc/          Downloadable content packages (.nsp)
-|   |-- keys/         Switch encryption keys (prod.keys, title.keys)
-|   |-- firmware/     Extracted firmware components (.nca)
-|   `-- mods/         Custom game modifications
-|-- switch -> eglantine/games   (Backwards-compatibility symlink)
-`-- saves/            Emulator saves and memory states
+/games/
+|-- steam/steamapps/      Steam game library
+|-- heroic/prefixes/      Heroic Wine/Proton prefixes
+|-- retroarch/            RetroArch cores, BIOS, saves, states, config
+|-- bios/                 Shared emulator BIOS files
+|-- saves/                Standalone emulator saves
+`-- roms/
+    |-- eglantine/
+    |   |-- games/        Base game ROMs (.nsp, .xci, .nsz)
+    |   |-- updates/      Title update patches (.nsp)
+    |   |-- dlc/          Downloadable content packages (.nsp)
+    |   |-- keys/         Switch encryption keys (prod.keys, title.keys)
+    |   |-- firmware/     Extracted firmware components (.nca)
+    |   `-- mods/         Custom game modifications
+    |-- ps1/, ps2/, n64/, snes/, nes/, gba/, megadrive/, arcade/
+    |-- switch -> eglantine/games   (Backwards-compatibility symlink)
+    `-- saves/            Emulator saves and memory states
 ```
 
 ### Uploading Games, Updates, and DLC
@@ -227,7 +235,7 @@ Storage inside `/home/gamer/roms` is organized into a clean hierarchical tree:
 You can upload files into any subfolder using:
 1. **Desktop Client:** Navigate to the `02 ROMS & GAMES` tab, choose your target subfolder (e.g. `Switch Games`), and drag and drop files directly onto the window.
 2. **Kyber Console Hub:** Open the on-screen ROM Manager by selecting the **ROM Manager** tile or pressing `M` on a keyboard / `Back/Select` on a controller.
-3. **Direct File Copy on Host:** If using a persistent volume or bind mount, copy files straight into `/home/gamer/roms/...` on the host filesystem.
+3. **Direct File Copy on Host:** If using a persistent volume or bind mount, copy files straight into `/games/roms/...` (or `/home/gamer/roms/...`) on the host filesystem.
 
 ### Archive Extraction (.zip, .7z, .rar)
 
@@ -250,11 +258,11 @@ When you upload or extract Switch keys or firmware packages, Kyber's automated s
   - Files named `prod.keys`, `title.keys`, or `*.keys` are mirrored to:
     - `/home/gamer/.local/share/eden/keys/`
     - `/home/gamer/.local/share/eglantine/keys/`
-    - `/home/gamer/roms/eglantine/keys/`
+    - `/games/roms/eglantine/keys/` (and `/home/gamer/roms/eglantine/keys/`)
 - **Firmware (.nca):**
   - Extracted `.nca` firmware packages are placed into:
     - `/home/gamer/.local/share/eden/nand/system/Contents/registered/`
-    - `/home/gamer/roms/eglantine/firmware/`
+    - `/games/roms/eglantine/firmware/` (and `/home/gamer/roms/eglantine/firmware/`)
 - **Permissions:**
   - All extracted files are recursively assigned ownership to `gamer:gamer`.
 

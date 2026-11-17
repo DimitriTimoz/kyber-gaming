@@ -59,7 +59,6 @@
     const btnNewFolderEl = document.getElementById('btnNewFolder');
     const btnUploadFilesEl = document.getElementById('btnUploadFiles');
     const romFileInputEl = document.getElementById('romFileInput');
-    const romFolderInputEl = document.getElementById('romFolderInput');
     const romUploadCardEl = document.getElementById('romUploadCard');
     const romUploadCardTitleEl = document.getElementById('romUploadCardTitle');
     const btnCancelUploadEl = document.getElementById('btnCancelUpload');
@@ -458,7 +457,7 @@
         const specsEl = document.getElementById('headerSpecs');
         if (specsEl) {
             const specs = currentItem.specs || ['VULKAN', '60 FPS', 'LOW LATENCY'];
-            specsEl.innerHTML = specs.map(s => `<span class="spec-pill">${s}</span>`).join('');
+            specsEl.innerHTML = specs.map(s => `<span class="spec-pill">${escapeHtml(s)}</span>`).join('');
         }
 
         [headerTagEl, headerTitleEl, headerDescEl].forEach((el) => {
@@ -1524,9 +1523,54 @@
         });
     }
 
+    function showKioskDialog({ title, message, withInput = false, placeholder = '', confirmLabel = 'Confirm', danger = false }) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:2000;background:rgba(5,8,15,0.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:24px;';
+            overlay.innerHTML = `
+                <div style="width:100%;max-width:420px;background:#111827;border:1px solid rgba(255,255,255,0.14);border-radius:14px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,0.6);color:#f8fafc;font-family:inherit;">
+                    <div style="font-size:1.05rem;font-weight:700;margin-bottom:8px;">${escapeHtml(title)}</div>
+                    <div style="font-size:0.86rem;color:#94a3b8;line-height:1.45;margin-bottom:${withInput ? '14px' : '20px'};">${escapeHtml(message)}</div>
+                    ${withInput ? `<input type="text" id="kioskDialogInput" placeholder="${escapeHtml(placeholder)}" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.18);background:#0b1220;color:#f8fafc;font-size:0.9rem;margin-bottom:18px;outline:none;">` : ''}
+                    <div style="display:flex;justify-content:flex-end;gap:10px;">
+                        <button type="button" id="kioskDialogCancel" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.06);color:#e2e8f0;font-weight:600;cursor:pointer;">Cancel</button>
+                        <button type="button" id="kioskDialogConfirm" style="padding:8px 18px;border-radius:8px;border:none;background:${danger ? '#dc2626' : '#2563eb'};color:#fff;font-weight:600;cursor:pointer;">${escapeHtml(confirmLabel)}</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const inputEl = overlay.querySelector('#kioskDialogInput');
+            const confirmBtn = overlay.querySelector('#kioskDialogConfirm');
+            const cancelBtn = overlay.querySelector('#kioskDialogCancel');
+
+            const cleanup = (val) => {
+                overlay.remove();
+                resolve(val);
+            };
+            cancelBtn.addEventListener('click', () => cleanup(withInput ? null : false));
+            confirmBtn.addEventListener('click', () => cleanup(withInput ? (inputEl ? inputEl.value : '') : true));
+            overlay.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') cleanup(withInput ? null : false);
+                else if (e.key === 'Enter') cleanup(withInput ? (inputEl ? inputEl.value : '') : true);
+            });
+            if (inputEl) {
+                inputEl.focus();
+            } else {
+                confirmBtn.focus();
+            }
+        });
+    }
+
     // Create New Folder
     async function promptCreateFolder() {
-        const folderName = window.prompt(`Create new folder inside "${currentBrowsePath || 'root'}":`);
+        const folderName = await showKioskDialog({
+            title: 'Create New Folder',
+            message: `Enter a folder name inside "${currentBrowsePath || 'root'}":`,
+            withInput: true,
+            placeholder: 'e.g. Zelda Tears of the Kingdom',
+            confirmLabel: 'Create'
+        });
         if (!folderName || !folderName.trim()) return;
 
         try {
@@ -1553,7 +1597,13 @@
     // Delete item (file or folder)
     async function deleteStorageItem(relPath, displayName, isFolder) {
         const label = isFolder ? `folder "${displayName}" and all its contents` : `file "${displayName}"`;
-        if (!confirm(`Are you sure you want to delete ${label}?`)) return;
+        const confirmed = await showKioskDialog({
+            title: isFolder ? 'Delete Folder' : 'Delete File',
+            message: `Are you sure you want to permanently delete ${label}?`,
+            confirmLabel: 'Delete',
+            danger: true
+        });
+        if (!confirmed) return;
 
         try {
             const res = await fetch('/api/roms/delete', {

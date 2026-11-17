@@ -11,7 +11,7 @@ The goal is to modernize self-hosted cloud gaming setups:
 - 100% Headless Operation: No physical monitor, television, or dummy HDMI/DisplayPort plug is required on the host. Display and EDID are simulated via software with full 3D hardware acceleration.
 - Base Operating System: Ubuntu 24.04 LTS.
 - Gaming Launchers: Steam (Desktop and Big Picture console modes) and Heroic Games Launcher (Epic Games Store and GOG).
-- Console Emulators: Eglantine (Nintendo Switch & Switch 2 / NX2 experimental emulator with Vulkan rendering).
+- Console Emulators: Eglantine (Nintendo Switch & Switch 2 / NX2 experimental emulator with Vulkan rendering) and RetroArch (multi-system retro emulation for PS1, PS2, N64, SNES, NES, GBA, Mega Drive, Arcade).
 - ROM & Game Storage: Centralized management and upload interface for games, saves, and BIOS firmware keys.
 - Continuous Integration & Packaging: Automated build pipelines for container images (GHCR) and cross-platform native clients (macOS, Linux, Windows).
 
@@ -44,7 +44,7 @@ flowchart TD
             Hub["Console OS Kiosk Hub (Chrome)"]
             Steam["Steam (Big Picture & Desktop)"]
             Heroic["Heroic Games Launcher"]
-            Emulators["Eglantine (Switch & NX2)"]
+            Emulators["Eglantine (Switch & NX2) + RetroArch"]
             Browser["Fullscreen Web Browser"]
         end
 
@@ -118,19 +118,20 @@ On a server without a monitor, the GPU driver often refuses to initialize render
 - Console OS Hub: Data-driven fullscreen kiosk interface (`/opt/kyber/hub`) with controller navigation, sound effects, system telemetry, and category filters.
 - Steam: Multiarch package (`amd64` + `i386`) with Proton and Steam Runtime support.
 - Heroic Games Launcher: Official `.deb` package supporting Epic Games Store and GOG.
-- Emulators: Eglantine (Nintendo Switch & Switch 2 / NX2).
+- Emulators: Eglantine (Nintendo Switch & Switch 2 / NX2) and RetroArch (PS1, PS2, N64, SNES, NES, GBA, Mega Drive, Arcade).
 - Web Browser: Google Chrome for web browsing, game wikis, and mod downloads.
 
 ### 3.5. ROM & Emulator Game Manager
-- Centralized hierarchical storage structure:
-  - `/home/gamer/roms/eglantine/games`: Switch & NX2 base games (`.nsp`, `.xci`, `.nsz`).
-  - `/home/gamer/roms/eglantine/updates`: Game update patches (`.nsp`).
-  - `/home/gamer/roms/eglantine/dlc`: Downloadable content packs (`.nsp`).
-  - `/home/gamer/roms/eglantine/keys`: Decryption keys (`prod.keys`, `title.keys` with auto-sync to internal emulator keys directory).
-  - `/home/gamer/roms/eglantine/firmware`: System firmware archives (`.zip`, `.bin`).
-  - `/home/gamer/roms/eglantine/mods`: LayeredFS game mods and custom assets.
-  - `/home/gamer/roms/saves`: Emulator save files and states.
-  - `/home/gamer/roms/switch`: Backward-compatible symlink to `eglantine/games`.
+- Centralized hierarchical storage structure rooted at `/games` (`/home/gamer/roms` is maintained as a compatibility symlink to `/games/roms`):
+  - `/games/roms/eglantine/games`: Switch & NX2 base games (`.nsp`, `.xci`, `.nsz`).
+  - `/games/roms/eglantine/updates`: Game update patches (`.nsp`).
+  - `/games/roms/eglantine/dlc`: Downloadable content packs (`.nsp`).
+  - `/games/roms/eglantine/keys`: Decryption keys (`prod.keys`, `title.keys` with auto-sync to internal emulator keys directory).
+  - `/games/roms/eglantine/firmware`: System firmware archives (`.zip`, `.bin`).
+  - `/games/roms/eglantine/mods`: LayeredFS game mods and custom assets.
+  - `/games/roms/{ps1,ps2,n64,snes,nes,gba,megadrive,arcade}`: RetroArch system ROM directories.
+  - `/games/roms/saves` & `/games/saves`: Emulator save files and states.
+  - `/games/roms/switch`: Backward-compatible symlink to `eglantine/games`.
 - High-Performance Chunked Upload Engine:
   - Large Switch game files (10GB–25GB) are sliced client-side into 10 MB chunks.
   - Prevents HTTP gateway timeouts and memory pressure.

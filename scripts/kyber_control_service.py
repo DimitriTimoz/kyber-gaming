@@ -71,7 +71,7 @@ def run_discovery_responder():
                         "name": server_name,
                         "port": int(os.environ.get("KYBER_PORT", "8080")),
                         "control_port": PORT,
-                        "version": "1.0.3"
+                        "version": "1.0.4"
                     }).encode("utf-8")
                     sock.sendto(payload, addr)
             except Exception:
@@ -969,6 +969,29 @@ _telemetry_cache = {"timestamp": 0, "data": {}}
 _telemetry_lock = threading.Lock()
 _cpu_last_stat = {"total": 0, "idle": 0}
 
+def _pgrep_running(pattern):
+    try:
+        return subprocess.run(
+            ["pgrep", "-u", "gamer", "-f", pattern],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        ).returncode == 0
+    except Exception:
+        return False
+
+def _is_browser_running():
+    try:
+        res = subprocess.run(["pgrep", "-u", "gamer", "-f", "chrome"], capture_output=True, text=True)
+        for pid in res.stdout.split():
+            cmdline_path = f"/proc/{pid}/cmdline"
+            if os.path.exists(cmdline_path):
+                with open(cmdline_path, "rb") as f:
+                    cmd = f.read().replace(b"\x00", b" ").decode("utf-8", errors="ignore")
+                if "chrome" in cmd and "kyber-hub-profile" not in cmd:
+                    return True
+    except Exception:
+        pass
+    return False
+
 def get_telemetry_info():
     """Retrieve real-time hardware telemetry: GPU, CPU, RAM, and active session."""
     now = time.time()
@@ -1078,21 +1101,16 @@ def get_telemetry_info():
 
         # Active session detection
         active_app = "menu"
-        try:
-            if subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0:
-                active_app = "steam"
-            elif subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0:
-                active_app = "heroic"
-            elif subprocess.run("pgrep -u gamer -f 'retroarch' >/dev/null 2>&1", shell=True).returncode == 0:
-                active_app = "retroarch"
-            elif subprocess.run("pgrep -u gamer -f 'eglantine' >/dev/null 2>&1", shell=True).returncode == 0:
-                active_app = "eglantine"
-            elif subprocess.run("pgrep -u gamer -f 'chrome' >/dev/null 2>&1", shell=True).returncode == 0:
-                active_app = "browser"
-            else:
-                active_app = "menu"
-        except Exception:
-            pass
+        if _pgrep_running("ubuntu12_32/steam"):
+            active_app = "steam"
+        elif _pgrep_running("heroic"):
+            active_app = "heroic"
+        elif _pgrep_running("retroarch"):
+            active_app = "retroarch"
+        elif _pgrep_running("eglantine"):
+            active_app = "eglantine"
+        elif _is_browser_running():
+            active_app = "browser"
 
         data = {
             "gpu": gpu_telemetry,
@@ -1337,7 +1355,7 @@ class ResizeHandler(BaseHTTPRequestHandler):
             if not full_path or not os.path.exists(full_path) or not os.path.isfile(full_path):
                 self._send_json_response({"error": "File not found", "status": "error"}, code=404)
                 return
-            filename = os.path.basename(full_path)
+            filename = re.sub(r'["\\\r\n]', '_', os.path.basename(full_path))
             file_size = os.path.getsize(full_path)
             self.send_response(200)
             self._send_cors_headers()
@@ -1350,12 +1368,12 @@ class ResizeHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/tls/fingerprint":
             self._send_json_response(get_tls_fingerprint())
         elif parsed.path == "/api/launcher/status":
-            steam_running = subprocess.run("pgrep -u gamer -f 'ubuntu12_32/steam' >/dev/null 2>&1", shell=True).returncode == 0
-            heroic_running = subprocess.run("pgrep -u gamer -f 'heroic' >/dev/null 2>&1", shell=True).returncode == 0
-            menu_running = subprocess.run("pgrep -u gamer -f 'kyber-hub-profile|kyber_console_hub' >/dev/null 2>&1", shell=True).returncode == 0
-            browser_running = subprocess.run("pgrep -u gamer -f 'chrome' | while read p; do tr '\\0' ' ' < /proc/$p/cmdline 2>/dev/null | grep -v 'kyber-hub-profile' | grep -q 'chrome' && exit 0; done; exit 1", shell=True).returncode == 0
-            eglantine_running = subprocess.run("pgrep -u gamer -f 'eglantine' >/dev/null 2>&1", shell=True).returncode == 0
-            retroarch_running = subprocess.run("pgrep -u gamer -f 'retroarch' >/dev/null 2>&1", shell=True).returncode == 0
+            steam_running = _pgrep_running("ubuntu12_32/steam")
+            heroic_running = _pgrep_running("heroic")
+            menu_running = _pgrep_running("kyber-hub-profile|kyber_console_hub")
+            browser_running = _is_browser_running()
+            eglantine_running = _pgrep_running("eglantine")
+            retroarch_running = _pgrep_running("retroarch")
             self._send_json_response({
                 "steam": steam_running,
                 "heroic": heroic_running,

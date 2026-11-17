@@ -6,19 +6,30 @@ use std::sync::OnceLock;
 use std::time::Instant;
 use tauri::Manager;
 
-static HTTP_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static HTTP_CLIENT_STRICT: OnceLock<reqwest::Client> = OnceLock::new();
+static HTTP_CLIENT_INSECURE: OnceLock<reqwest::Client> = OnceLock::new();
 
-fn get_http_client() -> &'static reqwest::Client {
-    HTTP_CLIENT.get_or_init(|| {
-        reqwest::Client::builder()
-            .danger_accept_invalid_certs(true)
-            .tcp_nodelay(true)
-            .pool_max_idle_per_host(10)
-            .pool_idle_timeout(std::time::Duration::from_secs(90))
-            .timeout(std::time::Duration::from_secs(120))
-            .build()
-            .expect("Failed to create shared HTTP client")
-    })
+fn build_http_client(accept_invalid_certs: bool) -> reqwest::Client {
+    reqwest::Client::builder()
+        .danger_accept_invalid_certs(accept_invalid_certs)
+        .tcp_nodelay(true)
+        .pool_max_idle_per_host(10)
+        .pool_idle_timeout(std::time::Duration::from_secs(90))
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .expect("Failed to create shared HTTP client")
+}
+
+fn get_http_client(tls_skip: bool) -> &'static reqwest::Client {
+    if tls_skip {
+        HTTP_CLIENT_INSECURE.get_or_init(|| build_http_client(true))
+    } else {
+        HTTP_CLIENT_STRICT.get_or_init(|| build_http_client(false))
+    }
+}
+
+fn get_configured_http_client() -> &'static reqwest::Client {
+    get_http_client(get_config().settings.tls_skip)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +132,7 @@ fn save_config(config: AppConfig) -> Result<(), String> {
 
 #[tauri::command]
 async fn ping_server(host: String, port: u16) -> Result<PingResult, String> {
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
     let url = format!("https://{}:{}/capabilities", host, port);
     let start = Instant::now();
@@ -282,15 +293,43 @@ async fn launch_session(
         _ => ["1920", "1080"],
     };
 
-    let client = get_http_client();
+    let client = get_http_client(settings.tls_skip);
     let u = server.auth_user.as_deref().unwrap_or("gamer");
     let p = server.auth_password.as_deref().unwrap_or("kybergaming");
     let control_port = server.control_port.unwrap_or(8081);
-    let resize_url = format!(
-        "https://{}:{}/api/resize?width={}&height={}&rate={}&auth_user={}&auth_pass={}",
-        server.host, control_port, w, h, settings.refresh_rate, u, p
-    );
-    let _ = client.get(&resize_url).send().await;
+    let resize_url = format!("https://{}:{}/api/resize", server.host, control_port);
+    let _ = client
+        .get(&resize_url)
+        .query(&[
+            ("width", w),
+            ("height", h),
+            ("rate", settings.refresh_rate.as_str()),
+        ])
+        .basic_auth(u, Some(p))
+        .send()
+        .await;
+
+    let build_stream_url = |u: &str, p: &str, hud: &str| -> Result<tauri::Url, String> {
+        let base = format!("https://{}:{}/webclient/", server.host, server.port);
+        let port_str = server.port.to_string();
+        tauri::Url::parse_with_params(
+            &base,
+            &[
+                ("auto_connect", "true"),
+                ("host", server.host.as_str()),
+                ("port", port_str.as_str()),
+                ("auth_user", u),
+                ("auth_pass", p),
+                ("res", settings.resolution.as_str()),
+                ("fps", settings.refresh_rate.as_str()),
+                ("bitrate", settings.bitrate.as_str()),
+                ("video_codec", settings.codec.as_str()),
+                ("hud", hud),
+                ("gamepad_force_xbox360", "true"),
+            ],
+        )
+        .map_err(|e| e.to_string())
+    };
 
     // 2. Determine player mode: check if user requested in-app or if native kyclient is unavailable
     let mode = settings.player_mode.as_deref().unwrap_or("auto");
@@ -300,10 +339,7 @@ async fn launch_session(
         let u = server.auth_user.as_deref().unwrap_or("gamer");
         let p = server.auth_password.as_deref().unwrap_or("kybergaming");
         let hud = if settings.hud_overlay.unwrap_or(true) { "1" } else { "0" };
-        let stream_url = format!(
-            "https://{}:{}/webclient/?auto_connect=true&host={}&port={}&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&video_codec={}&hud={}&gamepad_force_xbox360=true",
-            server.host, server.port, server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
-        );
+        let stream_url = build_stream_url(u, p, hud)?.to_string();
 
         #[cfg(target_os = "macos")]
         {
@@ -356,12 +392,7 @@ async fn launch_session(
         let u = server.auth_user.as_deref().unwrap_or("gamer");
         let p = server.auth_password.as_deref().unwrap_or("kybergaming");
         let hud = if settings.hud_overlay.unwrap_or(true) { "1" } else { "0" };
-        let stream_url = format!(
-            "https://{}:{}/webclient/?auto_connect=true&host={}&port={}&auth_user={}&auth_pass={}&res={}&fps={}&bitrate={}&video_codec={}&hud={}&gamepad_force_xbox360=true",
-            server.host, server.port, server.host, server.port, u, p, settings.resolution, settings.refresh_rate, settings.bitrate, settings.codec, hud
-        );
-
-        let parsed_url: tauri::Url = stream_url.parse().map_err(|e| format!("{}", e))?;
+        let parsed_url = build_stream_url(u, p, hud)?;
         let window_label = "kyber-stream-player";
 
         if let Some(existing) = app.get_webview_window(window_label) {
@@ -503,15 +534,9 @@ async fn rom_browse(
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
-    let mut query = vec![("path", path)];
-    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-        if !u.is_empty() && !p.is_empty() {
-            query.push(("auth_user", u.clone()));
-            query.push(("auth_pass", p.clone()));
-        }
-    }
+    let query = vec![("path", path)];
 
     let https_url = format!("https://{}:{}/api/roms/browse", host, port);
     let mut req = client.get(&https_url).query(&query);
@@ -557,15 +582,9 @@ async fn rom_create_folder(
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
-    let mut query = Vec::new();
-    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-        if !u.is_empty() && !p.is_empty() {
-            query.push(("auth_user", u.clone()));
-            query.push(("auth_pass", p.clone()));
-        }
-    }
+    let query: Vec<(&str, String)> = Vec::new();
 
     let payload = serde_json::json!({
         "path": path,
@@ -619,15 +638,9 @@ async fn rom_delete(
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
-    let mut query = vec![("path", path.clone())];
-    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-        if !u.is_empty() && !p.is_empty() {
-            query.push(("auth_user", u.clone()));
-            query.push(("auth_pass", p.clone()));
-        }
-    }
+    let query = vec![("path", path.clone())];
 
     let payload = serde_json::json!({ "path": path });
 
@@ -678,15 +691,9 @@ async fn rom_cancel_upload(
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
-    let mut query = vec![("upload_id", upload_id.clone())];
-    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-        if !u.is_empty() && !p.is_empty() {
-            query.push(("auth_user", u.clone()));
-            query.push(("auth_pass", p.clone()));
-        }
-    }
+    let query = vec![("upload_id", upload_id.clone())];
 
     let payload = serde_json::json!({ "upload_id": upload_id });
 
@@ -744,7 +751,7 @@ async fn rom_upload_chunk(
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
     let binary_data = BASE64_STANDARD
         .decode(chunk_base64.trim())
@@ -758,7 +765,7 @@ async fn rom_upload_chunk(
             tokio::time::sleep(std::time::Duration::from_millis(300 * (1 << (attempt - 1)))).await;
         }
 
-        let mut full_query = vec![
+        let full_query = vec![
             ("upload_id", upload_id.clone()),
             ("filename", filename.clone()),
             ("target_path", target_path.clone()),
@@ -767,12 +774,6 @@ async fn rom_upload_chunk(
             ("total_chunks", total_chunks.to_string()),
             ("total_size", total_size.to_string()),
         ];
-        if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-            if !u.is_empty() && !p.is_empty() {
-                full_query.push(("auth_user", u.clone()));
-                full_query.push(("auth_pass", p.clone()));
-            }
-        }
 
         let https_url = format!("https://{}:{}/api/roms/upload_chunk", host, port);
         let mut req = client
@@ -843,7 +844,7 @@ async fn rom_download_file(
     auth_password: Option<String>,
 ) -> Result<String, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
     let raw_name = std::path::Path::new(&filename)
         .file_name()
@@ -857,13 +858,7 @@ async fn rom_download_file(
     let download_dir = dirs::download_dir().unwrap_or_else(|| PathBuf::from("."));
     let target_file_path = download_dir.join(&safe_name);
 
-    let mut query = vec![("path", path)];
-    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-        if !u.is_empty() && !p.is_empty() {
-            query.push(("auth_user", u.clone()));
-            query.push(("auth_pass", p.clone()));
-        }
-    }
+    let query = vec![("path", path)];
 
     let https_url = format!("https://{}:{}/api/roms/download", host, port);
     let mut req = client.get(&https_url).query(&query);
@@ -912,17 +907,11 @@ async fn rom_extract(
     auth_password: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let host = clean_host(&host);
-    let client = get_http_client();
+    let client = get_configured_http_client();
 
     let mut query = vec![("path", path.clone())];
     if delete_archive.unwrap_or(false) {
         query.push(("delete_archive", "true".into()));
-    }
-    if let (Some(u), Some(p)) = (&auth_user, &auth_password) {
-        if !u.is_empty() && !p.is_empty() {
-            query.push(("auth_user", u.clone()));
-            query.push(("auth_pass", p.clone()));
-        }
     }
 
     let payload = serde_json::json!({

@@ -21,15 +21,26 @@
         const key = `${width}x${height}`;
         if (key === lastSent) return;
 
-        const port = 8081;
-        const protocol = window.location.protocol;
-        const url = `${protocol}//${window.location.hostname}:${port}/api/resize`;
+        const port = window.location.port;
+        const isProxyPort = !port || port === "80" || port === "443";
+        const url = isProxyPort
+            ? "/api/resize"
+            : `${window.location.protocol}//${window.location.hostname}:8081/api/resize`;
+
+        const headers = { "Content-Type": "application/json" };
+        try {
+            const u = localStorage.getItem("kyber_auth_user");
+            const p = localStorage.getItem("kyber_auth_pass");
+            if (u && p) {
+                headers["Authorization"] = "Basic " + btoa(`${u}:${p}`);
+            }
+        } catch (_) {}
 
         console.log(`[Kyber AutoResize] Requesting server display change to ${width}x${height}...`);
 
         fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers,
             body: JSON.stringify({ width: width, height: height, rate: 60 })
         })
         .then(res => res.json())

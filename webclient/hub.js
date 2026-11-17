@@ -900,7 +900,7 @@
 
     function switchHostLauncher(launcher) {
         const base = getApiEndpoint('/api/launcher');
-        const url = `${base}?app=${encodeURIComponent(launcher)}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
+        const url = `${base}?app=${encodeURIComponent(launcher)}`;
         const name = LAUNCHER_DISPLAY_NAMES[launcher] || launcher;
         showLoadingScreen('SWITCHING ENVIRONMENT', `Launching ${name}...`, 3000);
         fetch(url, { headers: getAuthHeaders() }).catch(e => console.warn('Failed to switch launcher:', e));
@@ -922,7 +922,7 @@
 
     function resizeHostScreen(w, h, fps) {
         const base = getApiEndpoint('/api/resize');
-        const url = `${base}?width=${w}&height=${h}&rate=${fps}&auth_user=${encodeURIComponent(state.authUser)}&auth_pass=${encodeURIComponent(state.authPass)}`;
+        const url = `${base}?width=${encodeURIComponent(w)}&height=${encodeURIComponent(h)}&rate=${encodeURIComponent(fps)}`;
         return fetch(url, { headers: getAuthHeaders() }).catch(e => console.warn('Failed to resize display:', e));
     }
 

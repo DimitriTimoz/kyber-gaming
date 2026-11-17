@@ -29,7 +29,7 @@ Low-latency WebTransport/QUIC streaming, virtual display emulation, Steam Big Pi
 
 - **Headless Virtual Display**: Full hardware 3D acceleration without a physical monitor. Dynamically scales resolution and refresh rate (up to 4K @ 144Hz) to match your client viewport in real time.
 - **WebTransport & QUIC Streaming**: Single-port UDP multiplexing for sub-frame video delivery, bidirectional gamepad/keyboard/mouse input, and PipeWire stereo audio.
-- **Console OS Launcher Suite**: Built-in launcher interface featuring Steam Big Picture, Heroic Games Launcher (Epic Games & GOG), and Eglantine (Nintendo Switch & NX2 emulator with Vulkan backend).
+- **Console OS Launcher Suite**: Built-in launcher interface featuring Steam Big Picture, Heroic Games Launcher (Epic Games & GOG), RetroArch (multi-system retro emulation), and Eglantine (Nintendo Switch & NX2 emulator with Vulkan backend).
 - **Integrated Storage & ROM Manager**: Dedicated Web and Desktop file explorer with chunked upload engine (10+ GB ROMs), automatic encryption key synchronization (`prod.keys`, `title.keys`), archive extraction, and directory management.
 - **Cross-Platform Clients**: Play instantly in any modern web browser or use the native Rust/Tauri v2 desktop client for macOS, Windows, and Linux.
 
@@ -75,7 +75,7 @@ Low-latency WebTransport/QUIC streaming, virtual display emulation, Steam Big Pi
 |                |                                         |                      |
 |  +-------------v-----------------------------------------v-------------------+  |
 |  | Virtual Display Engine (X11 Virtual Screen + Auto Dynamic EDID)           |  |
-|  | Steam Big Picture  |  Heroic Games Launcher  |  Eglantine (Switch/NX2)    |  |
+|  | Steam Big Picture | Heroic Games | RetroArch | Eglantine (Switch/NX2)  |  |
 |  +-----------------------------------+---------------------------------------+  |
 |                                      |                                          |
 |  +-----------------------------------v---------------------------------------+  |
@@ -121,27 +121,44 @@ services:
     network_mode: host
     privileged: true
     environment:
+      - PUID=1000
+      - PGID=1000
       - RESOLUTION=1920x1080
       - REFRESH_RATE=60
       - LAUNCHER=menu
       - AUTH_USER=gamer
       - AUTH_PASSWORD=kybergaming
     volumes:
-      # 1. Dedicated Games Library (Steam, Heroic, ROMs, BIOS, Saves)
+      # 1. Dedicated Games Library (Steam, Heroic, RetroArch, ROMs, BIOS, Saves)
       - kyber_games:/games
       # 2. Persistent User Configuration (Steam login, tokens, emulator configs)
       - kyber_config:/home/gamer
+      # 3. Persistent TLS Certificates & Custom Launchers
+      - ./kyber_tls:/etc/kyber/tls
+      - ./config/launchers.json:/etc/kyber/launchers.json:ro
+      # 4. Input devices & udev for controller hotplug
+      - /dev/input:/dev/input
+      - /run/udev:/run/udev:ro
       # Optional: Direct host/NAS mount for your existing games & ROMs
       # - /mnt/storage/games:/games
     devices:
-      # Required for hardware acceleration & virtual inputs
-      - /dev/dri:/dev/dri
       - /dev/uinput:/dev/uinput
+      # For AMD / Intel GPUs, uncomment /dev/dri and remove the NVIDIA deploy block below:
+      # - /dev/dri:/dev/dri
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, video, graphics, compute, utility]
 
 volumes:
   kyber_games:
   kyber_config:
 ```
+
+> **Note for AMD / Intel GPU hosts:** Remove the `deploy:` NVIDIA reservation block above and uncomment `- /dev/dri:/dev/dri` under `devices:`. Otherwise Docker will fail with `could not select device driver "nvidia"`.
 
 Start the container:
 
@@ -193,16 +210,23 @@ Features of the desktop client:
 Kyber provides a unified file management engine designed for game preservation and seamless library synchronization:
 
 ```text
-/home/gamer/roms/
-|-- eglantine/
-|   |-- games/        # Base game ROMs (.nsp, .xci, .nsz)
-|   |-- updates/      # Game updates and patches (.nsp)
-|   |-- dlc/          # Downloadable content packs (.nsp)
-|   |-- keys/         # Decryption keys (prod.keys, title.keys)
-|   |-- firmware/     # Switch system firmware packages (.nca, .zip)
-|   `-- mods/         # Custom game mods
-|-- switch -> eglantine/games   # Backward-compatible symlink
-`-- saves/            # Emulator save states and user data
+/games/                           # Persistent games volume (/home/gamer/roms symlinks to /games/roms)
+|-- steam/steamapps/              # Steam game installations
+|-- heroic/prefixes/              # Heroic Wine/Proton prefixes
+|-- retroarch/                    # RetroArch cores, system BIOS, saves, states, config
+|-- bios/                         # Shared emulator BIOS files
+|-- saves/                        # Standalone emulator saves
+`-- roms/
+    |-- eglantine/
+    |   |-- games/                # Switch base game ROMs (.nsp, .xci, .nsz)
+    |   |-- updates/              # Game updates and patches (.nsp)
+    |   |-- dlc/                  # Downloadable content packs (.nsp)
+    |   |-- keys/                 # Decryption keys (prod.keys, title.keys)
+    |   |-- firmware/             # Switch system firmware packages (.nca, .zip)
+    |   `-- mods/                 # Custom game mods
+    |-- ps1/, ps2/, n64/, snes/, nes/, gba/, megadrive/, arcade/
+    |-- switch -> eglantine/games # Backward-compatible symlink
+    `-- saves/                    # Emulator save states and user data
 ```
 
 ### Key Capabilities

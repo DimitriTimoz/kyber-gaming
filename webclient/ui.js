@@ -630,10 +630,16 @@ async function handleOidcPageLoad() {
   }
   if (cb.kind === "popup-error") {
     console.error("OIDC callback failed:", cb.err);
-    document.body.innerHTML = `<div style="font-family:sans-serif;padding:2em">
-      <p style="color:#c00">Login error: ${cb.err.message}</p>
-      <p>Close this window and click Connect again.</p>
-    </div>`;
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "font-family:sans-serif;padding:2em";
+    const errP = document.createElement("p");
+    errP.style.color = "#c00";
+    errP.textContent = `Login error: ${cb.err?.message || "Unknown error"}`;
+    const hintP = document.createElement("p");
+    hintP.textContent = "Close this window and click Connect again.";
+    wrap.appendChild(errP);
+    wrap.appendChild(hintP);
+    document.body.replaceChildren(wrap);
     return true;
   }
   if (cb.kind === "redirect") {

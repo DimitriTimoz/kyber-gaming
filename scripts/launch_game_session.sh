@@ -541,13 +541,7 @@ PYEOF
                 RETROARCH_BIN="/usr/local/bin/retroarch"
             fi
 
-            if [ -z "$RETROARCH_BIN" ]; then
-                echo "[session] RetroArch is not installed in container. Attempting automatic installation..."
-                sudo apt-get update >/dev/null 2>&1 && sudo apt-get install -y --no-install-recommends retroarch retroarch-assets libretro-core-info >/dev/null 2>&1 || true
-                RETROARCH_BIN="$(command -v retroarch || echo /usr/games/retroarch)"
-            fi
-
-            if [ ! -x "$RETROARCH_BIN" ]; then
+            if [ -z "$RETROARCH_BIN" ] || [ ! -x "$RETROARCH_BIN" ]; then
                 echo "[session] ERROR: RetroArch binary not found in container!"
                 dismiss_loading_screen
                 sleep 1
@@ -828,18 +822,18 @@ except Exception: pass
                         rm -f /tmp/kyber_next_action 2>/dev/null || : > /tmp/kyber_next_action 2>/dev/null || true
                         if [ -n "$NEXT" ] && [ "$NEXT" != "$CURRENT_ACTION" ]; then
                             echo "[session] Action switch requested: $NEXT"
-                            kill -TERM "$APP_PID" 2>/dev/null || true
+                            kill -TERM -"$APP_PID" 2>/dev/null || kill -TERM "$APP_PID" 2>/dev/null || true
                             if [ "$CURRENT_ACTION" = "eglantine" ]; then
-                                pkill -TERM -u gamer -f "eglantine|eden|ryujinx" 2>/dev/null || true
+                                pkill -TERM -u gamer -x "eglantine|eden|ryujinx" 2>/dev/null || true
                             else
-                                pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                                pkill -TERM -u gamer -x "$CURRENT_ACTION" 2>/dev/null || true
                             fi
                             sleep 0.3
-                            kill -9 "$APP_PID" 2>/dev/null || true
+                            kill -9 -"$APP_PID" 2>/dev/null || kill -9 "$APP_PID" 2>/dev/null || true
                             if [ "$CURRENT_ACTION" = "eglantine" ]; then
-                                pkill -9 -u gamer -f "eglantine|eden|ryujinx" 2>/dev/null || true
+                                pkill -9 -u gamer -x "eglantine|eden|ryujinx" 2>/dev/null || true
                             else
-                                pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                                pkill -9 -u gamer -x "$CURRENT_ACTION" 2>/dev/null || true
                             fi
                             CURRENT_ACTION="$NEXT"
                             break
@@ -849,9 +843,9 @@ except Exception: pass
                     IS_ALIVE=0
                     if kill -0 "$APP_PID" 2>/dev/null; then
                         IS_ALIVE=1
-                    elif [ "$CURRENT_ACTION" = "eglantine" ] && pgrep -u gamer -f "eglantine|eden|ryujinx" >/dev/null 2>&1; then
+                    elif [ "$CURRENT_ACTION" = "eglantine" ] && pgrep -u gamer -x "eglantine|eden|ryujinx" >/dev/null 2>&1; then
                         IS_ALIVE=1
-                    elif pgrep -u gamer -f "$CURRENT_ACTION" >/dev/null 2>&1; then
+                    elif pgrep -u gamer -x "$CURRENT_ACTION" >/dev/null 2>&1; then
                         IS_ALIVE=1
                     fi
 
@@ -897,11 +891,11 @@ except Exception: pass
                         APP_NO_WIN_TICKS=$((APP_NO_WIN_TICKS + 1))
                         if [ "$APP_NO_WIN_TICKS" -ge 4 ]; then
                             echo "[session] All windows for $CURRENT_ACTION closed. Cleaning up process..."
-                            kill -TERM "$APP_PID" 2>/dev/null || true
-                            pkill -TERM -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            kill -TERM -"$APP_PID" 2>/dev/null || kill -TERM "$APP_PID" 2>/dev/null || true
+                            pkill -TERM -u gamer -x "$CURRENT_ACTION" 2>/dev/null || true
                             sleep 0.3
-                            kill -9 "$APP_PID" 2>/dev/null || true
-                            pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                            kill -9 -"$APP_PID" 2>/dev/null || kill -9 "$APP_PID" 2>/dev/null || true
+                            pkill -9 -u gamer -x "$CURRENT_ACTION" 2>/dev/null || true
                             break
                         fi
                         sleep 0.35
@@ -916,7 +910,8 @@ except Exception: pass
                 done
 
                 # Ensure any zombie child processes are cleaned up
-                pkill -9 -u gamer -f "$CURRENT_ACTION" 2>/dev/null || true
+                kill -9 -"$APP_PID" 2>/dev/null || true
+                pkill -9 -u gamer -x "$CURRENT_ACTION" 2>/dev/null || true
                 xsetroot -solid "#0c0f17" 2>/dev/null || true
 
                 if [ "$CURRENT_ACTION" = "$LAUNCHED_ACTION" ]; then

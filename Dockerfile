@@ -197,14 +197,12 @@ RUN wget -q -O /tmp/heroic.deb "https://github.com/Heroic-Games-Launcher/HeroicG
     rm -f /tmp/chrome.deb && \
     rm -rf /var/lib/apt/lists/*
 
-# 7. Create gamer user with sudo & device privileges (Ubuntu 24.04 has default 'ubuntu' user with UID 1000)
+# 7. Create gamer user with device privileges (Ubuntu 24.04 has default 'ubuntu' user with UID 1000)
 RUN if id -u ubuntu >/dev/null 2>&1; then userdel -f -r ubuntu 2>/dev/null || true; fi && \
     if getent group ubuntu >/dev/null 2>&1; then groupdel ubuntu 2>/dev/null || true; fi && \
     useradd -m -s /bin/bash -u 1000 gamer && \
     groupadd -f render && \
-    usermod -aG video,audio,input,render,sudo gamer && \
-    echo "gamer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/gamer && \
-    chmod 0440 /etc/sudoers.d/gamer
+    usermod -aG video,audio,input,render gamer
 
 # 8. Install Eglantine Nintendo Switch & Switch 2 (NX2) Emulator and RetroArch multi-system frontend
 COPY scripts/install_eglantine.sh /tmp/install_eglantine.sh
@@ -229,7 +227,7 @@ RUN mkdir -p /etc/kyber/tls /etc/kyber/openbox /etc/kyber/tint2 /etc/X11 /var/lo
     /home/gamer/.themes /usr/share/themes /usr/share/applications \
     /home/gamer/.local/share/Steam \
     /games/steam /games/heroic /games/roms /games/bios /games/saves && \
-    echo "1.0.3" > /etc/kyber/version && \
+    echo "1.0.4" > /etc/kyber/version && \
     chown -R gamer:gamer /games
 
 COPY config/xorg/xorg.nvidia.conf /etc/kyber/xorg.nvidia.conf
@@ -256,7 +254,6 @@ COPY scripts/init_display.sh /usr/local/bin/init_display.sh
 COPY scripts/run_kycontroller.sh /usr/local/bin/run_kycontroller.sh
 COPY scripts/switch_launcher.sh /usr/local/bin/switch_launcher.sh
 COPY scripts/kyber_console_hub.sh /usr/local/bin/kyber_console_hub.sh
-COPY scripts/kyber_launcher_menu.py /usr/local/bin/kyber_launcher_menu.py
 COPY scripts/launch_game_session.sh /usr/local/bin/launch_game_session.sh
 COPY scripts/kyber_control_service.py /usr/local/bin/kyber_control_service.py
 RUN ln -sf /usr/local/bin/kyber_control_service.py /usr/local/bin/resizer_service.py
